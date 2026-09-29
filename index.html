@@ -1,0 +1,2310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ollie's Word Adventure</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#7fd0ff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Andika:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --font:'Fredoka','Baloo 2',ui-rounded,'SF Pro Rounded','Trebuchet MS','Comic Sans MS',system-ui,sans-serif;
+  --letters:'Andika','Century Gothic','Trebuchet MS','Comic Sans MS',sans-serif;
+  --sky1:#7fd0ff; --sky2:#c9ecff; --sky3:#fff3c4;
+  --ink:#2b2350; --ink2:#6b6198;
+  --card:rgba(255,255,255,.84); --card2:#ffffff;
+  --line:rgba(43,35,80,.12);
+  --cloud-o:.75;
+  --primary:#7c5cff; --primary-d:#5a3fe0;
+  --pink:#ff5fa2; --pink-d:#d23a80;
+  --green:#34d399; --green-d:#159f72;
+  --yellow:#ffd23f; --yellow-d:#dfa500;
+  --blue:#4da3ff; --blue-d:#2a78d6;
+  --vowel:#ff6a5b; --vowel-d:#d94a3c;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --sky1:#1a1550; --sky2:#28277a; --sky3:#4a3a8c;
+    --ink:#f5f1ff; --ink2:#c4bbf0;
+    --card:rgba(42,37,102,.88); --card2:#302b72;
+    --line:rgba(255,255,255,.16); --cloud-o:.12;
+  }
+}
+:root[data-theme="dark"]{
+  --sky1:#1a1550; --sky2:#28277a; --sky3:#4a3a8c;
+  --ink:#f5f1ff; --ink2:#c4bbf0;
+  --card:rgba(42,37,102,.88); --card2:#302b72;
+  --line:rgba(255,255,255,.16); --cloud-o:.12;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{
+  height:100%;
+  scroll-padding-top:env(safe-area-inset-top,0px);
+  background:linear-gradient(180deg,var(--sky1),var(--sky2) 60%,var(--sky3)) fixed;
+  overscroll-behavior:none;
+}
+body{
+  margin:0;height:100%;overflow:hidden;background:transparent;
+  font-family:var(--font);color:var(--ink);
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  -webkit-user-select:none;user-select:none;
+}
+button{font-family:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:4px solid #fff;outline-offset:3px;box-shadow:0 0 0 7px var(--primary)}
+
+/* sky */
+.sky{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+.cloud{position:absolute;left:0;width:140px;height:44px;background:#fff;border-radius:44px;opacity:var(--cloud-o);animation:cloudmove linear infinite}
+.cloud::before,.cloud::after{content:"";position:absolute;background:#fff;border-radius:50%}
+.cloud::before{width:64px;height:64px;left:20px;top:-32px}
+.cloud::after{width:84px;height:84px;right:18px;top:-44px}
+@keyframes cloudmove{from{transform:translateX(-220px)}to{transform:translateX(calc(100vw + 220px))}}
+
+#app{position:relative;z-index:1;height:100%}
+#view{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.col{width:100%;max-width:720px;margin:0 auto;padding:12px 16px 28px;min-height:100%;display:flex;flex-direction:column;gap:12px}
+
+/* buttons */
+.btn{border:0;border-radius:28px;padding:14px 24px;font-weight:700;font-size:clamp(18px,4.6vw,26px);color:#fff;
+  background:var(--primary);box-shadow:0 8px 0 var(--primary-d),0 14px 22px rgba(43,35,80,.18);
+  transition:transform .08s,box-shadow .08s;line-height:1.1;position:relative}
+.btn:active{transform:translateY(6px);box-shadow:0 2px 0 var(--primary-d)}
+.btn.big{padding:18px 28px;font-size:clamp(22px,6vw,32px);border-radius:32px;width:100%}
+.btn.sm{padding:10px 16px;font-size:clamp(16px,4vw,20px);border-radius:22px;box-shadow:0 6px 0 var(--primary-d)}
+.btn.green{background:var(--green);box-shadow:0 8px 0 var(--green-d),0 14px 22px rgba(21,159,114,.25)}
+.btn.green:active{box-shadow:0 2px 0 var(--green-d)}
+.btn.pink{background:var(--pink);box-shadow:0 8px 0 var(--pink-d),0 14px 22px rgba(210,58,128,.25)}
+.btn.pink:active{box-shadow:0 2px 0 var(--pink-d)}
+.btn.yellow{background:var(--yellow);color:#4a3600;box-shadow:0 8px 0 var(--yellow-d),0 14px 22px rgba(223,165,0,.25)}
+.btn.yellow:active{box-shadow:0 2px 0 var(--yellow-d)}
+.btn.blue{background:var(--blue);box-shadow:0 8px 0 var(--blue-d)}
+.btn.blue.sm,.btn.yellow.sm,.btn.green.sm,.btn.pink.sm{box-shadow-width:0}
+.btn.sm.blue{box-shadow:0 6px 0 var(--blue-d)}
+.btn.sm.yellow{box-shadow:0 6px 0 var(--yellow-d)}
+.btn.sm.green{box-shadow:0 6px 0 var(--green-d)}
+.btn.sm.pink{box-shadow:0 6px 0 var(--pink-d)}
+.btn.ghost{background:var(--card);color:var(--ink);box-shadow:0 6px 0 var(--line)}
+.link{background:none;border:0;font-weight:600;font-size:clamp(16px,4vw,20px);color:var(--ink2);padding:10px 14px;border-radius:16px;text-decoration:underline;text-underline-offset:4px}
+.rbtn{width:54px;height:54px;border-radius:50%;border:0;font-size:26px;background:var(--card2);box-shadow:0 5px 0 var(--line),0 8px 16px rgba(43,35,80,.12);display:grid;place-items:center}
+.rbtn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--line)}
+.badge{position:absolute;top:-8px;right:-4px;background:var(--vowel);color:#fff;border-radius:999px;min-width:32px;height:32px;display:grid;place-items:center;font-size:18px;border:3px solid #fff}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.ttl{font-weight:700;font-size:clamp(20px,5vw,28px);flex:1;text-align:center}
+.starbadge{background:var(--card2);border-radius:999px;padding:8px 16px;font-weight:700;font-size:22px;box-shadow:0 5px 0 var(--line)}
+.dots{display:flex;gap:7px;align-items:center;justify-content:center;flex:1}
+.dots i{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.65);display:block;border:2px solid rgba(43,35,80,.1)}
+.dots i.d{background:var(--green);border-color:var(--green-d)}
+.dots i.c{background:var(--yellow);border-color:var(--yellow-d);transform:scale(1.35)}
+
+/* mascot */
+.mascot{display:flex;align-items:center;gap:10px}
+.owl{background:none;border:0;font-size:56px;line-height:1;padding:0;filter:drop-shadow(0 6px 6px rgba(43,35,80,.2))}
+.owl.sm{font-size:50px}
+.bubble{position:relative;background:var(--card2);border-radius:22px;padding:12px 16px;font-weight:600;font-size:clamp(16px,4.2vw,21px);line-height:1.25;flex:1;box-shadow:0 5px 0 var(--line)}
+.bubble::before{content:"";position:absolute;left:-10px;top:50%;margin-top:-10px;border:10px solid transparent;border-right-color:var(--card2);border-left:0}
+.owl.talk{animation:owltalk .9s ease-in-out}
+@keyframes owltalk{0%,100%{transform:none}20%{transform:translateY(-10px) rotate(-7deg)}45%{transform:translateY(0) rotate(5deg)}70%{transform:translateY(-4px) rotate(-3deg)}}
+
+/* home */
+.home{align-items:center;justify-content:center;text-align:center;gap:16px;position:relative}
+.home .hero{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+.home .owl{font-size:clamp(96px,26vw,150px)}
+.home .bubble{flex:none;max-width:420px}
+.home .bubble::before{left:50%;top:-10px;margin:0 0 0 -10px;border:10px solid transparent;border-bottom-color:var(--card2);border-top:0}
+.title{margin:0;font-size:clamp(34px,10vw,58px);line-height:1;font-weight:700;letter-spacing:-.5px;color:var(--ink);text-shadow:0 3px 0 rgba(255,255,255,.55)}
+.title span{color:var(--primary)}
+.menu{display:flex;flex-direction:column;gap:20px;width:100%;max-width:440px;margin-top:6px}
+.stats{display:flex;gap:14px;font-weight:600;font-size:19px;background:var(--card);border-radius:999px;padding:8px 18px}
+.gear{position:absolute;right:6px;top:6px;width:48px;height:48px;border-radius:50%;border:0;background:var(--card);font-size:22px;opacity:.7}
+.hint{font-size:13px;color:var(--ink2);margin-top:-6px}
+
+/* activity */
+.act{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%}
+@keyframes wob{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg) scale(1.08)}}
+.tiles{display:flex;justify-content:center;align-items:flex-end;width:100%;padding:8px 0 14px}
+.tile{width:calc(var(--tw,90px)*var(--w,1));height:calc(var(--tw,90px)*1.18);font-size:calc(var(--tw,90px)*.68);
+  display:grid;place-items:center;border-radius:24%;font-family:var(--letters);font-weight:700;color:#fff;line-height:1;
+  box-shadow:0 8px 0 rgba(0,0,0,.2),0 14px 18px rgba(43,35,80,.18);cursor:pointer;
+  text-shadow:0 3px 0 rgba(0,0,0,.18);transition:transform .12s;flex:none;padding-bottom:.04em}
+.tile.v{background:linear-gradient(#ff8f7a,var(--vowel))}
+.tile.d{background:linear-gradient(#b79bff,#8e6bff)}
+.tile.c0{background:linear-gradient(#7cc0ff,var(--blue))}
+.tile.c1{background:linear-gradient(#4de3c8,#1fb8a0)}
+.tile.c2{background:linear-gradient(#ffc45c,#ff9f2e)}
+.tile.c3{background:linear-gradient(#7ee7a1,#33c46e)}
+.tile.silent{background:var(--card);border:4px dashed var(--ink2);color:var(--ink2);box-shadow:none;text-shadow:none;opacity:.8}
+.tile.lit{transform:translateY(-14px) scale(1.14);filter:brightness(1.12);outline:6px solid rgba(255,255,255,.9)}
+.tile.boing{animation:tboing .5s}
+.tiles.sm .tile{box-shadow:0 5px 0 rgba(0,0,0,.2)}
+.tiles.ok .tile{background:linear-gradient(#7ee7a1,var(--green));cursor:default}
+@keyframes tboing{0%{transform:scale(1)}30%{transform:translateY(-14px) scale(1.15,.9)}60%{transform:translateY(0) scale(.94,1.08)}100%{transform:scale(1)}}
+.helpers{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding-bottom:6px}
+.micwrap{display:flex;flex-direction:column;align-items:center;gap:14px;min-height:150px;justify-content:center;width:100%}
+.miclabel{font-weight:600;font-size:clamp(16px,4vw,20px);color:var(--ink);min-height:1.3em;text-align:center}
+.say{font-weight:700;font-size:clamp(20px,5vw,26px);text-align:center}
+.mic{width:clamp(96px,30vw,128px);aspect-ratio:1;border-radius:50%;border:0;font-size:clamp(44px,13vw,60px);color:#fff;
+  background:radial-gradient(circle at 35% 30%,#ff9ac6,var(--pink) 60%,#e83e8c);
+  box-shadow:0 10px 0 var(--pink-d),0 16px 28px rgba(210,58,128,.35);position:relative;animation:micidle 2.2s ease-in-out infinite;transition:transform .08s}
+.mic::after{content:"";position:absolute;inset:-10px;border-radius:50%;border:5px solid rgba(255,95,162,.5);opacity:0}
+.mic:active{transform:translateY(6px);box-shadow:0 4px 0 var(--pink-d)}
+.mic.listening{background:radial-gradient(circle at 35% 30%,#8ff0c2,var(--green) 60%,var(--green-d));box-shadow:0 10px 0 var(--green-d),0 16px 28px rgba(21,159,114,.4);animation:none}
+.mic.on{background:radial-gradient(circle at 35% 30%,#8ff0c2,var(--green) 60%,var(--green-d));box-shadow:0 10px 0 var(--green-d);opacity:.75}
+.mic.listening::after{border-color:rgba(52,211,153,.7);animation:ring 1.1s ease-out infinite}
+.mic.shake{animation:micshake .5s}
+@keyframes micidle{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes ring{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.5);opacity:0}}
+@keyframes micshake{0%,100%{transform:rotate(0)}20%{transform:rotate(-8deg)}40%{transform:rotate(8deg)}60%{transform:rotate(-5deg)}80%{transform:rotate(5deg)}}
+.bottomrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center}
+.bottomrow [hidden]{display:none}
+
+/* celebration overlay */
+.overlay{position:fixed;inset:0;z-index:60;display:none}
+.overlay.on{display:flex}
+.cele{margin:auto;width:100%;max-width:640px;padding:20px 20px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:12px;
+  background:linear-gradient(180deg,rgba(255,243,196,.97),rgba(201,236,255,.97));min-height:100%;justify-content:center;animation:fadein .25s}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cele{background:linear-gradient(180deg,rgba(74,58,140,.97),rgba(26,21,80,.98))}}
+:root[data-theme="dark"] .cele{background:linear-gradient(180deg,rgba(74,58,140,.97),rgba(26,21,80,.98))}
+.stage{container-type:inline-size;width:100%;height:clamp(180px,38vh,340px);display:grid;place-items:center;overflow:hidden}
+.big{font-size:clamp(120px,36vmin,280px);line-height:1;display:inline-block;filter:drop-shadow(0 12px 14px rgba(43,35,80,.25))}
+.cword{width:100%;max-width:420px}
+.cpraise{font-size:clamp(30px,8vw,48px);font-weight:700;text-align:center;color:var(--primary);line-height:1.05}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
+/* fx */
+.fxlayer{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
+.fxlayer i{position:absolute;top:-24px;animation:cf var(--d) ease-in forwards}
+@keyframes cf{to{transform:translate3d(var(--x),110vh,0) rotate(720deg)}}
+.fxlayer .bs{position:absolute;left:50%;top:40%;font-size:clamp(28px,7vmin,56px);animation:bs 1.2s ease-out forwards;opacity:0}
+@keyframes bs{0%{transform:translate(-50%,-50%) scale(.3);opacity:1}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.2) rotate(var(--r));opacity:0}}
+.fxlayer .rf{position:absolute;top:-12%;font-size:clamp(26px,6vmin,44px);animation:rf var(--d) linear forwards}
+@keyframes rf{to{transform:translateY(125vh) rotate(40deg)}}
+
+/* emoji animations */
+.anim-hop{animation:hop .9s ease-in-out infinite}
+.anim-spin{animation:spin 1.6s ease-in-out infinite}
+.anim-grow{animation:grow 1.1s ease-in-out infinite}
+.anim-fly{animation:fly 1.8s ease-in-out infinite alternate}
+.anim-float{animation:float 2s ease-in-out infinite alternate}
+.anim-wiggle{animation:wiggle .5s ease-in-out infinite alternate}
+.anim-shake{animation:shake .6s ease-in-out infinite}
+.anim-glow{animation:glow 1.3s ease-in-out infinite}
+.anim-zoom{animation:zoom 1.5s ease-in infinite}
+.anim-pop{animation:pop 1.1s ease-in-out infinite}
+.anim-swim{animation:swim 2s ease-in-out infinite}
+.anim-sway{animation:sway 1.6s ease-in-out infinite;transform-origin:50% 90%}
+.anim-twinkle{animation:twinkle 1.1s ease-in-out infinite}
+.anim-drive{animation:drive 2.2s linear infinite}
+.anim-fall{animation:fall 1.4s linear infinite}
+.anim-splash{animation:splash .9s ease-in-out infinite}
+.anim-drift{animation:drift 9s ease-in-out infinite alternate}
+.anim-drift2{animation:drift 13s ease-in-out infinite alternate-reverse}
+.anim-wave{animation:wave 1s ease-in-out infinite;transform-origin:70% 80%}
+.em{display:inline-block;line-height:1}
+@keyframes hop{0%,100%{transform:translateY(0) scale(1.05,.92)}30%{transform:translateY(-26%) scale(.95,1.08)}60%{transform:translateY(0) scale(1.08,.9)}}
+@keyframes spin{0%{transform:rotate(0) scale(1)}50%{transform:rotate(180deg) scale(1.2)}100%{transform:rotate(360deg) scale(1)}}
+@keyframes grow{0%,100%{transform:scale(1)}50%{transform:scale(1.32)}}
+@keyframes fly{0%{transform:translate(-18cqw,4cqw) rotate(-10deg)}100%{transform:translate(18cqw,-6cqw) rotate(10deg)}}
+@keyframes float{0%{transform:translateY(6%)}100%{transform:translateY(-14%)}}
+@keyframes wiggle{0%{transform:rotate(-9deg)}100%{transform:rotate(9deg)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8%)}40%{transform:translateX(8%)}60%{transform:translateX(-6%)}80%{transform:translateX(6%)}}
+@keyframes glow{0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 rgba(255,210,60,0))}50%{transform:scale(1.13) rotate(8deg);filter:drop-shadow(0 0 .22em rgba(255,210,60,.95))}}
+@keyframes zoom{0%{transform:translate(-70%,70%) scale(.6);opacity:0}15%{opacity:1}80%{opacity:1}100%{transform:translate(70%,-70%) scale(1.15);opacity:0}}
+@keyframes pop{0%,100%{transform:scale(1)}25%{transform:scale(1.3) rotate(-6deg)}50%{transform:scale(.95)}75%{transform:scale(1.15) rotate(6deg)}}
+@keyframes swim{0%,100%{transform:translateX(-16%) rotate(-4deg)}50%{transform:translateX(16%) rotate(4deg)}}
+@keyframes sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+@keyframes twinkle{0%,100%{transform:scale(.85) rotate(0);filter:brightness(1)}50%{transform:scale(1.25) rotate(20deg);filter:brightness(1.3)}}
+@keyframes drive{0%{transform:translateX(36cqw)}100%{transform:translateX(-36cqw)}}
+@keyframes fall{0%{transform:translateY(-14cqw);opacity:0}15%{opacity:1}100%{transform:translateY(70cqw);opacity:0}}
+@keyframes splash{0%,100%{transform:scale(1)}30%{transform:scale(1.25,.8)}60%{transform:scale(.85,1.25) translateY(-10%)}}
+@keyframes drift{0%{transform:translateX(-7cqw)}100%{transform:translateX(9cqw)}}
+@keyframes wave{0%,100%{transform:rotate(0)}30%{transform:rotate(22deg)}60%{transform:rotate(-14deg)}}
+@keyframes idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-4%)}}
+@keyframes popin{0%{transform:translate(-50%,-50%) scale(0)}70%{transform:translate(-50%,-50%) scale(1.2)}100%{transform:translate(-50%,-50%) scale(1)}}
+.em.d2{animation-delay:.45s}.em.d3{animation-delay:.9s}
+
+/* story */
+.scene{position:relative;width:100%;aspect-ratio:4/3;border-radius:30px;overflow:hidden;container-type:inline-size;border:5px solid #fff;
+  box-shadow:0 10px 0 rgba(43,35,80,.14),0 18px 30px rgba(43,35,80,.18);flex:none}
+.bg-day{background:linear-gradient(#78cdff,#c8ecff 62%)}
+.bg-day .ground{background:#7fd36e}
+.bg-water{background:linear-gradient(#a5e3ff 0 34%,#4db5ff 34%,#1d7fe0)}
+.bg-water .ground{display:none}
+.bg-rain{background:linear-gradient(#8fa6bd,#c3d0dc 62%)}
+.bg-rain .ground{background:#6fb46a}
+.bg-home{background:linear-gradient(#ffe6cf,#ffd2dc 68%)}
+.bg-home .ground{background:#e8b98b;height:34%;left:0;right:0;bottom:0;border-radius:0}
+.ground{position:absolute;left:-10%;right:-10%;bottom:-24%;height:50%;border-radius:50%}
+.it{position:absolute;transform:translate(-50%,-50%);line-height:1;pointer-events:none;font-size:calc(var(--s)*1cqw);animation:popin .55s both}
+.scene:not(.done) .it:not(.decor) .em{animation:idle 2.6s ease-in-out infinite}
+.sent{font-size:clamp(28px,7.4vw,46px);font-weight:600;line-height:1.35;text-align:center;padding:4px 6px}
+.sent .w{display:inline-block;padding:0 8px;margin:2px 0;border-radius:14px;transition:background .2s,color .2s}
+.sent .w.on{background:#ffe27a;color:#4a3600}
+.sent .w.tg{border-bottom:6px dashed var(--pink)}
+.sent .w.tg.active{animation:pop 1.1s ease-in-out infinite;background:#ffd6e8;color:#7a1848}
+.sent .w.tg.ok{border-bottom-color:transparent;color:var(--green-d);font-weight:700}
+.act.compact{gap:8px}
+.act.compact .tiles{padding:4px 0 8px}
+.act.compact .micwrap{min-height:0;flex-direction:row;gap:18px}
+.act.compact .mic{width:92px;font-size:42px}
+.story-ctl{display:flex;justify-content:center;min-height:70px}
+.scards{display:flex;flex-direction:column;gap:16px}
+.scard{display:flex;gap:14px;align-items:center;background:var(--card);border-radius:28px;padding:14px 16px;box-shadow:0 6px 0 var(--line)}
+.scard .semoji{font-size:60px;flex:none;width:80px;text-align:center}
+.scard.locked .semoji{filter:grayscale(1);opacity:.55}
+.scard h3{margin:0 0 4px;font-size:clamp(20px,5vw,26px)}
+.scard p{margin:0 0 8px;font-size:16px;color:var(--ink2);font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{background:var(--card2);border-radius:999px;padding:4px 12px;font-family:var(--letters);font-weight:700;font-size:17px;border:2px solid var(--line)}
+.chip.ok{background:#d6f7e8;border-color:var(--green);color:#0e6b4a}
+:root[data-theme="dark"] .chip.ok{color:#bff5de;background:#155a45}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip.ok{color:#bff5de;background:#155a45}}
+
+/* end / stickers */
+.center{align-items:center;justify-content:center;text-align:center}
+.bigtitle{font-size:clamp(34px,9vw,54px);font-weight:700;line-height:1.05}
+.stickerbig{font-size:clamp(110px,30vw,190px);line-height:1;animation:reveal 1.1s cubic-bezier(.2,1.4,.4,1) both;filter:drop-shadow(0 10px 12px rgba(43,35,80,.25))}
+@keyframes reveal{0%{transform:scale(0) rotate(-360deg)}100%{transform:scale(1) rotate(0)}}
+.banner{background:var(--yellow);color:#4a3600;border-radius:22px;padding:12px 18px;font-weight:700;font-size:clamp(18px,4.6vw,24px);width:100%;max-width:440px;box-shadow:0 6px 0 var(--yellow-d)}
+.statline{font-size:clamp(20px,5vw,26px);font-weight:600}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:12px}
+.stk{aspect-ratio:1;background:var(--card);border-radius:24px;display:grid;place-items:center;font-size:clamp(40px,11vw,56px);box-shadow:0 5px 0 var(--line)}
+.stk.lock{opacity:.5;filter:grayscale(1)}
+.stk.new{animation:pop 1.2s ease-in-out 3}
+/* sticker play scenes */
+.pscene{position:relative;width:min(100%,calc(60vh*.75));aspect-ratio:3/4;margin:0 auto;border-radius:28px;overflow:hidden;container-type:inline-size;border:5px solid #fff;
+  box-shadow:0 10px 26px rgba(43,35,80,.22);touch-action:none;user-select:none;-webkit-user-select:none}
+.pscene.mini{width:100%;border-width:3px;border-radius:18px;box-shadow:none;pointer-events:none}
+.pscene .it{animation:none}
+.pscene .it.ollie{filter:drop-shadow(0 4px 4px rgba(0,0,0,.18))}
+.pst{position:absolute;transform:translate(-50%,-50%);line-height:1;font-size:calc(var(--s)*14cqw);cursor:grab;padding:2cqw;border-radius:50%;touch-action:none}
+.pst span{display:inline-block;pointer-events:none;filter:drop-shadow(0 3px 3px rgba(0,0,0,.2))}
+.pst.sel{outline:3px dashed rgba(255,255,255,.95);outline-offset:-1cqw;background:rgba(255,255,255,.18)}
+.pst.new{animation:popin .45s both}
+.ptools{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap}
+.ptools .vb{width:54px;height:54px;font-size:24px}
+.tray{display:flex;gap:10px;overflow-x:auto;padding:6px 4px 12px;-webkit-overflow-scrolling:touch}
+.tray button{flex:none;width:66px;height:66px;border-radius:20px;border:0;background:var(--card2);font-size:40px;box-shadow:0 4px 0 var(--line);cursor:pointer}
+.scgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
+.sccard{background:var(--card);border:0;border-radius:22px;padding:8px 8px 10px;box-shadow:0 5px 0 var(--line);cursor:pointer;color:var(--ink);font:inherit;font-weight:700;font-size:17px;display:flex;flex-direction:column;gap:6px}
+.pg-meadow{background:radial-gradient(130% 55% at 50% 100%,#6cc85c 0 44%,transparent 45%),linear-gradient(#78cdff,#d4f1ff 72%)}
+.pg-beach{background:linear-gradient(#8fd8ff 0 44%,#43b6f2 44% 60%,#f3dca0 60%)}
+.pg-space{background:radial-gradient(#fff 1px,transparent 1.6px) 0 0/34px 34px,radial-gradient(#fff .8px,transparent 1.4px) 17px 21px/47px 47px,linear-gradient(#0b0b3a,#35207a)}
+.pg-sea{background:radial-gradient(150% 30% at 50% 100%,#e9cf8f 0 42%,transparent 43%),linear-gradient(#5fd0ff,#1d7fe0 62%,#0b4fa6)}
+.pg-snow{background:radial-gradient(140% 50% at 50% 100%,#fff 0 44%,transparent 45%),linear-gradient(#9fc8ea,#e6f3ff 72%)}
+.pg-party{background:linear-gradient(transparent 72%,#d9a877 72%),linear-gradient(#ffe0ef,#ffc9df)}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:80;display:none;background:rgba(30,20,70,.55);padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));overflow-y:auto;-webkit-overflow-scrolling:touch}
+.modal.on{display:block}
+.mcard{background:var(--card2);color:var(--ink);border-radius:30px;max-width:560px;margin:0 auto;padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 18px 40px rgba(0,0,0,.35);user-select:text;-webkit-user-select:text}
+.mcard h2{margin:0;font-size:28px}
+.mcard h3{margin:6px 0 0;font-size:19px}
+.mcard p{margin:0;font-size:16px;line-height:1.4;color:var(--ink2)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:600;font-size:18px}
+.row small{display:block;font-weight:400;color:var(--ink2);font-size:14px}
+input[type=text],select{font:inherit;font-size:18px;padding:12px 14px;border-radius:16px;border:3px solid var(--line);background:var(--card2);color:var(--ink);width:100%;user-select:text;-webkit-user-select:text}
+.sw{position:relative;width:60px;height:34px;flex:none}
+.sw input{appearance:none;-webkit-appearance:none;width:60px;height:34px;border-radius:999px;background:#b9b3d6;margin:0;cursor:pointer;transition:background .2s;position:absolute;inset:0}
+.sw input::after{content:"";position:absolute;left:3px;top:3px;width:28px;height:28px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 2px 4px rgba(0,0,0,.3)}
+.sw input:checked{background:var(--green)}
+.sw input:checked::after{transform:translateX(26px)}
+.small-status{font-size:15px;background:var(--card);border-radius:14px;padding:10px 12px;min-height:1.4em}
+.lvls{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:16px;font-weight:500}
+
+/* grown-up notes + voice recorder */
+.gnote{font-size:14px;line-height:1.35;color:var(--ink2);background:var(--card);border-radius:14px;padding:8px 12px;max-width:460px;text-align:center;margin:6px auto 0}
+.gnote button{font:inherit;font-weight:700;color:var(--primary);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+.vhead{background:var(--card);border-radius:18px;padding:12px 14px;font-size:15px;line-height:1.4}
+.vhead b{font-weight:700}
+.col h3.vh{margin:8px 0 0;font-size:20px}
+.col h3.vh small{font-weight:400;color:var(--ink2);font-size:15px}
+.col p.vp{margin:0;font-size:15px;color:var(--ink2)}
+.vlist{display:flex;flex-direction:column;gap:8px}
+.vrow{display:flex;align-items:center;gap:8px;background:var(--card2);border-radius:16px;padding:8px 10px;box-shadow:0 3px 0 var(--line)}
+.vrow .vl{flex:1;display:flex;align-items:center;gap:10px;min-width:0;font-size:15px;color:var(--ink2)}
+.vrow .vl b{font-family:var(--letters);font-size:26px;color:var(--ink);min-width:56px;white-space:nowrap}
+.vrow.has .vl b::after{content:" ✓";color:var(--green-d);font-size:18px;font-family:inherit}
+.vb{width:46px;height:46px;border-radius:50%;border:0;font-size:18px;flex:none;cursor:pointer;background:var(--card);color:var(--ink);box-shadow:0 3px 0 var(--line)}
+.vb.rec{background:var(--pink);color:#fff}
+.vb.rec.on{background:#e11d48;animation:recpulse .8s ease-in-out infinite}
+.vrow .vt{color:var(--ink);font-weight:600;font-size:16px;line-height:1.3;white-space:normal}
+.vsec{background:var(--card);border-radius:18px;padding:4px 12px 10px}
+.vsec>summary{font-weight:700;font-size:18px;padding:10px 2px;cursor:pointer}
+.vsec .vgo{margin:4px 0 10px}
+.gwrap{position:fixed;inset:0;background:rgba(20,16,50,.6);z-index:300;display:grid;place-items:center;padding:calc(14px + env(safe-area-inset-top,0px)) 14px calc(14px + env(safe-area-inset-bottom,0px))}
+.gcard{background:var(--card2);border-radius:26px;padding:16px 18px 18px;width:min(560px,100%);display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.gtop{display:flex;justify-content:space-between;align-items:center;font-weight:600;color:var(--ink2)}
+.gtext{font-size:clamp(26px,7vw,40px);font-weight:700;text-align:center;line-height:1.25;color:var(--ink);min-height:2.5em;display:grid;place-items:center}
+.gsub{text-align:center;color:var(--ink2);font-size:15px;margin-top:-8px}
+.gbtns{display:flex;gap:16px;justify-content:center;align-items:center}
+.vb.big{width:86px;height:86px;font-size:34px}
+.gstat{text-align:center;font-size:15px;color:var(--ink2);min-height:1.4em}
+.gnav{display:flex;gap:10px;justify-content:space-between}
+.gnav .btn:disabled,.gbtns .vb:disabled{opacity:.35;filter:grayscale(.6)}
+.vb:disabled{opacity:.3}
+@keyframes recpulse{50%{transform:scale(1.12)}}
+details.vlev{background:var(--card);border-radius:16px;padding:4px 10px 8px}
+details.vlev summary{font-weight:700;font-size:17px;padding:8px 2px;cursor:pointer}
+.vmeter{height:8px;border-radius:4px;background:var(--line);overflow:hidden;position:sticky;top:0;z-index:2}
+.vmeter i{display:block;height:100%;width:0;background:var(--green);transition:width .06s}
+.tip{font-size:14px!important}
+
+@media (prefers-reduced-motion:reduce){
+  .cloud,.owl.talk,.mic,.vb.rec.on{animation:none}
+}
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true">
+  <div class="cloud" style="top:9%;animation-duration:80s"></div>
+  <div class="cloud" style="top:30%;animation-duration:110s;animation-delay:-50s"></div>
+  <div class="cloud" style="top:64%;animation-duration:140s;animation-delay:-90s"></div>
+</div>
+<div id="app"><div id="view"></div></div>
+<div id="overlay" class="overlay"></div>
+<div id="modal" class="modal"></div>
+
+<script>
+(()=>{
+'use strict';
+// the page as it arrived (everything up to and including this script); used to make the game file with voice
+const PRISTINE=(()=>{try{return '<!DOCTYPE html>\n'+document.documentElement.outerHTML;}catch(e){return '';}})();
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const rand=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+/* =====================================================================
+   WORD DATA   word;tiles;emoji;animation;sound
+   tiles: space separated, "tile:spoken sound"  ("-" = silent letter)
+   sound: "~name" = synthesized effect, plain text = spoken, "|" chains them
+   ===================================================================== */
+const SND={a:'aa',b:'buh',c:'kuh',d:'duh',e:'eh',f:'fuh',g:'guh',h:'huh',i:'ih',j:'juh',k:'kuh',l:'luh',m:'muh',n:'nuh',o:'ah',p:'puh',q:'kwuh',r:'ruh',s:'suh',t:'tuh',u:'uh',v:'vuh',w:'wuh',x:'ksuh',y:'yuh',z:'zuh',
+  sh:'shuh',ch:'chuh',th:'thuh',ck:'kuh',wh:'wuh',qu:'kwuh',ll:'luh',pp:'puh',nn:'nuh',
+  ee:'ee',ai:'ay',ay:'ay',oa:'oh',oo:'oo',ou:'ow',ow:'ow',oy:'oy',ar:'ar',or:'or',er:'er',ir:'er',ea:'ee',ey:'ay',ing:'ing'};
+
+const RAW={
+1:[
+'up;u p;🎈;float;~whoosh','go;g o:oh;🚀;zoom;~zoom','in;i n;📦;pop;~pop','on;o n;💡;glow;~ding','at;a t;🎯;pop;~pop',
+'me;m e:ee;🙋;hop;~tada','we;w e:ee;👫;hop;~cheer','no;n o:oh;🙅;shake;~boing','hi;h i:eye;👋;wave;~ding|Hi hi!',
+'ox;o x;🐂;hop;~pop|Moo!','to;t o:oo;➡️;zoom;~whoosh','he;h e:ee;👦;hop;~tada'],
+2:[
+'cat;c a t;🐱;hop;~pop|Meow meow!','dog;d o g;🐶;hop;~pop|Woof woof!','pig;p i g;🐷;wiggle;~pop|Oink oink!','hen;h e n;🐔;hop;~pop|Cluck cluck!',
+'bug;b u g;🐛;wiggle;~buzz','sun;s u n;☀️;glow;~sparkle','hat;h a t;🎩;pop;~tada','bat;b a t;🦇;fly;~flap','rat;r a t;🐀;hop;~pop|Squeak squeak!',
+'ant;a n t;🐜;drive;~pop','bed;b e d;🛏️;grow;~pop|Zzz zzz','red;r e d;🔴;pop;~ding','pen;p e n;🖊️;wiggle;~pop','cup;c u p;🥤;hop;~pop|Glug glug!',
+'bus;b u s;🚌;drive;~beep|Beep beep!','van;v a n;🚐;drive;~beep','map;m a p;🗺️;grow;~ding','box;b o x;📦;pop;~pop','fox;f o x;🦊;hop;~pop|Yip yip!',
+'six;s i x;6️⃣;spin;~ding','run;r u n;🏃;drive;~whoosh','hug;h u g;🤗;grow;~tada|Aww!','big;b i g;🐘;grow;~boing|Big big big!','wet;w e t;💦;splash;~splash',
+'hot;h o t;🔥;glow;~sizzle','leg;l e g;🦵;wiggle;~boing','tub;t u b;🛁;splash;~splash','nut;n u t;🥜;pop;~pop','jet;j e t;✈️;fly;~zoom',
+'web;w e b;🕸️;wiggle;~pop','kid;k i d;🧒;hop;~cheer','net;n e t;🥅;pop;~pop','cap;c a p;🧢;pop;~tada'],
+3:[
+'the;th e:uh','and;a n d;➕;spin;~ding','you;y ou:oo;🫵;pop;~ding','are;ar e:-','was;w a:uh s:zuh','she;sh e:ee;👧;hop;~tada','see;s ee;👀;grow;~ding',
+'her;h er','his;h i s:zuh','for;f or','mom;m o:ah m;👩;grow;~tada|Mom!','dad;d a d;👨;grow;~tada|Dad!','cow;c ow;🐮;hop;~pop|Moo moo!',
+'boy;b oy;👦;hop;~cheer','toy;t oy;🧸;hop;~boing','bee;b ee;🐝;fly;~buzz|Bzzzz!','car;c ar;🚗;drive;~beep|Beep beep!','yes;y e s;👍;pop;~cheer'],
+4:[
+'frog;f r o g;🐸;hop;~pop|Ribbit ribbit!','jump;j u m p;🦘;hop;~boing','ship;sh i p;🚢;swim;~horn|Toot toot!','fish;f i sh;🐟;swim;~splash|Blub blub!',
+'milk;m i l k;🥛;pop;~pop|Yum!','duck;d u ck;🦆;swim;~pop|Quack quack!','moon;m oo n;🌙;glow;~sparkle','book;b oo k;📖;pop;~ding','tree;t r ee;🌳;sway;~rustle',
+'cake;c a:ay k e:-;🎂;grow;~tada|Yum!','bike;b i:eye k e:-;🚲;drive;~ring','rain;r ai n;🌧️;fall;~rain','boat;b oa t;⛵;swim;~horn|Toot toot!',
+'star;s t ar;⭐;twinkle;~twinkle','bird;b ir d;🐦;fly;~pop|Tweet tweet!','snow;s n ow:oh;❄️;fall;~sparkle','drum;d r u m;🥁;shake;~drum',
+'lamp;l a m p;💡;glow;~ding','hand;h a n d;✋;wave;~clap','sand;s a n d;🏖️;pop;~pop','tent;t e n t;⛺;pop;~pop','bell;b e ll;🔔;shake;~ring|Ding dong!',
+'king;k ing;👑;grow;~tada','ring;r ing;💍;twinkle;~ring','sock;s o ck;🧦;wiggle;~pop','clap;c l a p;👏;grow;~clap','swim;s w i m;🏊;swim;~splash',
+'gift;g i f t;🎁;pop;~tada','leaf;l ea f;🍃;float;~rustle','rock;r o ck;🪨;shake;~pop','wind;w i n d;💨;fly;~whoosh','corn;c or n;🌽;pop;~pop',
+'goat;g oa t;🐐;hop;~pop|Baa baa!','flag;f l a g;🚩;wave;~pop',
+'have;h a v e:-','come;c o:uh m e:-','like;l i:eye k e:-;👍;pop;~cheer','they;th ey','look;l oo k;👀;grow;~ding','play;p l ay;⚽;hop;~boing',
+'went;w e n t','with;w i th','that;th a t','this;th i s','what;wh a:uh t','want;w a:ah n t','from;f r o:uh m'],
+5:[
+'happy;h a pp y:ee;😊;hop;~cheer','plant;p l a n t;🌱;grow;~pop','green;g r ee n;🟢;pop;~ding','smile;s m i:eye l e:-;😀;grow;~tada',
+'house;h ou s e:-;🏠;pop;~pop','horse;h or s e:-;🐴;hop;~pop|Neigh neigh!','snake;s n a:ay k e:-;🐍;wiggle;~pop|Hiss!','train;t r ai n;🚂;drive;~choo|Choo choo!',
+'cloud;c l ou d;☁️;float;~whoosh','clown;c l ow n;🤡;hop;~boing|Honk honk!','queen;qu ee n;👸;grow;~tada','sheep;sh ee p;🐑;hop;~pop|Baa baa!',
+'bread;b r ea:eh d;🍞;pop;~pop|Yum!','truck;t r u ck;🚚;drive;~horn|Honk honk!','tiger;t i:eye g er;🐯;hop;~pop|Roar!','apple;a pp l e:-;🍎;grow;~pop|Yum!',
+'mouse;m ou s e:-;🐭;hop;~pop|Squeak squeak!','spoon;s p oo n;🥄;wiggle;~ding','shark;sh ar k;🦈;swim;~pop|Chomp chomp!','whale;wh a:ay l e:-;🐳;swim;~splash',
+'sleep;s l ee p;😴;float;~pop|Zzz zzz','robot;r o:oh b o t;🤖;shake;~beep|Beep boop!','bunny;b u nn y:ee;🐰;hop;~pop','lemon;l e m o:uh n;🍋;pop;~pop|Sour!','candy;c a n d y:ee;🍬;spin;~tada']
+};
+const WORDS=[],BYW={};
+Object.keys(RAW).forEach(l=>RAW[l].forEach(line=>{
+  const [w,tl,emoji,anim,sfx]=line.split(';');
+  const o={w,lvl:+l,
+    tiles:tl.split(' ').map(tok=>{const [t,s]=tok.split(':');return {t,s:s===undefined?SND[t]:s}}),
+    emoji:emoji||'⭐',anim:anim||'twinkle',sfx:sfx||'~sparkle'};
+  WORDS.push(o);BYW[w]=o;
+}));
+const VOWEL_TEAMS=['ai','ay','ea','ee','oa','oo','ou','ow','oy','ar','or','er','ir','ur','ey'];
+const isVowelTile=t=>/^[aeiou]$/.test(t.t)||VOWEL_TEAMS.includes(t.t)||(t.t==='y'&&/^(ee|eye)$/.test(t.s));
+
+/* =====================================================================
+   STORIES   sentence: [text with [target] words, [scene items]]
+   item = "emoji,x%,y%,size,animation"
+   ===================================================================== */
+const STORY_RAW=[
+{id:'cat',title:'Cat and Hat',emoji:'🐱',bg:'day',s:[
+ ['I see a [cat].',['🐱,50,66,36,hop']],
+ ['The [cat] has a [hat].',['🐱,50,68,34,hop','🎩,50,40,15,wiggle']],
+ ['The [cat] can [run].',['🐱,50,68,28,drive']],
+ ['The [sun] is [hot].',['☀️,50,34,44,glow','🥵,50,72,24,wiggle']],
+ ['The [cat] is in a [tub]!',['🛁,50,70,38,splash','🐱,50,56,20,hop','💦,26,44,12,float','💦,74,42,12,float']]]},
+{id:'bus',title:'The Big Red Bus',emoji:'🚌',bg:'day',s:[
+ ['I see a [bus].',['🚌,50,66,36,drive']],
+ ['The [bus] is [red].',['🚌,50,66,36,wiggle','🔴,50,30,14,pop']],
+ ['The [bus] is [big].',['🚌,50,62,54,grow']],
+ ['Go, [bus], go!',['🚌,50,66,36,drive','💨,18,70,12,float']],
+ ['The [kid] is on the [bus].',['🚌,50,68,36,hop','🧒,50,42,15,wave']]]},
+{id:'bug',title:'Bug and Ant',emoji:'🐜',bg:'day',s:[
+ ['An [ant] is on a [nut].',['🥜,50,70,30,pop','🐜,50,52,14,wiggle']],
+ ['A [bug] is on a [leg].',['🦵,50,64,38,wiggle','🐛,50,38,12,wiggle']],
+ ['The [bug] can [run].',['🐛,50,70,22,drive']],
+ ['The [ant] can [run].',['🐜,50,72,18,drive']],
+ ['The [ant] and the [bug] [hug]!',['🐜,38,68,22,grow','🐛,62,68,22,grow','💖,50,36,14,float']]]},
+{id:'pig',title:'Pig and Fox',emoji:'🐷',bg:'day',s:[
+ ['A [pig] is in a [tub].',['🛁,50,70,36,splash','🐷,50,56,22,hop','💦,30,40,10,float','💦,70,42,10,float']],
+ ['The [pig] has a [nut].',['🐷,40,68,30,hop','🥜,70,74,14,pop']],
+ ['A [fox] can see the [pig].',['🦊,25,68,26,wiggle','🐷,72,68,26,hop','👀,25,42,10,pop']],
+ ['The [fox] and the [pig] [run].',['🦊,50,66,24,drive','🐷,50,74,24,drive']],
+ ['The [pig] and the [fox] [hug]!',['🦊,38,66,28,grow','🐷,62,66,28,grow','💖,50,34,14,float']]]},
+{id:'family',title:'Mom, Dad and Me',emoji:'👨‍👩‍👧',bg:'home',s:[
+ ['I see [mom].',['👩,50,62,38,wave','💖,50,26,10,float']],
+ ['I see [dad].',['👨,50,62,38,wave','💖,50,26,10,float']],
+ ['[Mom] and [dad] see a [car].',['👩,22,64,22,hop','👨,42,64,22,hop','🚗,76,66,28,wiggle']],
+ ['We [go] in the [car]!',['🚗,50,62,44,drive','💨,18,68,12,float']]]},
+{id:'cake',title:'A Cake for Me',emoji:'🎂',bg:'home',s:[
+ ['[Mom] has a [cake].',['👩,30,62,28,wave','🎂,68,66,28,grow']],
+ ['The [cake] is for [me]!',['🎂,50,60,40,grow','🙋,50,28,14,hop']],
+ ['I [like] the [cake].',['😋,50,36,26,grow','🎂,50,72,26,pop']],
+ ['The [cake] has a [star].',['🎂,50,66,42,grow','⭐,50,30,14,twinkle']]]},
+{id:'frog',title:'Frog and Fish',emoji:'🐸',bg:'water',s:[
+ ['A [frog] is on a [rock].',['🪨,50,74,30,wiggle','🐸,50,54,22,hop']],
+ ['The [frog] can [jump]!',['🐸,50,62,30,hop']],
+ ['A [fish] can [swim].',['🐟,50,66,30,swim']],
+ ['The [frog] sees the [fish].',['🐸,28,44,24,hop','🐟,72,66,24,swim','👀,28,22,10,pop']],
+ ['The [frog] and the [fish] [clap]!',['🐸,30,44,26,hop','🐟,70,66,26,swim','👏,50,24,16,grow']]]},
+{id:'rain',title:'Rain Day',emoji:'🌧️',bg:'rain',s:[
+ ['Look at the [rain]!',['🌧️,50,34,36,float','☔,50,70,28,wiggle']],
+ ['The [rain] is [wet].',['🌧️,50,32,34,float','💦,50,72,26,splash']],
+ ['The [duck] can [swim].',['🦆,50,68,28,swim']],
+ ['The [bird] is in the [tree].',['🌳,50,60,50,sway','🐦,56,40,14,hop']],
+ ['The [sun] is [big]!',['☀️,50,38,52,glow','🌈,50,72,40,pop']]]},
+{id:'train',title:'The Happy Train',emoji:'🚂',bg:'day',s:[
+ ['The [train] is [green].',['🚂,50,66,40,drive','🟢,50,32,12,pop']],
+ ['A [horse] is on the [train].',['🚂,50,68,34,wiggle','🐴,50,42,16,hop']],
+ ['The [clown] is [happy].',['🤡,50,62,34,hop','😊,50,26,12,float']],
+ ['The [train] can [go]!',['🚂,50,66,40,drive','💨,18,68,12,float']]]}
+];
+const DECOR={
+ day:['☁️,16,14,13,drift','☁️,82,9,10,drift2','🌷,9,88,7,sway','🌼,92,86,7,sway'],
+ water:['☁️,18,12,12,drift','☁️,80,9,10,drift2','🌊,18,46,9,swim','🌊,82,54,9,swim'],
+ rain:['☁️,20,12,16,drift','☁️,72,10,18,drift2','💧,12,10,6,fall','💧,32,4,6,fall d2','💧,54,10,6,fall d3','💧,74,6,6,fall','💧,90,12,6,fall d2'],
+ home:['🖼️,20,20,10,sway','🪴,90,70,12,sway']
+};
+const STORIES=STORY_RAW.map(st=>{
+  const sents=st.s.map(([txt,items])=>({
+    toks:txt.split(' ').map(tok=>{
+      const m=tok.match(/^([^\[\]]*)\[([A-Za-z]+)\]([^\[\]]*)$/);
+      return m?{target:true,w:m[2].toLowerCase(),disp:m[1]+m[2]+m[3]}:{target:false,disp:tok};
+    }),items}));
+  const targets=[];
+  sents.forEach(s=>s.toks.forEach(t=>{if(t.target&&!targets.includes(t.w))targets.push(t.w)}));
+  return {...st,sents,targets};
+});
+
+/* =====================================================================
+   SAVE
+   ===================================================================== */
+const KEY='ollie-word-adventure-v1';
+const defaults=()=>({name:'',seen:false,frontier:2,words:{},stars:0,stickers:[],stories:{},rounds:0,recent:[],recentWords:[],
+  settings:{sound:true,mic:true,upper:false,unlockAll:false,voice:'',fx:.5,boost:true,boostLvl:2.4,vspd:.85}});
+function load(){
+  try{const j=JSON.parse(localStorage.getItem(KEY));
+    if(j){const d=defaults();return {...d,...j,settings:{...d.settings,...(j.settings||{})}}}}catch(e){}
+  return defaults();
+}
+let S=load();
+const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const isKnown=w=>((S.words[w]||{}).sc||0)>=1.8;
+const knownCount=()=>WORDS.filter(w=>isKnown(w.w)).length;
+const storyUnlocked=st=>S.settings.unlockAll||st.targets.every(isKnown);
+const unlockedIds=()=>STORIES.filter(storyUnlocked).map(s=>s.id);
+const disp=t=>S.settings.upper?t.toUpperCase():t;
+const STICKERS=shuffleFixed(['🦄','🐙','🦖','🐳','🦋','🐞','🌈','🍭','🚀','🎨','🐼','🦁','🐬','🍩','🎈','🐢','🦊','🐝','🍓','🌻','🎠','🧸','🐧','🦉','🐸','🍦','🚒','🛸','👑','🐨','🦒','🍉','🎸','🐰','🎂','🏆']);
+function shuffleFixed(a){let s=7;return a.map(v=>[v,(s=(s*9301+49297)%233280)]).sort((x,y)=>x[1]-y[1]).map(x=>x[0])}
+
+/* =====================================================================
+   AUDIO: speech + synthesized effects
+   ===================================================================== */
+let AC=null,master=null,noiseBuf=null,vbus=null;
+const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+/* iOS turns playback down while the microphone is in use; compensate on Ollie's voice */
+let AFTER_CAP=false,IN_SEQ=false;
+const boostLvl=()=>S.settings.boost===false?1:Math.max(1,+S.settings.boostLvl||2.4);
+function setGain(g){if(!vbus)return;try{vbus.gain.setTargetAtTime(g,AC.currentTime,.03);}catch(e){vbus.gain.value=g;}}
+function setVoiceBoost(){setGain(IS_IOS&&MIC_ON?boostLvl():1);}
+/* called as each new line starts: the first line after the mic listened plays softer,
+   because iOS has just stopped turning playback down */
+function applyBoost(){
+  if(!(IS_IOS&&MIC_ON)){AFTER_CAP=false;setGain(1);return;}
+  const l=boostLvl();setGain(AFTER_CAP?Math.max(1,l*.6):l);AFTER_CAP=false;
+}
+const keep=[];
+function ac(){
+  if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
+    AC=new C();master=AC.createGain();master.gain.value=S.settings.fx;master.connect(AC.destination);
+    // Ollie's voice (Murf + recordings) goes through its own bus with a limiter, so it can be boosted safely
+    vbus=AC.createGain();const lim=AC.createDynamicsCompressor();
+    lim.threshold.value=-4;lim.knee.value=2;lim.ratio.value=20;lim.attack.value=.002;lim.release.value=.12;
+    vbus.connect(lim);lim.connect(AC.destination);setVoiceBoost();}
+  if(AC.state!=='running'){try{AC.resume().catch(()=>{});}catch(e){}}
+  return AC;
+}
+/* iPhone/iPad: by default web audio and speech are muted by the silent switch, and while the
+   microphone is on iOS switches to "call" audio that ignores both the switch and the media volume.
+   So: play as media (follows the volume buttons) and switch back to media as soon as the mic stops. */
+const ASN=navigator.audioSession;
+function bounceAC(){if(!IS_IOS||!AC||AC.state!=='running')return;try{AC.suspend().then(()=>AC.resume()).catch(()=>{});}catch(e){}}
+function sessionPlayback(){try{if(ASN&&ASN.type!=='playback')ASN.type='playback';}catch(e){}}
+function sessionRecord(){try{if(ASN&&ASN.type!=='play-and-record')ASN.type='play-and-record';}catch(e){}}
+let SILENT_EL=null,SPEECH_PRIMED=false;
+function unlockAudio(){
+  sessionPlayback();
+  if(!SILENT_EL){try{SILENT_EL=new Audio('data:audio/wav;base64,UklGRvQHAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YdAHAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==');SILENT_EL.loop=true;SILENT_EL.setAttribute('playsinline','');SILENT_EL.play().catch(()=>{});}catch(e){}}
+  const c=ac();
+  if(c){try{const b=c.createBuffer(1,1,22050),src=c.createBufferSource();src.buffer=b;src.connect(c.destination);src.start();}catch(e){}}
+  if(!SPEECH_PRIMED&&'speechSynthesis' in window){SPEECH_PRIMED=true;try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;keep.push(u);u.onend=u.onerror=()=>{const i=keep.indexOf(u);if(i>=0)keep.splice(i,1);};speechSynthesis.speak(u);}catch(e){}}
+}
+['touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,unlockAudio,{capture:true,passive:true}));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)micOff();if(!document.hidden&&AC){sessionPlayback();try{AC.resume().catch(()=>{});}catch(e){}}});
+function osc({t=0,dur=.3,type='sine',f=[[0,440]],vol=.3,att=.01,filt=null,vib=0,vibHz=6}){
+  const a=ac();if(!a||!S.settings.sound)return;
+  const t0=a.currentTime+t;
+  const o=a.createOscillator();o.type=type;
+  o.frequency.setValueAtTime(f[0][1],t0);
+  f.slice(1).forEach(([p,hz])=>o.frequency.exponentialRampToValueAtTime(Math.max(20,hz),t0+p*dur));
+  const g=a.createGain();
+  g.gain.setValueAtTime(.0001,t0);
+  g.gain.exponentialRampToValueAtTime(vol,t0+att);
+  g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+  if(vib){const l=a.createOscillator(),lg=a.createGain();l.frequency.value=vibHz;lg.gain.value=vib;l.connect(lg);lg.connect(o.frequency);l.start(t0);l.stop(t0+dur+.05);}
+  if(filt){
+    const b=a.createBiquadFilter();b.type=filt.type||'bandpass';
+    b.frequency.setValueAtTime(filt.f[0][1],t0);
+    filt.f.slice(1).forEach(([p,hz])=>b.frequency.exponentialRampToValueAtTime(Math.max(20,hz),t0+p*dur));
+    b.Q.value=filt.q||1;o.connect(b);b.connect(g);
+  }else o.connect(g);
+  g.connect(master);o.start(t0);o.stop(t0+dur+.05);
+}
+function noise({t=0,dur=.3,vol=.3,type='bandpass',f=[[0,1000]],q=1,att=.005}){
+  const a=ac();if(!a||!S.settings.sound)return;
+  if(!noiseBuf){noiseBuf=a.createBuffer(1,a.sampleRate*2,a.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;}
+  const t0=a.currentTime+t;
+  const s=a.createBufferSource();s.buffer=noiseBuf;
+  const b=a.createBiquadFilter();b.type=type;b.Q.value=q;
+  b.frequency.setValueAtTime(f[0][1],t0);
+  f.slice(1).forEach(([p,hz])=>b.frequency.exponentialRampToValueAtTime(Math.max(20,hz),t0+p*dur));
+  const g=a.createGain();
+  g.gain.setValueAtTime(.0001,t0);
+  g.gain.exponentialRampToValueAtTime(vol,t0+att);
+  g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+  s.connect(b);b.connect(g);g.connect(master);s.start(t0,0,Math.min(dur,1.9));
+}
+const FX={
+ ding(){osc({f:[[0,1318]],dur:.7,vol:.3});osc({f:[[0,2637]],dur:.4,vol:.08});},
+ pop(){osc({f:[[0,520],[1,120]],dur:.13,vol:.45});},
+ boing(){osc({type:'triangle',f:[[0,160],[.35,640],[.7,260],[1,420]],dur:.6,vol:.4,vib:14,vibHz:18});},
+ whoosh(){noise({dur:.7,vol:.55,f:[[0,300],[.5,2600],[1,500]],q:1.1,att:.15});},
+ zoom(){osc({type:'sawtooth',f:[[0,110],[1,880]],dur:.7,vol:.12,filt:{type:'lowpass',f:[[0,600],[1,2400]],q:1}});FX.whoosh();},
+ splash(){noise({dur:.7,vol:.5,type:'lowpass',f:[[0,2200],[1,300]],q:.7,att:.01});[.1,.25,.4].forEach(t=>osc({t,f:[[0,350+Math.random()*300],[1,900]],dur:.12,vol:.25}));},
+ sparkle(){[1047,1319,1568,2093,2637].forEach((h,i)=>osc({t:i*.08,f:[[0,h]],dur:.3,vol:.18}));},
+ twinkle(){[2093,1760,1568,1319,1047].forEach((h,i)=>osc({t:i*.1,f:[[0,h]],dur:.35,vol:.16}));},
+ tada(){[523,659,784].forEach((h,i)=>osc({t:i*.11,type:'triangle',f:[[0,h]],dur:.25,vol:.25}));[523,659,784,1047].forEach(h=>osc({t:.36,type:'triangle',f:[[0,h]],dur:.7,vol:.16}));},
+ cheer(){[392,494,587,784].forEach((h,i)=>osc({t:i*.09,type:'square',f:[[0,h]],dur:.2,vol:.1}));noise({t:.3,dur:.5,vol:.2,type:'highpass',f:[[0,1500]],att:.05});},
+ drum(){[0,.18,.36,.5].forEach(t=>{osc({t,f:[[0,190],[1,50]],dur:.22,vol:.6});noise({t,dur:.06,vol:.15,type:'highpass',f:[[0,3000]]});});},
+ beep(){[0,.22].forEach(t=>osc({t,type:'square',f:[[0,660]],dur:.14,vol:.14}));},
+ ring(){[0,.45].forEach(t=>{osc({t,f:[[0,1568]],dur:.8,vol:.25});osc({t,f:[[0,2350]],dur:.6,vol:.1});});},
+ clap(){[0,.16,.32].forEach(t=>noise({t,dur:.07,vol:.55,f:[[0,1600]],q:.8,att:.002}));},
+ buzz(){osc({type:'sawtooth',f:[[0,200]],dur:.6,vol:.13,vib:40,vibHz:28,filt:{type:'bandpass',f:[[0,900]],q:2}});},
+ flap(){[0,.13,.26,.39].forEach(t=>noise({t,dur:.12,vol:.35,type:'lowpass',f:[[0,700]],att:.02}));},
+ horn(){[0,.4].forEach(t=>osc({t,type:'sawtooth',f:[[0,175]],dur:.32,vol:.16,filt:{type:'lowpass',f:[[0,700]],q:1}}));},
+ rustle(){noise({dur:.9,vol:.22,type:'highpass',f:[[0,3500]],att:.3});},
+ rain(){noise({dur:1.4,vol:.25,type:'highpass',f:[[0,4500]],att:.4});[.2,.5,.8,1.1].forEach(t=>osc({t,f:[[0,1400+Math.random()*800],[1,700]],dur:.08,vol:.12}));},
+ choo(){[0,.28,.56,.84].forEach(t=>noise({t,dur:.2,vol:.4,f:[[0,1100]],q:.8,att:.02}));osc({t:1.15,f:[[0,880],[.5,830],[1,880]],dur:.5,vol:.18,vib:8,vibHz:12});},
+ sizzle(){noise({dur:.9,vol:.28,type:'highpass',f:[[0,5000]],att:.05});}
+};
+
+function voiceScore(v){
+  const n=v.name+' '+(v.voiceURI||'');let sc=0;
+  if(/natural|neural/i.test(n))sc+=60;
+  if(/premium/i.test(n))sc+=55;
+  if(/enhanced/i.test(n))sc+=45;
+  if(/siri/i.test(n))sc+=35;
+  if(/^Google/.test(v.name))sc+=25;
+  const pref=['Ava','Zoe','Samantha','Allison','Evan','Nicky','Aria','Jenny','Michelle','Emma','Serena','Karen','Moira','Tessa'];
+  const i=pref.findIndex(p=>v.name.includes(p));if(i>=0)sc+=20-i;
+  if(/^en[-_]US/i.test(v.lang))sc+=6;else if(/^en[-_](GB|AU|CA|IE|NZ)/i.test(v.lang))sc+=3;
+  if(/compact|eloquence|albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|\bfred\b|junior|ralph|kathy|grandma|grandpa|rocko|shelley|\breed\b|sandy|\bflo\b|eddy/i.test(n))sc-=80;
+  return sc;
+}
+const enVoices=()=>('speechSynthesis' in window?speechSynthesis.getVoices():[]).filter(v=>/^en/i.test(v.lang)).sort((a,b)=>voiceScore(b)-voiceScore(a));
+function pickVoice(){
+  const vs=enVoices().filter(v=>!BADV.has(v.voiceURI));if(!vs.length)return null;
+  if(S.settings.voice){const v=vs.find(x=>x.voiceURI===S.settings.voice);if(v)return v;}
+  return vs[0];
+}
+let lastCancel=0,SPEAK_OK=null,LASTVOICE='';const BADV=new Set();
+let TTS_ACT=0,SEQ_ACT=0,HUSH_AT=0;
+function audioBusy(){return TTS_ACT>0||SEQ_ACT>0||PLAYING.size>0||(('speechSynthesis' in window)&&speechSynthesis.speaking);}
+function hushMic(){if(MIC_ON&&curRec){HUSH_AT=Date.now();stopListening();}}
+async function waitAudioIdle(cancel){let quiet=0,t=0;while(t<12000){if(cancel())return;if(audioBusy())quiet=0;else{quiet+=100;if(quiet>=400)return;}await sleep(100);t+=100;}}
+function pauseSilent(){try{if(SILENT_EL&&!SILENT_EL.paused)SILENT_EL.pause();}catch(e){}}
+function resumeSilent(){try{if(SILENT_EL&&SILENT_EL.paused&&TTS_ACT<=0)SILENT_EL.play().catch(()=>{});}catch(e){}}
+function sayTTS(text,{rate=.9,pitch=1,vol=1}={}){
+  TTS_ACT++;hushMic();pauseSilent();
+  let ended=false;const endAct=()=>{if(!ended){ended=true;TTS_ACT--;setTimeout(resumeSilent,150);}};
+  return new Promise(res0=>{const res=()=>{endAct();res0();};
+    if(!text||!S.settings.sound||!('speechSynthesis' in window)){setTimeout(res,Math.min(1500,(text||'').length*70));return;}
+    const go=n=>{  // n: attempt number; attempts 0-1 use the best working voice, 2 uses the browser default
+      const u=new SpeechSynthesisUtterance(text);
+      const retry=n<2,v=retry?pickVoice():null;if(v){u.voice=v;u.lang=v.lang;}else u.lang='en-US';
+      u.rate=rate;u.pitch=pitch;u.volume=vol;
+      let done=false,started=false;
+      const clear=()=>{done=true;clearTimeout(tm);clearTimeout(wd);const i=keep.indexOf(u);if(i>=0)keep.splice(i,1);};
+      const fin=()=>{if(done)return;clear();res();};
+      const fallback=()=>{if(done)return;clear();if(v)BADV.add(v.voiceURI);
+        try{speechSynthesis.cancel();lastCancel=Date.now();}catch(e){}setTimeout(()=>go(n+1),130);};
+      u.onstart=()=>{started=true;SPEAK_OK=true;LASTVOICE=v?v.name:'device default';};
+      u.onend=fin;
+      u.onerror=e=>{const er=e&&e.error;if(!started&&retry&&v&&er!=='interrupted'&&er!=='canceled')fallback();else fin();};
+      const tm=setTimeout(fin,3000+text.length*120);
+      // a voice that never starts (listed but not installed) -> retry once with the device default voice
+      const wd=setTimeout(()=>{if(started||done)return;if(speechSynthesis.speaking&&!speechSynthesis.paused)return;
+        if(retry&&v)fallback();else{SPEAK_OK=false;fin();}},1700);
+      keep.push(u);
+      try{sessionPlayback();if(speechSynthesis.paused&&speechSynthesis.resume)speechSynthesis.resume();speechSynthesis.speak(u);}catch(e){fin();}
+    };
+    // iOS drops speech that is queued in the same moment as a cancel
+    const wait=Math.max(0,120-(Date.now()-lastCancel));
+    if(wait)setTimeout(()=>go(0),wait);else go(0);
+  });
+}
+/* ---- Murf voice pack: sentence clips stored like recordings, keyed by normalised text ---- */
+const mkey=t=>String(t||'').toLowerCase().replace(/[\u2019]/g,"'").replace(/[^a-z0-9' ]/g,' ').replace(/\s+/g,' ').trim();
+const splitSent=t=>(String(t||'').match(/[^.!?]+[.!?]*/g)||[]).map(x=>x.trim()).filter(x=>mkey(x));
+let SEQ=0,CHAIN=Promise.resolve();
+const vspd=()=>Math.min(1.1,Math.max(.6,+S.settings.vspd||.85));
+const effRate=r=>{const v=Math.max(.55,(r||1)*vspd());return Math.abs(v-1)<.02?1:Math.round(v*100)/100;};
+function playSeq(keys,rate){
+  const my=SEQ;SEQ_ACT++;hushMic();
+  const run=CHAIN.then(async()=>{applyBoost();IN_SEQ=true;for(const x of keys){if(my!==SEQ)return;const it=typeof x==='string'?{k:x}:x;const p=playClipAt(it.k,it.mine?1:effRate(rate));if(p)await p;}}).finally(()=>{IN_SEQ=false;SEQ_ACT--;});
+  CHAIN=run.catch(()=>{});return run;
+}
+function noteMissing(parts){
+  if(!parts.length)return;S.missing=S.missing||[];let ch=false;
+  parts.forEach(x=>{if(S.missing.length<300&&!S.missing.some(m=>mkey(m)===mkey(x))){S.missing.push(x);ch=true;}});
+  if(ch)persist();
+}
+const useMine=()=>S.settings.mine!==false;
+let WSET=null;const wset=()=>WSET||(WSET=new Set(WORDS.map(w=>w.w)));
+const recKey=k=>(wset().has(k)?'w:':'r:')+k;
+const DECOMP=[/^(that word is) (\w+)$/];   // "That word is cat." = recording of "That word is" + recording of "cat"
+function clipsFor(part){
+  const k=mkey(part);if(!k)return [];
+  if(useMine()){
+    if(CLIPS[recKey(k)])return [{k:recKey(k),mine:true}];
+    for(const re of DECOMP){const m=re.exec(k);if(m){const ks=m.slice(1).map(recKey);if(ks.every(x=>CLIPS[x]))return ks.map(x=>({k:x,mine:true}));}}
+  }
+  if(S.settings.murf&&CLIPS['m:'+k])return [{k:'m:'+k,mine:false}];
+  return null;
+}
+function say(text,opts){
+  if(text&&S.settings.sound&&(useMine()||S.settings.murf)){
+    const parts=splitSent(text),seq=[],miss=[];
+    parts.forEach(x=>{const c=clipsFor(x);if(c)seq.push(...c);else miss.push(x);});
+    if(!miss.length&&seq.length){sessionPlayback();return playSeq(seq,opts&&opts.slow);}
+    if(S.settings.murf)noteMissing(miss.filter(x=>!CLIPS['m:'+mkey(x)]));
+  }
+  return sayTTS(text,opts);
+}
+function stopSpeech(){SEQ++;CHAIN=Promise.resolve();try{if(speechSynthesis.speaking||speechSynthesis.pending){speechSynthesis.cancel();lastCancel=Date.now();}}catch(e){}stopClips();}
+if('speechSynthesis' in window){try{speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>{};}catch(e){}}
+async function playSfx(str,my){
+  for(const p of str.split('|')){
+    if(my!==undefined&&my!==TOK)return;
+    if(p[0]==='~'){(FX[p.slice(1)]||FX.pop)();await sleep(380);}
+    else await say(p,{pitch:1.2,rate:.95});
+  }
+}
+
+
+/* =====================================================================
+   RECORDED VOICE — grown-up records letter sounds (and optional words);
+   stored in IndexedDB on this device, played through Web Audio.
+   ===================================================================== */
+const PHON=[ // [sound key, letters, example word, note]
+ ['aa','a','apple'],['eh','e','egg'],['ih','i','igloo'],['ah','o','octopus'],['uh','u','up'],
+ ['muh','m','moon'],['suh','s','sun'],['tuh','t','top'],['puh','p','pig'],['nuh','n','nest'],['kuh','c  k','cat'],['duh','d','dog'],
+ ['guh','g','goat'],['buh','b','bat'],['huh','h','hat'],['fuh','f','fish'],['luh','l','leg'],['ruh','r','red'],['wuh','w','web'],
+ ['juh','j','jet'],['vuh','v','van'],['yuh','y','yes'],['zuh','z','zoo'],['ksuh','x','fox'],['kwuh','qu','queen'],
+ ['shuh','sh','ship'],['thuh','th','this'],['ing','ing','ring'],
+ ['ee','ee','bee'],['ay','ai','rain','long a'],['eye','i','kite','long i'],['oh','o','go','long o'],['oo','oo','moon'],
+ ['ow','ow','cow'],['oy','oy','boy'],['ar','ar','car'],['or','or','corn'],['er','er','her']
+];
+const PHK={};PHON.forEach(p=>PHK[p[0]]=p);
+const CLIPS={},BUFS={},PLAYING=new Set();
+const VDB={
+  _db:null,
+  open(){if(!this._db)this._db=new Promise((res,rej)=>{try{const r=indexedDB.open('ollie-voice',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('clips');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}});return this._db;},
+  async run(mode,fn){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('clips',mode),rq=fn(t.objectStore('clips'));
+    t.oncomplete=()=>res(rq&&rq.result);t.onerror=t.onabort=()=>rej(t.error);});},
+  put(k,v){return this.run('readwrite',st=>st.put(v,k));},
+  putMany(list){return this.run('readwrite',st=>{let r=null;list.forEach(([k,v])=>{r=st.put(v,k);});return r;});},
+  del(k){return this.run('readwrite',st=>st.delete(k));},
+  async all(){const ks=await this.run('readonly',st=>st.getAllKeys()),vs=await this.run('readonly',st=>st.getAll());const o={};(ks||[]).forEach((k,i)=>o[k]=vs[i]);return o;}
+};
+const domReady=new Promise(r=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',r):r());
+VDB.all().then(o=>Object.assign(CLIPS,o)).catch(()=>{}).then(()=>domReady).then(()=>loadEmbedded()).catch(()=>{});
+const hasClip=k=>!!CLIPS[k];
+const clipCount=pre=>Object.keys(CLIPS).filter(k=>k.startsWith(pre)).length;
+async function saveClip(k,c){CLIPS[k]=c;dropBufs(k);try{await VDB.put(k,c);return true;}catch(e){return false;}}
+async function delClip(k){delete CLIPS[k];dropBufs(k);try{await VDB.del(k);}catch(e){}}
+function playClip(k){
+  const c=CLIPS[k];if(!c||!S.settings.sound)return null;
+  hushMic();
+  const ctx=ac();if(!ctx)return null;
+  let b=BUFS[k];
+  if(!b){b=ctx.createBuffer(1,c.data.length,c.sr);const ch=b.getChannelData(0);for(let i=0;i<c.data.length;i++)ch[i]=c.data[i]/32768;BUFS[k]=b;}
+  return playBuf(b);
+}
+function playBuf(b){
+  const ctx=ac();hushMic();if(!IN_SEQ)applyBoost();
+  return new Promise(res=>{
+    const src=ctx.createBufferSource();src.buffer=b;src.connect(vbus||ctx.destination);
+    let done=false;const fin=()=>{if(done)return;done=true;PLAYING.delete(src);res();};
+    src.onended=fin;PLAYING.add(src);setTimeout(fin,b.duration*1000+500);
+    try{src.start();}catch(e){fin();}
+  });
+}
+function dropBufs(k){Object.keys(BUFS).forEach(x=>{if(x===k||x.endsWith(':'+k))delete BUFS[x];});}
+/* WSOLA time-stretch: slows speech without lowering the pitch. rate<1 = slower. */
+function stretchPCM(x,sr,rate){
+  const N=Math.round(sr*.03)&~1,Hs=N>>1,Ha=Hs*rate,tol=Math.round(sr*.009);
+  const win=new Float32Array(N);for(let i=0;i<N;i++)win[i]=.5-.5*Math.cos(2*Math.PI*i/(N-1));
+  const y=new Float32Array(Math.ceil(x.length/rate)+2*N),nrm=new Float32Array(y.length);
+  let prev=0,out=0,last=0;
+  for(let k=0;;k++,out+=Hs){
+    const nom=Math.round(k*Ha);if(nom+N>=x.length)break;
+    let best=nom;
+    const ref=prev+Hs;
+    if(k>0&&ref+N<x.length){
+      let bc=-Infinity;
+      for(let d=-tol;d<=tol;d+=2){const c0=nom+d;if(c0<0||c0+N>=x.length)continue;
+        let c=0;for(let i=0;i<N;i+=4)c+=x[c0+i]*x[ref+i];if(c>bc){bc=c;best=c0;}}
+    }
+    for(let i=0;i<N;i++){y[out+i]+=x[best+i]*win[i];nrm[out+i]+=win[i];}
+    prev=best;last=out+N;
+  }
+  for(let i=0;i<last;i++)if(nrm[i]>.05)y[i]/=nrm[i];
+  return y.subarray(0,last);
+}
+function playClipAt(k,rate){
+  if(!rate||rate===1)return playClip(k);
+  const c=CLIPS[k];if(!c||!S.settings.sound)return null;
+  const ctx=ac();if(!ctx)return null;
+  const bk='~'+rate+':'+k;let b=BUFS[bk];
+  if(!b){const f=new Float32Array(c.data.length);for(let i=0;i<f.length;i++)f[i]=c.data[i]/32768;
+    const y=stretchPCM(f,c.sr,rate);b=ctx.createBuffer(1,y.length,c.sr);b.getChannelData(0).set(y);BUFS[bk]=b;}
+  return playBuf(b);
+}
+/* seconds a Murf line will take (null if it would use the device voice) */
+function speechDur(text,rate){
+  if(!S.settings.sound)return null;let t=0;
+  for(const x of splitSent(text)){const c=clipsFor(x);if(!c)return null;
+    for(const it of c){const cl=CLIPS[it.k];t+=cl.data.length/cl.sr/(it.mine?1:effRate(rate));}}
+  return t||null;
+}
+function stopClips(){[...PLAYING].forEach(x=>{try{x.stop()}catch(e){}});PLAYING.clear();}
+/* letter sound: recording if there is one, otherwise the device voice */
+function sayLetter(t,hint){
+  if(t.s==='-')return say(`silent ${t.t}`,{rate:.85});
+  if(useMine()){const p=playClip('p:'+t.s);if(p)return p;}
+  const ph=PHK[t.s];
+  return say(hint&&ph?`${t.s}. like ${ph[2]}`:t.s,{rate:.7});
+}
+function sayWord(w){return (useMine()&&playClip('w:'+w))||say(w,{rate:.72,slow:.8});}
+
+/* ---- microphone capture for recordings ---- */
+let CAP=null;
+function getMic(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){const e=new Error('no getUserMedia');e.name=window.isSecureContext===false?'insecure':'NotSupportedError';return Promise.reject(e);}
+  sessionRecord();
+  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).catch(e=>{sessionPlayback();throw e;});
+}
+function startCapture(stream,{maxSec=3,onLevel,quietSec=.6}={}){
+  const ctx=ac(),src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(2048,1,1),mute=ctx.createGain();
+  mute.gain.value=0;
+  const chunks=[];let heard=false,quiet=0,floor=1,stopped=false,resolve,el=0;
+  const done=new Promise(r=>resolve=r);
+  proc.onaudioprocess=e=>{
+    if(stopped)return;
+    const d=new Float32Array(e.inputBuffer.getChannelData(0));chunks.push(d);
+    let q=0;for(let i=0;i<d.length;i++)q+=d[i]*d[i];const rms=Math.sqrt(q/d.length),dt=d.length/ctx.sampleRate;el+=dt;
+    if(rms<floor)floor=rms;
+    onLevel&&onLevel(rms);
+    if(rms>Math.max(.025,floor*4)){heard=true;quiet=0;}else if(heard)quiet+=dt;
+    if((heard&&quiet>quietSec)||el>maxSec)stop();
+  };
+  src.connect(proc);proc.connect(mute);mute.connect(ctx.destination);
+  function stop(){
+    if(stopped)return;stopped=true;
+    try{proc.disconnect();src.disconnect();mute.disconnect();}catch(e){}
+    stream.getTracks().forEach(t=>t.stop());sessionPlayback();
+    let n=0;chunks.forEach(c=>n+=c.length);const all=new Float32Array(n);let o=0;chunks.forEach(c=>{all.set(c,o);o+=c.length;});
+    resolve({sr:ctx.sampleRate,f:all});
+  }
+  CAP={stop};
+  return {stop,done};
+}
+/* trim silence, normalise, fade edges, store as 16-bit */
+function trimClip({sr,f},o={}){
+  let rate=sr,d=f;
+  if(sr>=44000){const n=f.length>>1;d=new Float32Array(n);for(let i=0;i<n;i++)d[i]=(f[2*i]+f[2*i+1])/2;rate=sr/2;}
+  const win=Math.max(1,Math.round(rate*.01)),nw=Math.floor(d.length/win);if(nw<5)return null;
+  const r=new Float32Array(nw);let peak=0;
+  for(let w=0;w<nw;w++){let q=0;for(let i=w*win;i<(w+1)*win;i++)q+=d[i]*d[i];r[w]=Math.sqrt(q/win);if(r[w]>peak)peak=r[w];}
+  if(peak<.01)return null;
+  const floor=[...r].sort((x,y)=>x-y)[Math.floor(nw*.1)],thr=o.loose?peak*.015:Math.max(floor*3,peak*.08);
+  let a=0;while(a<nw&&r[a]<thr)a++;let b=nw-1;while(b>a&&r[b]<thr)b--;
+  const out=d.slice(Math.max(0,(a-(o.loose?6:4))*win),Math.min(d.length,(b+(o.loose?15:8))*win));
+  let mx=0;for(let i=0;i<out.length;i++)mx=Math.max(mx,Math.abs(out[i]));
+  const g=Math.min(o.loose?3:10,(o.loose?.85:.9)/Math.max(mx,1e-4)),fade=Math.round(rate*.008),q16=new Int16Array(out.length);
+  for(let i=0;i<out.length;i++){let v=out[i]*g;if(i<fade)v*=i/fade;const k=out.length-1-i;if(k<fade)v*=k/fade;q16[i]=Math.max(-32767,Math.min(32767,Math.round(v*32767)));}
+  return {sr:rate,data:q16,at:Date.now(),off:Math.max(0,(a-(o.loose?6:4))*win)/rate};
+}
+/* ---- backup / restore ---- */
+function b64(u8){let t='';for(let i=0;i<u8.length;i+=0x8000)t+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(t);}
+function unb64(t){const bin=atob(t),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;}
+async function exportBackup(){
+  const clips={};
+  for(const k in CLIPS){if(k.startsWith('m:'))continue;const c=CLIPS[k];clips[k]={sr:c.sr,b64:b64(new Uint8Array(c.data.buffer,c.data.byteOffset,c.data.byteLength))};}
+  const blob=new Blob([JSON.stringify({app:'ollie-word-adventure',v:1,saved:new Date().toISOString(),progress:S,clips})],{type:'application/json'});
+  return saveFile('ollie-backup.json',blob);
+}
+async function saveFile(name,blob){
+  try{
+    if(window.claude&&typeof window.claude.use==='function'){
+      const d=await window.claude.use('downloads');
+      if(d){await d.save({filename:name,data:blob});return 'saved';}
+    }
+  }catch(e){return e&&e.code==='declined'?'declined':'failed';}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},5000);
+  return 'saved';
+}
+async function exportVoicePack(){
+  const parts=['{"app":"ollie-word-adventure","v":1,"kind":"voicepack","saved":',JSON.stringify(new Date().toISOString()),
+    ',"murf":',JSON.stringify({voice:S.settings.murfVoice||'',style:S.settings.murfStyle||'',built:S.settings.murfBuilt||''}),',"clips":{'];
+  let first=true;
+  for(const k in CLIPS){
+    if(!k.startsWith('m:')||k==='m:__preview')continue;const c=CLIPS[k];
+    parts.push((first?'':',')+JSON.stringify(k)+':{"sr":'+c.sr+',"b64":"'+b64(new Uint8Array(c.data.buffer,c.data.byteOffset,c.data.byteLength))+'"'+(c.w?',"w":'+JSON.stringify(c.w):'')+'}');
+    first=false;
+  }
+  parts.push('}}');
+  return saveFile('ollie-voice-pack.json',new Blob(parts,{type:'application/json'}));
+}
+const packMB=()=>{let b=0;for(const k in CLIPS)if(k.startsWith('m:'))b+=CLIPS[k].data.byteLength;return Math.max(1,Math.round(b*1.34/1048576));};
+async function importBackup(file,onProg){
+  const j=JSON.parse(await file.text());
+  if(!j||j.app!=='ollie-word-adventure')throw new Error('not a backup');
+  if(j.progress){
+    const d=defaults(),mine={murf:S.settings.murf,murfVoice:S.settings.murfVoice,murfStyle:S.settings.murfStyle,murfBuilt:S.settings.murfBuilt};
+    S={...d,...j.progress,settings:{...d.settings,...(j.progress.settings||{}),...mine}};persist();
+  }
+  const ks=Object.keys(j.clips||{});let batch=[],n=0;
+  for(const k of ks){
+    const c=j.clips[k],u=unb64(c.b64),clip={sr:c.sr,data:new Int16Array(u.buffer,0,u.length>>1),at:Date.now()};if(c.w)clip.w=c.w;
+    CLIPS[k]=clip;dropBufs(k);batch.push([k,clip]);n++;
+    if(batch.length>=40){await VDB.putMany(batch);batch=[];onProg&&onProg(n,ks.length);}
+  }
+  if(batch.length)await VDB.putMany(batch);
+  if(j.kind==='voicepack'){const m=j.murf||{};S.settings.murf=true;S.settings.murfVoice=m.voice||'';S.settings.murfStyle=m.style||'';S.settings.murfBuilt=m.built||'';S.missing=[];persist();}
+  return {n,kind:j.kind||'backup'};
+}
+
+
+
+/* =====================================================================
+   BUILT-IN VOICE — the Murf pack and recordings can be embedded in the
+   game file itself (IMA ADPCM, 4 bits/sample) so new devices get them.
+   ===================================================================== */
+const IMA_IDX=[-1,-1,-1,-1,2,4,6,8,-1,-1,-1,-1,2,4,6,8];
+const IMA_STEP=[7,8,9,10,11,12,13,14,16,17,19,21,23,25,28,31,34,37,41,45,50,55,60,66,73,80,88,97,107,118,130,143,157,173,190,209,230,253,279,307,337,371,408,449,494,544,598,658,724,796,876,963,1060,1166,1282,1411,1552,1707,1878,2066,2272,2499,2749,3024,3327,3660,4026,4428,4871,5358,5894,6484,7132,7845,8630,9493,10442,11487,12635,13899,15289,16818,18500,20350,22385,24623,27086,29794,32767];
+function imaEncode(pcm){
+  const out=new Uint8Array((pcm.length+1)>>1);let pred=0,idx=0;
+  for(let i=0;i<pcm.length;i++){
+    let step=IMA_STEP[idx],diff=pcm[i]-pred,code=0;if(diff<0){code=8;diff=-diff;}
+    let vp=step>>3;
+    if(diff>=step){code|=4;diff-=step;vp+=step;}step>>=1;
+    if(diff>=step){code|=2;diff-=step;vp+=step;}step>>=1;
+    if(diff>=step){code|=1;vp+=step;}
+    pred+=(code&8)?-vp:vp;if(pred>32767)pred=32767;else if(pred<-32768)pred=-32768;
+    idx+=IMA_IDX[code];if(idx<0)idx=0;else if(idx>88)idx=88;
+    if(i&1)out[i>>1]|=code<<4;else out[i>>1]=code;
+  }
+  return out;
+}
+function imaDecode(u8,n){
+  const pcm=new Int16Array(n);let pred=0,idx=0;
+  for(let i=0;i<n;i++){
+    const code=(i&1)?(u8[i>>1]>>4):(u8[i>>1]&15),step=IMA_STEP[idx];
+    let vp=step>>3;if(code&4)vp+=step;if(code&2)vp+=step>>1;if(code&1)vp+=step>>2;
+    pred+=(code&8)?-vp:vp;if(pred>32767)pred=32767;else if(pred<-32768)pred=-32768;
+    idx+=IMA_IDX[code];if(idx<0)idx=0;else if(idx>88)idx=88;
+    pcm[i]=pred;
+  }
+  return pcm;
+}
+let EMBED={id:'',made:'',n:0};
+const bakeKeys=()=>Object.keys(CLIPS).filter(k=>k!=='m:__preview');
+const bakeMB=()=>{let n=0;bakeKeys().forEach(k=>n+=CLIPS[k].data.length);return Math.max(1,Math.round((n*2*1.34+140000)/1048576));};
+async function bakeStandalone(onProg){
+  let html=PRISTINE;
+  if(!html.includes('ollie-word-adventure-v1')||!html.includes('</body>'))
+    throw new Error('Couldn’t read the game’s own code on this page. Reload the page and try again.');
+  // keep only the game: drop any scripts a host or viewer added (the game itself loads no external scripts)
+  html=html.replace(new RegExp('<script[^>]*\\ssrc=[^>]*></'+'script>\\s*','gi'),'');
+  // (marker strings are split so this code never matches itself)
+  html=html.replace(new RegExp('<script type="application/json" id="ollie-'+'pack"[^>]*>[\\s\\S]*?<'+'/script>\\s*','g'),'');
+  html=html.replace(new RegExp('<script[^>]*src="/\\.netlify/[^"]*"[^>]*></'+'script>\\s*','g'),'');
+  const at=html.lastIndexOf('</body>');
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7),made=new Date().toISOString().slice(0,10);
+  const ks=bakeKeys();
+  const parts=[html.slice(0,at),'<script type="application/json" id="ollie-'+`pack" data-id="${id}" data-made="${made}" data-n="${ks.length}">`,
+    '{"id":"'+id+'","made":"'+made+'","fmt":"pcm16","murf":'+JSON.stringify({voice:S.settings.murfVoice||'',style:S.settings.murfStyle||'',built:S.settings.murfBuilt||''})+',"clips":{'];
+  for(let i=0;i<ks.length;i++){
+    const c=CLIPS[ks[i]];
+    parts.push((i?',':'')+JSON.stringify(ks[i])+':['+c.sr+','+c.data.length+',"'+b64(new Uint8Array(c.data.buffer,c.data.byteOffset,c.data.length*2))+'"'+(c.w?','+JSON.stringify(c.w):'')+']');
+    if(i%40===39){onProg&&onProg(`Packing the voice: ${i+1} of ${ks.length}…`);await sleep(0);}
+  }
+  parts.push('}}<'+'/script>\n',html.slice(at));
+  try{localStorage.setItem('ollie-pack-id',id);}catch(e){}
+  return new Blob(parts,{type:'application/octet-stream'});
+}
+async function loadEmbedded(){
+  const el=document.getElementById('ollie-pack');if(!el)return;
+  EMBED={id:el.dataset.id||'',made:el.dataset.made||'',n:+el.dataset.n||0};
+  let seen='';try{seen=localStorage.getItem('ollie-pack-id')||'';}catch(e){}
+  if(seen===EMBED.id&&bakeKeys().length){el.remove();return;}
+  let j;try{j=JSON.parse(el.textContent);}catch(e){return;}
+  el.remove();
+  const m=j.murf||{};
+  // a different voice on this device would mix voices: the built-in pack wins
+  if(m.built&&S.settings.murfBuilt&&S.settings.murfBuilt!==m.built){for(const k of Object.keys(CLIPS))if(k.startsWith('m:'))await delClip(k);}
+  let batch=[];
+  for(const k in j.clips){
+    const [sr,len,b,wt]=j.clips[k],u=unb64(b);
+    const data=j.fmt==='pcm16'?new Int16Array(u.buffer,0,len):imaDecode(u,len);   // older files used compressed audio
+    const clip={sr,data,at:Date.now()};if(wt)clip.w=wt;dropBufs(k);
+    CLIPS[k]=clip;batch.push([k,clip]);
+    if(batch.length>=50){try{await VDB.putMany(batch);}catch(e){}batch=[];await sleep(0);}
+  }
+  if(batch.length){try{await VDB.putMany(batch);}catch(e){}}
+  if(m.built){S.settings.murf=true;S.settings.murfVoice=m.voice||'';S.settings.murfStyle=m.style||'';S.settings.murfBuilt=m.built;S.missing=[];persist();}
+  try{localStorage.setItem('ollie-pack-id',EMBED.id);}catch(e){}
+}
+
+/* =====================================================================
+   MURF AI VOICE PACK — generated once per device from the grown-up's
+   Murf API key; stored in IndexedDB; played instead of the device voice.
+   ===================================================================== */
+const MURF='https://api.murf.ai/v1';
+const PROV={murf:'Murf',el:'ElevenLabs'};
+const prov=()=>PROV[S.settings.ttsProv]?S.settings.ttsProv:'murf';
+const murfKey={id:()=>prov()==='el'?'ollie-el-key':'ollie-murf-key',
+  get(){try{return localStorage.getItem(this.id())||''}catch(e){return ''}},
+  set(k){try{k?localStorage.setItem(this.id(),k):localStorage.removeItem(this.id())}catch(e){}}};
+const packTag=(voice,style)=>prov()==='murf'?voice+'|'+(style||''):prov()+':'+voice+'|'+(style||'');
+/* ---- ElevenLabs ---- */
+const ELAPI='https://api.elevenlabs.io/v1',EL_MODEL='eleven_multilingual_v2';
+async function elFetch(path,key,body,raw){
+  const r=await fetch(ELAPI+path,{method:body?'POST':'GET',headers:{'xi-api-key':key,'Accept':raw?'audio/mpeg':'application/json',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
+  if(!r.ok){let t='';try{t=await r.text()}catch(e){}const e=new Error('ElevenLabs '+r.status);e.status=r.status;e.body=t;e.retry=+(r.headers.get('retry-after')||0);throw e;}
+  return raw?r.arrayBuffer():r.json();
+}
+async function elVoices(key){
+  const j=await elFetch('/voices',key);
+  return (j.voices||[]).map(v=>{const l=v.labels||{};return {id:v.voice_id,name:v.name||v.voice_id,gender:l.gender||'',accent:l.accent||'',desc:l.description||l.descriptive||l.use_case||'',styles:[]};})
+    .filter(v=>v.id).sort((a,b)=>a.name.localeCompare(b.name));
+}
+/* character timings -> one {s,e} per word, in order */
+function alignWords(al){
+  if(!al||!Array.isArray(al.characters))return null;
+  const ch=al.characters,st=al.character_start_times_seconds||[],en=al.character_end_times_seconds||[],out=[];let inw=false;
+  for(let c=0;c<ch.length;c++){
+    if(/\s/.test(ch[c])){inw=false;continue;}
+    if(!inw){out.push({i:out.length,s:st[c],e:en[c]});inw=true;}else out[out.length-1].e=en[c];
+  }
+  return out;
+}
+async function elTTS(key,voice,text){
+  const j=await elFetch(`/text-to-speech/${encodeURIComponent(voice)}/with-timestamps?output_format=mp3_44100_128`,key,
+    {text,model_id:EL_MODEL,voice_settings:{stability:.55,similarity_boost:.75,style:0,use_speaker_boost:true,speed:.92}});
+  if(!j.audio_base64)throw new Error('ElevenLabs returned no audio');
+  return {b64:j.audio_base64,words:alignWords(j.alignment)};
+}
+/* ---- phonetic letter sounds (ElevenLabs Flash v2 reads exact phonemes from CMU Arpabet tags) ---- */
+const PH_CMU={aa:'AE1',eh:'EH1',ih:'IH1',ah:'AA1',uh:'AH1',muh:'M',suh:'S',tuh:'T AH0',puh:'P AH0',nuh:'N',kuh:'K AH0',duh:'D AH0',
+  guh:'G AH0',buh:'B AH0',huh:'HH AH0',fuh:'F',luh:'L',ruh:'R',wuh:'W AH0',juh:'JH AH0',vuh:'V',yuh:'Y AH0',zuh:'Z',ksuh:'K S',
+  kwuh:'K W AH0',shuh:'SH',thuh:'DH',ing:'IH1 NG',ee:'IY1',ay:'EY1',eye:'AY1',oh:'OW1',oo:'UW1',ow:'AW1',oy:'OY1',ar:'AA1 R',or:'AO1 R',er:'ER1'};
+const PH_STOP=new Set(['tuh','puh','kuh','duh','guh','buh','huh','wuh','juh','yuh','kwuh']);   // can't be held: keep the burst, clip the "uh"
+const PH_HOLD=new Set(['muh','suh','nuh','fuh','luh','ruh','vuh','zuh','shuh','thuh']);         // can be held: stretch to a clear "sss"
+const phText=k=>`<phoneme alphabet="cmu-arpabet" ph="${PH_CMU[k]}">${(PHK[k]||[k,k])[1].split(/\s+/)[0]}</phoneme>`;
+function shapeSound(k,clip){
+  const sr=clip.sr;let d=new Float32Array(clip.data.length);for(let i=0;i<d.length;i++)d[i]=clip.data[i]/32768;
+  let pk=0;for(const v of d)pk=Math.max(pk,Math.abs(v));
+  let on=0;while(on<d.length&&Math.abs(d[on])<pk*.08)on++;
+  if(PH_STOP.has(k))d=d.slice(0,Math.min(d.length,on+Math.round(sr*.16)));
+  else if(PH_HOLD.has(k)){const dur=(d.length-on)/sr;if(dur>.06&&dur<.42)d=stretchPCM(d,sr,dur/.45);}
+  else d=d.slice(0,Math.min(d.length,on+Math.round(sr*.75)));
+  const n=d.length,fi=Math.round(sr*.006),fo=Math.round(sr*(PH_STOP.has(k)?.045:.03));pk=0;for(const v of d)pk=Math.max(pk,Math.abs(v));
+  const g=.85/Math.max(pk,1e-4),q=new Int16Array(n);
+  for(let i=0;i<n;i++){let v=d[i]*g;if(i<fi)v*=i/fi;if(n-1-i<fo)v*=(n-1-i)/fo;q[i]=Math.max(-32767,Math.min(32767,Math.round(v*32767)));}
+  return {sr,data:q,at:Date.now()};
+}
+async function elPhonemes(key,voice,onProg){
+  const ctx=ac();if(!ctx)throw new Error('No audio on this device');
+  const ks=PHON.map(x=>x[0]).filter(k=>PH_CMU[k]);let done=0;const bad=[];
+  for(const k of ks){
+    for(let n=0;;n++){
+      try{
+        const j=await elFetch(`/text-to-speech/${encodeURIComponent(voice)}?output_format=mp3_44100_128`,key,
+          {text:phText(k),model_id:'eleven_flash_v2',voice_settings:{stability:.7,similarity_boost:.75,style:0,use_speaker_boost:true}},true);
+        const ab=await decodeAudio(ctx,j);
+        const c=trimClip({sr:ab.sampleRate,f:ab.getChannelData(0)},{loose:true});
+        if(c){delete c.off;await saveClip('m:'+mkey(k),shapeSound(k,c));}else bad.push(k);
+        break;
+      }catch(e){
+        if(e.status===429&&n<6){onProg&&onProg(done,ks.length,'ElevenLabs is busy, waiting…');await sleep(e.retry?e.retry*1000:3000*(n+1));continue;}
+        throw e;
+      }
+    }
+    done++;onProg&&onProg(done,ks.length);
+  }
+  return {done,bad};
+}
+async function elLeft(key){try{const j=await elFetch('/user/subscription',key);return j.character_limit!=null?Math.max(0,j.character_limit-(j.character_count||0)):null;}catch(e){return null;}}
+async function murfFetch(path,key,body){
+  const r=await fetch(MURF+path,{method:body?'POST':'GET',headers:{'api-key':key,'Accept':'application/json',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
+  if(!r.ok){let t='';try{t=await r.text()}catch(e){}const e=new Error('Murf '+r.status);e.status=r.status;e.body=t;e.retry=+(r.headers.get('retry-after')||0);throw e;}
+  return r.json();
+}
+async function murfVoices(key){
+  if(prov()==='el')return elVoices(key);
+  const j=await murfFetch('/speech/voices',key);
+  const arr=Array.isArray(j)?j:(j.voices||j.data||[]);
+  return arr.map(v=>({id:v.voiceId||v.id,name:v.displayName||v.name||v.voiceId,locale:v.locale||'',gender:v.gender||'',accent:v.accent||'',styles:v.availableStyles||v.styles||[]}))
+    .filter(v=>v.id&&(/^en-US/i.test(v.locale)||/^en-US/i.test(v.id)))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+}
+async function murfTTS(key,voiceId,style,text,extra){
+  const body={text,voiceId,format:'MP3',sampleRate:24000,channelType:'MONO',encodeAsBase64:true,modelVersion:'GEN2',locale:'en-US',rate:-10,...(extra||{})};
+  if(style)body.style=style;
+  const j=await murfFetch('/speech/generate',key,body);
+  if(!j.encodedAudio)throw new Error('Murf returned no audio');
+  return {b64:j.encodedAudio,remaining:j.remainingCharacterCount,words:j.wordDurations};
+}
+const decodeAudio=(ctx,buf)=>new Promise((res,rej)=>{const p=ctx.decodeAudioData(buf,res,rej);if(p&&p.then)p.then(res,rej);});
+async function murfClip(key,voice,style,text,extra){
+  const ctx=ac();if(!ctx)throw new Error('No audio on this device');
+  let r;
+  if(prov()==='el'){r=await elTTS(key,voice,text);}
+  else{r=await murfTTS(key,voice,style,text,extra);
+    r.words=Array.isArray(r.words)?r.words.map((d,i)=>({i:Number.isInteger(d.sourceWordIndex)?d.sourceWordIndex:i,s:d.startMs/1000,e:d.endMs/1000})):null;}
+  const ab=await decodeAudio(ctx,unb64(r.b64).buffer);
+  const clip=trimClip({sr:ab.sampleRate,f:ab.getChannelData(0)},{loose:true});
+  if(clip&&Array.isArray(r.words)&&r.words.length){
+    // word timings -> [start,end] seconds per input word, relative to the trimmed clip
+    const n=text.trim().split(/\s+/).length,w=new Array(n);
+    r.words.forEach(d=>{const ix=d.i;if(ix<0||ix>=n)return;
+      const a=d.s-clip.off,b=d.e-clip.off;
+      if(!w[ix])w[ix]=[a,b];else w[ix][1]=Math.max(w[ix][1],b);});
+    if(w.every(Boolean))clip.w=w.map(([a,b])=>[Math.max(0,+a.toFixed(3)),Math.max(0,+b.toFixed(3))]);
+  }
+  if(clip)delete clip.off;
+  return {clip,remaining:r.remaining};
+}
+/* story sentences are recorded whole, so small words like "a" keep their natural sound;
+   "a" is pronounced "uh" so it isn't swallowed */
+const STORY_A={a:{type:'IPA',pronunciation:'ʌ'},A:{type:'IPA',pronunciation:'ʌ'}};
+/* every sentence the game can say */
+const FIXED_LINES=['Nice! Tap each letter, then squish the sounds together.','Now squish the sounds together and say the word!',
+   "I didn't hear you. Tap the mic and try again!","I didn't hear that. Tap the mic and try again!","Let's sound it out together!",
+   "You're doing great! Try once more, or tap Skip.","I can't hear you on this device. A grown-up can tap the green button when you read it!",
+   'Tap the microphone again and say the word!','Tap the microphone and say the word!','Tap the mic and say the word!',
+   "No problem! Let's try another!",'You earned a new sticker!','Great reading!','The end!',"Tap Let's Read to start!",
+   'Hi friend! Ready to read?',"I'm Ollie the owl. Let's read together!","I'm Ollie. Let's read!",'Hi!','Amazing reading!','You read the whole story!'];
+const STORYFULL=[];
+function murfTexts(){
+  const nm=S.name||'',T=[];const add=t=>{if(t)T.push(t);};
+  const names=nm?[nm,'']:[''];
+  [...PRAISE,...SHORT,...TRY1,...START_LINES].forEach(add);
+  FIXED_LINES.forEach(add);
+  names.filter(Boolean).forEach(n=>{add(`Hi ${n}! Ready to read?`);add(`Hi ${n}!`);add(`Amazing reading, ${n}!`);add(`You read the whole story, ${n}!`);});
+  WORDS.forEach(w=>{
+    add(w.w);add(`${w.w}!`);add(`That word is ${w.w}.`);
+    w.sfx.split('|').filter(x=>x[0]!=='~').forEach(add);
+    w.tiles.forEach(t=>{if(t.s==='-'){add(`silent ${t.t}`);add(`Silent ${t.t}!`);}});
+  });
+  PHON.forEach(x=>{add(x[0]);add(`${x[0]}. like ${x[2]}`);});
+  STORIES.forEach(st=>st.sents.forEach(se=>{
+    add(se.toks.map(t=>t.disp).join(' '));
+    STORYFULL.push(se.toks.map(t=>t.disp).join(' '));
+    let k=0;while(k<se.toks.length){let j=k;while(j<se.toks.length&&!se.toks[j].target)j++;if(j>k)add(se.toks.slice(k,j).map(t=>t.disp).join(' '));k=j+1;}
+  }));
+  (S.missing||[]).forEach(add);
+  const out=new Map();
+  T.forEach(t=>splitSent(t).forEach(x=>{const k=mkey(x);if(k&&!out.has(k))out.set(k,x);}));
+  STORYFULL.forEach(t=>out.set('@'+mkey(t),t));STORYFULL.length=0;
+  return out;
+}
+const murfTodo=()=>[...murfTexts()].filter(([k])=>!CLIPS['m:'+k]);
+async function murfBuild(key,voice,style,onProg,cancelled){
+  const tag=packTag(voice,style);
+  if(S.settings.murfBuilt&&S.settings.murfBuilt!==tag){for(const k of Object.keys(CLIPS))if(k.startsWith('m:'))await delClip(k);}
+  S.settings.murfBuilt=tag;S.settings.murfVoice=voice;S.settings.murfStyle=style||'';persist();
+  const todo=murfTodo(),total=todo.length;let done=0,remaining=null,fail=null,i=0,noDict=false,noOrig=false,lanes=2;
+  const skipped=[];let lastErr=null;
+  async function one([k,text]){
+    const story=k[0]==='@';
+    // story lines ask for extras (word timings, "a" said as "uh"); if Murf chokes on them, step down:
+    // 0 = timings + "uh", 1 = timings only, 2 = plain line
+    let stage=story&&prov()==='murf'?(noDict||!/(^|\s)a(\s|$)/i.test(text)?(noOrig?2:1):0):2,err5=0;
+    for(let n=0;;n++){
+      const extra=stage===0?{wordDurationsAsOriginalText:true,pronunciationDictionary:STORY_A}:stage===1?{wordDurationsAsOriginalText:true}:null;
+      try{const r=await murfClip(key,voice,style,text,extra);if(r.remaining!=null)remaining=r.remaining;if(r.clip)await saveClip('m:'+k,r.clip);return;}
+      catch(e){
+        lastErr=e;
+        if(e.status===429&&n<8){
+          // Murf limits how many lines can be made at once: drop to one at a time and wait it out
+          lanes=1;const w=e.retry?e.retry*1000:Math.min(20000,2000*(n+1));
+          onProg&&onProg(done,total,remaining,PROV[prov()]+' said “too many requests”, waiting and retrying ('+(n+1)+' of 8).'+(e.body?' '+String(e.body).slice(0,120):''));await sleep(w);continue;}
+        if((e.status===400||e.status>=500)&&stage<2){
+          if(stage===0)noDict=true;else noOrig=true;
+          stage++;await sleep(800);continue;}
+        if(e.status>=500&&++err5<3){await sleep(2000*err5);continue;}
+        if(e.status===400||e.status>=500){skipped.push(text);return;}   // leave this one line to the device voice
+        if(e instanceof TypeError&&n<1){await sleep(1200);continue;}
+        throw e;
+      }
+    }
+  }
+  const worker=lane=>(async()=>{while(i<todo.length&&!fail&&lane<lanes&&!(cancelled&&cancelled())){const it=todo[i++];try{await one(it);}catch(e){fail=e;return;}done++;onProg&&onProg(done,total,remaining);}})();
+  await Promise.all([worker(0),worker(1)]);
+  if(fail)throw fail;
+  if(skipped.length){S.settings.murf=clipCount('m:')>0;persist();
+    const e=new Error('skipped');e.skipped=skipped;e.last=lastErr;e.remaining=remaining;throw e;}
+  S.settings.murf=true;S.missing=[];persist();
+  return {done,total,remaining};
+}
+async function murfDelete(){for(const k of Object.keys(CLIPS))if(k.startsWith('m:'))await delClip(k);S.settings.murf=false;S.settings.murfBuilt='';persist();}
+function murfErr(e){
+  if(e instanceof TypeError)return "Couldn't reach "+PROV[prov()]+" from this page. This only works on your own copy of the game (e.g. Netlify), not the claude.ai link. If it still fails there, the service may be blocking requests made directly from web pages.";
+  const b=String(e.body||'');
+  let em='';try{const j=JSON.parse(b);em=(j.detail&&(j.detail.message||j.detail.status))||j.message||'';}catch(_){}
+  const perm=/missing the permission\s+(\w+)/i.exec(em);
+  if(prov()==='el'&&perm){const nice={voices_read:'Voices › Read',text_to_speech:'Text to Speech › Access',user_read:'User › Read'}[perm[1]]||perm[1];
+    return `The ElevenLabs key works but isn't allowed to do this (it needs “${nice}”). On elevenlabs.io › Developers › API Keys, edit the key and turn on ${nice}, plus Text to Speech. Then tap the button again.`;}
+  if(prov()==='el'&&/quota/i.test(b))return 'Your ElevenLabs characters for this month are used up. They reset monthly, or add more on your ElevenLabs account.';
+  if(prov()==='el'&&e.status===429)return 'ElevenLabs is busy or limiting requests right now. Wait a minute and tap Build again.'+(b?' ElevenLabs said: '+b.slice(0,140):'');
+  if(e.status===401||e.status===403)return (PROV[prov()])+' rejected the API key. Check it was copied completely.'+(em?' ('+em.slice(0,160)+')':b?' ('+b.slice(0,160)+')':'');
+  if(e.status===402)return 'Your Murf account is out of API characters or credit.';
+  if(e.status===429)return 'Murf kept saying “too many requests” (it limits how fast lines can be made). Wait a minute and tap Build again.'+(e.body?' Murf said: '+String(e.body).slice(0,140):'');
+  if(e.skipped)return `Done, except ${e.skipped.length} line${e.skipped.length>1?'s':''} Murf couldn't make (${e.last&&e.last.status?'error '+e.last.status:'error'}${e.last&&e.last.body?': '+String(e.last.body).slice(0,100):''}). ${e.skipped.length>1?'Those use':'That uses'} the device voice for now, e.g. “${String(e.skipped[0]).slice(0,40)}”.`;
+  if(e.status===400)return 'Murf refused the request: '+String(e.body||'').slice(0,160);
+  if(e.status>=500)return `Murf had a server problem (error ${e.status})${e.body?': '+String(e.body).slice(0,120):''}.`;
+  return (PROV[prov()]||'Voice')+' error: '+(e.message||e);
+}
+
+/* =====================================================================
+   SPEECH RECOGNITION
+   ===================================================================== */
+const SRc=window.SpeechRecognition||window.webkitSpeechRecognition;
+const HAS_SR=!!SRc;
+let MICBLOCK=false,curRec=null,MICWHY='',MICPRE=false,MIC_ON=false;
+function micOff(){MIC_ON=false;stopListening();setVoiceBoost();}
+const IN_FRAME=(()=>{try{return window.self!==window.top}catch(e){return true}})();
+try{const fp=document.permissionsPolicy||document.featurePolicy;
+  if(IN_FRAME&&fp&&fp.allowsFeature&&!fp.allowsFeature('microphone')){MICBLOCK=true;MICWHY='frame';}}catch(e){}
+function micHelp(code){
+  code=String(code||'');
+  if(code==='frame'||(IN_FRAME&&/not-allowed|NotAllowed|Security|service-not-allowed/.test(code)))
+    return "This page is open inside another app's viewer, which doesn't allow the microphone. Open the game's own web address directly in Safari, Chrome or Edge.";
+  if(/not-allowed|NotAllowed|PermissionDenied/.test(code))
+    return "Microphone permission is blocked for this site. Allow it (Safari: the page menu in the address bar › Website Settings › Microphone; Chrome/Edge: the icon left of the address › Microphone), then tap Try again.";
+  if(code==='service-not-allowed')
+    return "The device won't allow speech recognition here. On iPhone/iPad this usually means Dictation is off: Settings › General › Keyboard › Enable Dictation. Then use Safari.";
+  if(/audio-capture|NotFound|NotReadable|Overconstrained/.test(code))
+    return "No working microphone was found. Check that one is connected and not in use by another app.";
+  if(code==='network')return "Speech recognition in this browser needs an internet connection.";
+  if(code==='nosr')return "This browser can't recognize speech. Use Safari on iPhone/iPad, or Chrome or Edge on a PC.";
+  if(/insecure/.test(code))return "The microphone only works on secure (https://) pages.";
+  if(/NotSupported/.test(code))return "This browser doesn't allow microphone access here. Use Safari, Chrome or Edge.";
+  return `The microphone didn't start (${code}). Tap Try again.`;
+}
+const micOK=()=>S.settings.mic&&HAS_SR&&!MICBLOCK;
+const HOMO={to:['two','too','2'],no:['know'],be:['bee'],bee:['be'],see:['sea','c'],red:['read'],hi:['high','hey','hai'],ox:['oaks','ocks','oxe'],
+  you:['u','ewe','yew'],are:['r','our'],for:['four','4'],sun:['son'],six:['6'],ant:['aunt'],mom:['mum','mam'],the:['da','thee','duh'],
+  she:['shea'],was:['wuz'],he:['hee'],we:['wee'],me:['mee'],ring:['wring'],bell:['belle'],hen:['hen'],bus:['bus'],cow:['cow'],
+  wind:['wind'],bear:['bare'],ship:['ship'],road:['rode']};
+const norm=s=>(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+function lev(a,b){const m=[];for(let i=0;i<=a.length;i++)m[i]=[i];for(let j=1;j<=b.length;j++)m[0][j]=j;
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return m[a.length][b.length];}
+function matches(word,heard){
+  const h=norm(heard);if(!h)return false;
+  const toks=h.split(' '),alts=[word,...(HOMO[word]||[])];
+  if(alts.some(a=>toks.includes(a))||alts.includes(h))return true;
+  if(word.length>=4)return toks.some(t=>t.length>=3&&lev(t,word)<=1);
+  return false;
+}
+function stopListening(){if(curRec){try{curRec.abort()}catch(e){}curRec=null;}}
+let SRI=null,srBusy=false,srSess=0;
+function getSR(){
+  if(!SRI){SRI=new SRc();SRI.lang='en-US';SRI.interimResults=true;SRI.maxAlternatives=5;SRI.continuous=false;}
+  return SRI;
+}
+function listenFor(word,long){
+  return new Promise(async resolve=>{
+    const my=++srSess;let done=false,heard='',tm=0,rec;
+    const finish=r=>{if(done)return;done=true;clearTimeout(tm);if(srBusy){try{rec.abort()}catch(e){}}if(curRec===rec)curRec=null;if(srBusy||heard)AFTER_CAP=true;sessionPlayback();bounceAC();r.heard=heard;resolve(r);};
+    try{rec=getSR();}catch(e){finish({ok:false,err:'start'});return;}
+    for(let n=0;n<14&&srBusy;n++)await sleep(50);   // let a previous session end first
+    if(my!==srSess){finish({ok:false,err:'aborted'});return;}
+    tm=setTimeout(()=>finish({ok:false,err:'timeout'}),long?15000:9000);
+    rec.onstart=()=>{srBusy=true;};
+    rec.onresult=e=>{
+      if(my!==srSess)return;
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const res=e.results[i];
+        for(let j=0;j<res.length;j++){const tx=res[j].transcript;if(j===0)heard=tx;if(matches(word,tx)){finish({ok:true});return;}}
+      }
+      const last=e.results[e.results.length-1];
+      if(last&&last.isFinal)finish({ok:false,err:'nomatch'});
+    };
+    rec.onerror=e=>{if(my!==srSess||(e&&e.error==='aborted'))return;finish({ok:false,err:(e&&e.error)||'error'});};
+    rec.onend=()=>{srBusy=false;if(my===srSess)finish({ok:false,err:'end'});};
+    curRec=rec;
+    sessionRecord();
+    try{rec.start();srBusy=true;}
+    catch(e){await sleep(300);try{rec.start();srBusy=true;}catch(e2){finish({ok:false,err:'start'});}}
+  });
+}
+async function probeMic(){
+  sessionRecord();
+  try{const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,autoGainControl:false,noiseSuppression:false}});st.getTracks().forEach(t=>t.stop());}
+  finally{sessionPlayback();}
+}
+
+/* =====================================================================
+   VISUAL FX
+   ===================================================================== */
+function layer(){const c=document.createElement('div');c.className='fxlayer';document.body.appendChild(c);setTimeout(()=>c.remove(),4500);return c;}
+function confetti(n=60){
+  const c=layer(),cols=['#ff5fa2','#ffd23f','#34d399','#4da3ff','#7c5cff','#ff9f43'];
+  for(let i=0;i<n;i++){const p=document.createElement('i');
+    p.style.cssText=`left:${Math.random()*100}%;background:${rand(cols)};--x:${(Math.random()-.5)*180}px;--d:${1.8+Math.random()*1.6}s;animation-delay:${Math.random()*.4}s;width:${7+Math.random()*8}px;height:${10+Math.random()*10}px;border-radius:${Math.random()<.4?'50%':'2px'}`;
+    c.appendChild(p);}
+}
+function burst(e,n=10){
+  const c=layer();
+  for(let i=0;i<n;i++){const s=document.createElement('span');const ang=(i/n)*Math.PI*2+Math.random()*.4,r=90+Math.random()*130;
+    s.className='bs';s.textContent=e;
+    s.style.cssText=`--dx:${Math.cos(ang)*r}px;--dy:${Math.sin(ang)*r}px;--r:${(Math.random()-.5)*90}deg;animation-delay:${Math.random()*.15}s`;
+    c.appendChild(s);}
+}
+function rainfall(e,n=26){
+  const c=layer();
+  for(let i=0;i<n;i++){const s=document.createElement('span');s.className='rf';s.textContent=e;
+    s.style.cssText=`left:${Math.random()*100}%;--d:${2+Math.random()*1.8}s;animation-delay:${Math.random()*1.4}s`;c.appendChild(s);}
+}
+const clearFx=()=>$$('.fxlayer').forEach(x=>x.remove());
+
+/* =====================================================================
+   FLOW STATE
+   ===================================================================== */
+const view=$('#view'),ov=$('#overlay'),modal=$('#modal');
+let TOK=0,A=null,RS=null,QS=null;
+function stopAll(){
+  TOK++;stopSpeech();stopListening();if(CAP){CAP.stop();CAP=null;}if(GUIDE){GUIDE.stop();GUIDE=null;}$$('.gwrap').forEach(x=>x.remove());
+  if(A){A.dead=true;A=null;}
+  ov.innerHTML='';ov.className='overlay';clearFx();
+}
+function setView(html){view.innerHTML=html;view.scrollTop=0;}
+function owlTalk(){const o=$('.owl');if(!o)return;o.classList.remove('talk');void o.offsetWidth;o.classList.add('talk');}
+function setBubble(text,speak){
+  const b=$('#bubble');if(b){b.textContent=text;owlTalk();}
+  return speak?say(text):Promise.resolve();
+}
+const PRAISE=['Great job!','You did it!','Awesome reading!','Wow, super!','Yay! Amazing!',"You're a reading star!",'Fantastic!','Nailed it!','Brilliant!'];
+const SHORT=['Yes!','Great!','You got it!','Nice reading!','Super!','Yay!'];
+const TRY1=["Almost! Let's try again.","Good try! Say it one more time."];
+const START_LINES=["You can do it!","Let's read a new word!","What sound does each letter make?","Tap a letter if you need help!","Here comes a fun one!"];
+
+/* ---- tiles ---- */
+function tilesHtml(tiles,tag='span'){
+  let ci=0;
+  return tiles.map((t,i)=>{
+    const v=isVowelTile(t),dg=t.t.length>1&&!v;
+    const cls=t.s==='-'?'silent':v?'v':dg?'d':'c'+(ci++%4);
+    return `<${tag} class="tile ${cls}" data-i="${i}" style="--w:${t.t.length>2?1.9:t.t.length>1?1.5:1}">${disp(t.t)}</${tag}>`;
+  }).join('');
+}
+function layoutTiles(box){
+  if(!box)return;
+  const els=[...box.children];if(!els.length)return;
+  const W=box.clientWidth||(box.parentElement&&box.parentElement.clientWidth)||320;
+  const units=els.reduce((s,e)=>s+(parseFloat(e.style.getPropertyValue('--w'))||1),0);
+  const gap=Math.max(6,W*.02),max=+box.dataset.max||140;
+  const tw=Math.max(34,Math.min(max,(W-gap*(els.length-1))/units));
+  box.style.setProperty('--tw',tw+'px');box.style.gap=gap+'px';
+}
+window.addEventListener('resize',()=>$$('.tiles').forEach(layoutTiles));
+
+/* =====================================================================
+   PROGRESS
+   ===================================================================== */
+function record(word,kind){
+  const st=S.words[word.w]||(S.words[word.w]={n:0,ok:0,sc:0,sk:0});
+  st.n++;
+  if(kind==='clean'){st.ok++;st.sc+=1;}else if(kind==='helped'){st.ok++;st.sc+=.6;}else st.sk++;
+  if(kind!=='skip')S.stars++;
+  S.recentWords=(S.recentWords||[]).concat(word.w).slice(-8);
+  S.recent=(S.recent||[]).concat({l:word.lvl,ok:kind!=='skip'}).slice(-14);
+  let msg=null;
+  const win=S.recent.filter(r=>r.l===S.frontier);
+  if(win.length>=6){
+    const rate=win.filter(r=>r.ok).length/win.length;
+    if(rate>=.8&&S.frontier<5){S.frontier++;S.recent=[];msg='up';}
+    else if(rate<=.35&&S.frontier>1){S.frontier--;S.recent=[];}
+  }
+  persist();return msg;
+}
+function earnSticker(){
+  const left=STICKERS.filter(s=>!S.stickers.includes(s));
+  if(!left.length)return null;
+  const s=left[0];S.stickers.push(s);persist();return s;
+}
+function goalWords(){
+  const cand=STORIES.filter(s=>!storyUnlocked(s)).map(s=>({s,miss:s.targets.filter(w=>!isKnown(w))})).sort((a,b)=>a.miss.length-b.miss.length);
+  return new Set(cand.length?cand[0].miss:[]);
+}
+function pickWeighted(pool,goal,exclude){
+  const items=pool.filter(w=>!exclude.includes(w));
+  if(!items.length)return null;
+  const rw=S.recentWords||[];
+  const wts=items.map(w=>{
+    const st=S.words[w.w];let x=!st||!st.n?2.2:(!isKnown(w.w)?3:.9);
+    if(w.lvl===S.frontier)x*=1.4;
+    if(goal.has(w.w)&&!isKnown(w.w))x*=2.2;
+    if(rw.includes(w.w))x*=.05;
+    return x;});
+  let r=Math.random()*wts.reduce((a,b)=>a+b,0);
+  for(let i=0;i<items.length;i++){r-=wts[i];if(r<=0)return items[i];}
+  return items[items.length-1];
+}
+function buildRound(){
+  const goal=goalWords(),pool=WORDS.filter(w=>w.lvl<=S.frontier),chosen=[];
+  const warmPool=pool.filter(w=>isKnown(w.w)||w.lvl===1||(S.words[w.w]&&S.words[w.w].ok>0));
+  const warm=pickWeighted(warmPool.length?warmPool:pool,new Set(),[]);
+  if(warm)chosen.push(warm);
+  const stretchPool=WORDS.filter(w=>w.lvl===S.frontier+1&&!isKnown(w.w));
+  const stretch=stretchPool.length?pickWeighted(stretchPool,goal,chosen):null;
+  while(chosen.length<(stretch?5:6)){const w=pickWeighted(pool,goal,chosen);if(!w)break;chosen.push(w);}
+  if(stretch)chosen.splice(Math.min(3,chosen.length),0,stretch);
+  return chosen;
+}
+
+/* =====================================================================
+   WORD ACTIVITY (shared by rounds and stories)
+   ===================================================================== */
+function mountActivity(host,word,opts){
+  const compact=!!opts.compact;
+  const a={word,misses:0,helped:false,busy:false,dead:false,done:false,tok:0,tip:false,loop:0,fresh:false};
+  A=a;
+  const fb=!micOK();
+  const why=!S.settings.mic?'':!HAS_SR?'nosr':MICBLOCK?MICWHY:'';
+  const note=why?`<div class="gnote">Grown-ups: ${micHelp(why)}${why!=='nosr'?` <button data-a="retrymic">Try again</button>`:''}</div>`:'';
+  host.innerHTML=`
+    <div class="tiles ${compact?'sm':''}" data-max="${compact?96:140}">${tilesHtml(word.tiles,'button')}</div>
+    <div class="helpers">
+      <button class="btn sm blue" data-a="hear">🔊 Hear it</button>
+      <button class="btn sm yellow" data-a="sound">💡 Sound it out</button>
+    </div>
+    <div class="micwrap">
+      ${fb?`<div class="say">🗣️ Say the word out loud!</div><button class="btn green ${compact?'':'big'}" data-a="grown">✓ Grown-up: got it!</button>${note}`
+          :`<button class="mic" data-a="mic" aria-label="Microphone on or off">🎤</button><div class="miclabel">Tap the mic to start listening</div>`}
+    </div>
+    <div class="bottomrow">
+      <button class="link" data-a="skip">Skip ➜</button>
+      ${fb?'':`<button class="link" data-a="grown" data-grown hidden>👪 Grown-up: ✓ got it</button>`}
+    </div>`;
+  const tilesEl=$('.tiles',host);layoutTiles(tilesEl);
+  const micEl=$('.mic',host),labelEl=$('.miclabel',host);
+  const litOff=()=>$$('.tile',host).forEach(e=>e.classList.remove('lit'));
+  const setMic=s=>{if(!micEl)return;micEl.classList.toggle('listening',s==='listen');micEl.classList.toggle('on',s==='wait');
+    if(labelEl)labelEl.textContent=s==='listen'?'Listening… say the word!':s==='wait'?'Mic on · tap to turn off':'Tap the mic to start listening';};
+  const showGrown=()=>{const g=$('[data-grown]',host);if(g)g.hidden=false;};
+
+  async function tapTile(i){
+    ac();a.helped=true;a.tok++;stopSpeech();litOff();
+    const t=word.tiles[i],el=$$('.tile',host)[i];
+    el.classList.remove('boing');void el.offsetWidth;el.classList.add('boing');
+    if(t.s==='-'){say(`Silent ${t.t}!`,{rate:.85});return;}
+    sayLetter(t,true);
+    if(!a.tip&&!compact){a.tip=true;setBubble('Nice! Tap each letter, then squish the sounds together.');}
+  }
+  async function soundOut(){
+    ac();if(a.busy)return;a.helped=true;const my=++a.tok;stopSpeech();litOff();
+    const els=$$('.tile',host);
+    for(let i=0;i<word.tiles.length;i++){
+      if(a.dead||my!==a.tok)return;
+      els[i].classList.add('lit');
+      const t=word.tiles[i];
+      await sayLetter(t,false);
+      if(a.dead||my!==a.tok)return;
+      els[i].classList.remove('lit');await sleep(220);
+    }
+    if(a.dead||my!==a.tok)return;
+    setBubble('Now squish the sounds together and say the word!');
+  }
+  function success(){
+    if(a.done)return;a.done=true;stopListening();
+    opts.onCorrect((a.helped||a.misses>0)?'helped':'clean');
+  }
+  async function miss(r){
+    a.misses++;
+    if(micEl){micEl.classList.remove('shake');void micEl.offsetWidth;micEl.classList.add('shake');}
+    const noHear=(r.err==='no-speech'||r.err==='timeout'||!r.heard);
+    if(a.misses>=2)showGrown();
+    if(noHear){
+      if(MIC_ON)return;
+      if(labelEl)labelEl.textContent="I didn't hear that. Tap the mic and try again!";
+      setBubble("I didn't hear you. Tap the mic and try again!",true);return;
+    }
+    if(labelEl)labelEl.textContent=`I heard “${r.heard}”. Try again!`;
+    if(a.misses===1){setBubble(rand(TRY1),true);}
+    else if(a.misses===2){await setBubble("Let's sound it out together!",true);if(!a.dead&&!a.done)soundOut();}
+    else{setBubble("You're doing great! Try once more, or tap Skip.",true);}
+  }
+  function blocked(code){
+    MIC_ON=false;setVoiceBoost();MICBLOCK=true;MICWHY=code;a.dead=true;
+    mountActivity(host,word,opts);
+    setBubble("I can't hear you on this device. A grown-up can tap the green button when you read it!",true);
+  }
+  // Mic is a toggle: once on it keeps listening across words until tapped off or the screen changes.
+  // It pauses whenever Ollie is talking so it never hears the game say the word.
+  async function mic(){
+    if(a.done)return;
+    ac();
+    if(MIC_ON){MIC_ON=false;a.loop++;stopListening();setVoiceBoost();setMic('idle');return;}
+    stopSpeech();litOff();
+    if(!MICPRE&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+      // ask for microphone permission first: this is what makes the browser show its "Allow" prompt
+      if(labelEl)labelEl.textContent='Getting the microphone ready…';
+      try{await probeMic();MICPRE=true;a.fresh=true;}
+      catch(e){if(a.dead||a.done)return;setMic('idle');return blocked(e.name||'error');}
+      if(a.dead||a.done)return;
+      await sleep(250);
+    }
+    MIC_ON=true;setVoiceBoost();micLoop();
+  }
+  async function micLoop(){
+    const my=++a.loop;let fast=0;
+    const gone=()=>a.dead||a.done||!MIC_ON||my!==a.loop;
+    while(!gone()){
+      setMic('wait');
+      await waitAudioIdle(gone);
+      if(gone())break;
+      setMic('listen');
+      const t0=Date.now(),r=await listenFor(word.w,true);
+      if(gone())break;
+      if(r.ok)return success();
+      const hard=['not-allowed','service-not-allowed','audio-capture','network','start'].includes(r.err);
+      if(hard&&a.fresh){a.fresh=false;await sleep(400);continue;}   // first try after the permission prompt can fail once
+      if(hard)return blocked(r.err);
+      a.fresh=false;
+      if(Date.now()-HUSH_AT<1500)continue;                         // stopped because Ollie started talking
+      if(!r.heard){
+        // silence: keep listening, but don't spin if the recognizer keeps ending instantly
+        if(Date.now()-t0<800){if(++fast>=3){MIC_ON=false;setVoiceBoost();break;}await sleep(500);}else fast=0;
+        continue;
+      }
+      fast=0;
+      await miss(r);
+    }
+    if(!a.dead&&!a.done)setMic(MIC_ON&&my===a.loop?'wait':'idle');
+  }
+  if(!fb&&MIC_ON)setTimeout(()=>{if(!a.dead&&!a.done&&MIC_ON)micLoop();},0);
+  host.onclick=ev=>{
+    if(a.dead)return;
+    const t=ev.target.closest('.tile');
+    if(t&&host.contains(t))return tapTile(+t.dataset.i);
+    const b=ev.target.closest('[data-a]');if(!b)return;
+    const act=b.dataset.a;
+    if(act==='hear'){ac();a.helped=true;a.tok++;stopSpeech();litOff();sayWord(word.w);}
+    else if(act==='sound')soundOut();
+    else if(act==='mic')mic();
+    else if(act==='grown')success();
+    else if(act==='retrymic'){MICBLOCK=false;MICWHY='';MICPRE=false;a.dead=true;mountActivity(host,word,opts);setBubble('Tap the microphone and say the word!');}
+    else if(act==='skip'){if(a.done)return;a.done=true;stopListening();stopSpeech();opts.onSkip();}
+  };
+}
+
+/* =====================================================================
+   SCREENS
+   ===================================================================== */
+const greet=()=>S.name?`Hi ${S.name}! Ready to read?`:'Hi friend! Ready to read?';
+function top(title,left='<button class="rbtn" data-act="home" aria-label="Home">🏠</button>',mid){
+  return `<div class="top">${left}${mid||`<div class="ttl">${title||''}</div>`}<div class="starbadge">⭐ <b id="starcount">${S.stars}</b></div></div>`;
+}
+function screenHome(){micOff();
+  stopAll();
+  const n=knownCount(),ready=STORIES.filter(st=>storyUnlocked(st)&&!S.stories[st.id]).length;
+  setView(`<div class="col home">
+    <div class="hero"><button class="owl" data-act="owl" aria-label="Ollie the owl">🦉</button><div class="bubble" id="bubble">${greet()}</div></div>
+    <h1 class="title">Ollie's<br><span>Word Adventure</span></h1>
+    <div class="menu">
+      <button class="btn big green" data-act="play">▶&nbsp; Let's Read!</button>
+      <button class="btn big pink" data-act="stories">📖&nbsp; Story Time${ready?`<span class="badge">${ready}</span>`:''}</button>
+      <button class="btn big yellow" data-act="stickers">🌟&nbsp; My Stickers</button>
+    </div>
+    <div class="stats"><span>⭐ ${S.stars}</span><span>🧠 ${n} word${n===1?'':'s'} I know</span></div>
+    <button class="gear" id="gear" aria-label="Grown-up settings. Press and hold.">⚙️</button>
+    <div class="hint">Grown-ups: press and hold ⚙️</div>
+  </div>`);
+  const g=$('#gear');let t=0;
+  const cancel=()=>clearTimeout(t);
+  g.addEventListener('pointerdown',()=>{t=setTimeout(openSettings,900)});
+  ['pointerup','pointerleave','pointercancel'].forEach(e=>g.addEventListener(e,cancel));
+  owlTalk();
+}
+/* ---- rounds ---- */
+function startRound(list){micOff();
+  stopAll();
+  RS={words:list||buildRound(),i:0,stars:0,levelUp:false,startUnlocked:unlockedIds()};
+  showWord(true);
+}
+function showWord(first){
+  const w=RS.words[RS.i];
+  setView(`<div class="col">
+    ${top('',undefined,`<div class="dots">${RS.words.map((_,k)=>`<i class="${k<RS.i?'d':k===RS.i?'c':''}"></i>`).join('')}</div>`)}
+    <div class="mascot"><button class="owl sm" data-act="owlsay" aria-label="Ollie">🦉</button><div class="bubble" id="bubble"></div></div>
+    <div id="act" class="act"></div>
+  </div>`);
+  mountActivity($('#act'),w,{onCorrect:k=>onRoundCorrect(w,k),onSkip:()=>onRoundSkip(w)});
+  if(first)setBubble('Tap the mic and say the word!',true);else setBubble(rand(START_LINES));
+}
+function onRoundCorrect(w,kind){
+  const msg=record(w,kind);RS.stars++;if(msg==='up')RS.levelUp=true;
+  const sc=$('#starcount');if(sc)sc.textContent=S.stars;
+  celebrate(w,kind);
+}
+async function celebrate(w){
+  const my=++TOK;stopSpeech();
+  const praise=rand(PRAISE),name=S.name?`, ${S.name}!`:'';
+  const bigAnim=w.anim==='fall'?'float':w.anim;
+  ov.className='overlay on';
+  ov.innerHTML=`<div class="cele">
+    <div class="stage"><div class="big em anim-${bigAnim}">${w.emoji}</div></div>
+    <div class="tiles ok cword" data-max="90">${tilesHtml(w.tiles)}</div>
+    <div class="cpraise">${praise.replace(/!$/,'')}${name||'!'}</div>
+    <button class="btn green big" id="celenext">Next ➜</button>
+  </div>`;
+  layoutTiles($('.cword',ov));
+  $('#celenext').onclick=nextInRound;
+  FX.ding();confetti();burst(w.emoji);
+  if(w.anim==='fall')rainfall(w.emoji);
+  await sleep(250);if(my!==TOK)return;
+  await playSfx(w.sfx,my);if(my!==TOK)return;
+  await say(`${praise} ${w.w}!`,{rate:.8,slow:.85});
+}
+function nextInRound(){
+  stopAll();RS.i++;
+  if(RS.i>=RS.words.length)return finishRound();
+  showWord(false);
+}
+function onRoundSkip(w){
+  record(w,'skip');stopAll();RS.i++;
+  if(RS.i>=RS.words.length)finishRound();else showWord(false);
+  say(`No problem! That word is ${w.w}. Let's try another!`,{rate:.8,slow:.87});
+}
+function finishRound(){micOff();
+  S.rounds++;const sticker=earnSticker();persist();
+  const newStories=unlockedIds().filter(id=>!RS.startUnlocked.includes(id)).map(id=>STORIES.find(s=>s.id===id));
+  setView(`<div class="col center">
+    <div class="bigtitle">🎉 Round complete!</div>
+    <div class="stickerbig">${sticker||'🏆'}</div>
+    <div class="statline">${sticker?'You earned a new sticker!':'You are a super reader!'}</div>
+    <div class="statline">You read ${RS.stars} word${RS.stars===1?'':'s'}! ${'⭐'.repeat(Math.min(RS.stars,6))}</div>
+    ${RS.levelUp?'<div class="banner">🚀 Bigger words unlocked!</div>':''}
+    ${newStories.map(s=>`<div class="banner">📖 New story: ${s.title}!</div><button class="btn pink" data-act="story" data-id="${s.id}">▶ Read it now</button>`).join('')}
+    <div class="menu">
+      <button class="btn big green" data-act="play">▶&nbsp; Keep going</button>
+      <button class="btn ghost" data-act="home">🏠 Home</button>
+    </div>
+  </div>`);
+  confetti(90);FX.tada();
+  const nm=S.name?`, ${S.name}`:'';
+  say(`Amazing reading${nm}! ${sticker?'You earned a new sticker!':''}`);
+}
+/* ---- stickers ---- */
+function screenStickers(){micOff();
+  stopAll();
+  setView(`<div class="col">
+    ${top('🌟 My Stickers')}
+    <button class="btn big green" data-act="scenes">🎨&nbsp; Play with stickers</button>
+    <div class="statline" style="text-align:center">${S.stickers.length} of ${STICKERS.length}</div>
+    <div class="sgrid">${STICKERS.map((s,i)=>{const got=S.stickers.includes(s);const last=got&&S.stickers[S.stickers.length-1]===s;return `<div class="stk ${got?'':'lock'} ${last?'new':''}">${got?s:'❔'}</div>`}).join('')}</div>
+    <div class="hint" style="text-align:center">Finish a round or a story to win a sticker!</div>
+  </div>`);
+}
+
+/* =====================================================================
+   STICKER SCENES — decorate pictures of Ollie with earned stickers
+   ===================================================================== */
+const SCENES=[
+ {id:'meadow',title:'Sunny Meadow',d:['☀️,82,11,17','☁️,24,12,16','☁️,60,7,11','🌳,24,57,44','🦉,27,47,17','🌷,68,88,8','🌼,86,91,7','🌻,9,90,9','🦋,64,38,7']},
+ {id:'beach',title:'Beach Day',d:['☀️,84,10,16','☁️,28,12,13','⛵,64,51,11','🌴,15,50,36','⛱️,78,70,28','🦉,46,72,21','🐚,88,92,7','🦀,24,90,9']},
+ {id:'space',title:'Space Trip',d:['🌙,80,11,18','🪐,20,22,20','⭐,52,9,6','✨,88,40,7','🌍,16,86,18','🚀,78,72,26','🦉,40,56,23']},
+ {id:'sea',title:'Under the Sea',d:['🫧,20,12,6','🫧,30,22,4','🫧,82,18,5','🐠,78,36,12','🫧,48,50,40','🦉,48,50,22','🌿,10,84,18','🪸,86,86,16']},
+ {id:'snow',title:'Snow Day',d:['❄️,14,10,6','❄️,52,7,5','❄️,86,14,6','❄️,30,26,4','🌲,14,58,32','🌲,88,56,26','⛄,72,78,26','🦉,36,74,21']},
+ {id:'party',title:'Party Time',d:['🎈,12,16,15','🎈,88,14,15','🎊,50,8,13','🦉,50,46,23','🎉,66,36,10','🎂,50,80,26','🎁,15,86,15','🎁,86,88,12']}
+];
+function sceneMarkup(sc,list,mini){
+  const deco=sc.d.map(x=>{const [e,l,t,z]=x.split(',');return `<div class="it ${e==='🦉'?'ollie':''}" style="left:${l}%;top:${t}%;--s:${z}">${e}</div>`;}).join('');
+  const st=(list||[]).map((p,i)=>`<div class="pst" data-i="${i}" style="left:${p.x}%;top:${p.y}%;--s:${p.s}"><span style="transform:scaleX(${p.f?-1:1})">${p.e}</span></div>`).join('');
+  return `<div class="pscene pg-${sc.id} ${mini?'mini':''}" ${mini?'':'id="pscene"'}>${deco}${st}</div>`;
+}
+function screenScenes(){micOff();
+  stopAll();S.scenes=S.scenes||{};
+  setView(`<div class="col">
+    ${top('🎨 Sticker Scenes',`<button class="rbtn" data-act="stickers" aria-label="Back to stickers">←</button>`)}
+    ${S.stickers.length?'':'<div class="hint" style="text-align:center">Finish a round or a story to win your first sticker!</div>'}
+    <div class="scgrid">${SCENES.map(sc=>`<button class="sccard" data-act="scene" data-id="${sc.id}">${sceneMarkup(sc,S.scenes[sc.id],true)}<span>${sc.title}</span></button>`).join('')}</div>
+  </div>`);
+}
+function screenScene(id){micOff();
+  stopAll();
+  const sc=SCENES.find(x=>x.id===id)||SCENES[0];
+  S.scenes=S.scenes||{};const list=S.scenes[sc.id]=S.scenes[sc.id]||[];
+  let sel=-1,drag=null,clearArm=0;
+  setView(`<div class="col">
+    ${top('🎨 '+sc.title,`<button class="rbtn" data-act="scenes" aria-label="Back to scenes">←</button>`)}
+    ${sceneMarkup(sc,list,false)}
+    <div class="ptools">
+      <button class="vb" data-p="smaller" aria-label="Smaller">➖</button><button class="vb" data-p="bigger" aria-label="Bigger">➕</button>
+      <button class="vb" data-p="flip" aria-label="Flip">↔️</button><button class="vb" data-p="del" aria-label="Remove sticker">🗑️</button>
+      <button class="btn sm ghost" data-p="clear">Start over</button>
+    </div>
+    ${S.stickers.length?`<div class="tray">${S.stickers.map(e=>`<button data-add="${e}" aria-label="Add sticker">${e}</button>`).join('')}</div>`
+      :'<div class="hint" style="text-align:center">Win stickers by finishing rounds and stories!</div>'}
+  </div>`);
+  const box=$('#pscene'),col=$('.col',view);
+  const tools=()=>{$$('[data-p]',col).forEach(b=>{if(b.dataset.p!=='clear')b.disabled=sel<0;});};
+  const render=(fresh)=>{
+    $$('.pst',box).forEach(e=>e.remove());
+    list.forEach((p,i)=>{const d=document.createElement('div');d.className='pst'+(i===sel?' sel':'')+(fresh&&i===sel?' new':'');d.dataset.i=i;
+      d.style.left=p.x+'%';d.style.top=p.y+'%';d.style.setProperty('--s',p.s);d.innerHTML=`<span style="transform:scaleX(${p.f?-1:1})">${p.e}</span>`;box.appendChild(d);});
+    tools();
+  };
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  box.addEventListener('pointerdown',e=>{
+    const t=e.target.closest('.pst');
+    if(!t){if(sel>=0){sel=-1;render();}return;}
+    e.preventDefault();ac();
+    sel=+t.dataset.i;const r=box.getBoundingClientRect(),p=list[sel];
+    drag={id:e.pointerId,el:t,dx:e.clientX-(r.left+p.x/100*r.width),dy:e.clientY-(r.top+p.y/100*r.height),moved:false};
+    try{t.setPointerCapture(e.pointerId);}catch(_){}
+    $$('.pst',box).forEach(x=>x.classList.toggle('sel',x===t));t.style.zIndex=50;tools();
+  });
+  box.addEventListener('pointermove',e=>{
+    if(!drag||e.pointerId!==drag.id)return;
+    const r=box.getBoundingClientRect(),p=list[sel];
+    p.x=Math.round(clamp((e.clientX-drag.dx-r.left)/r.width*100,2,98)*10)/10;
+    p.y=Math.round(clamp((e.clientY-drag.dy-r.top)/r.height*100,2,98)*10)/10;
+    drag.el.style.left=p.x+'%';drag.el.style.top=p.y+'%';drag.moved=true;
+  });
+  const end=e=>{
+    if(!drag||e.pointerId!==drag.id)return;drag=null;
+    // bring the sticker you touched to the front
+    if(sel>=0&&sel<list.length-1){list.push(list.splice(sel,1)[0]);sel=list.length-1;}
+    persist();render();
+  };
+  box.addEventListener('pointerup',end);box.addEventListener('pointercancel',end);
+  col.addEventListener('click',e=>{
+    const add=e.target.closest('[data-add]');
+    if(add){
+      if(list.length>=60)return;
+      ac();FX.pop();
+      list.push({e:add.dataset.add,x:Math.round(38+Math.random()*24),y:Math.round(34+Math.random()*24),s:1,f:0});
+      sel=list.length-1;persist();render(true);return;
+    }
+    const b=e.target.closest('[data-p]');if(!b)return;const act=b.dataset.p;
+    if(act==='clear'){
+      if(!list.length)return;
+      if(!clearArm){clearArm=1;b.textContent='Tap again to clear';setTimeout(()=>{clearArm=0;if(document.body.contains(b))b.textContent='Start over';},3500);return;}
+      clearArm=0;b.textContent='Start over';list.length=0;sel=-1;persist();render();ac();FX.whoosh();return;
+    }
+    if(sel<0)return;const p=list[sel];
+    if(act==='smaller')p.s=Math.max(.5,Math.round((p.s-.2)*10)/10);
+    else if(act==='bigger')p.s=Math.min(2.8,Math.round((p.s+.2)*10)/10);
+    else if(act==='flip')p.f=p.f?0:1;
+    else if(act==='del'){list.splice(sel,1);sel=-1;ac();FX.pop();}
+    persist();render();
+  });
+  tools();
+}
+/* ---- stories list ---- */
+function screenStories(){micOff();
+  stopAll();
+  setView(`<div class="col">
+    ${top('📖 Story Time')}
+    <div class="scards">${STORIES.map(st=>{
+      const un=storyUnlocked(st),n=S.stories[st.id]||0;
+      return `<div class="scard ${un?'':'locked'}"><div class="semoji">${un?st.emoji:'🔒'}</div><div><h3>${st.title}</h3>
+      ${un?`<p>${st.sents.length} pages${n?` · read ${n} time${n===1?'':'s'}`:''}</p><button class="btn sm green" data-act="story" data-id="${st.id}">▶ Read</button>`
+          :`<p>Learn these words to unlock:</p><div class="chips">${st.targets.map(w=>`<span class="chip ${isKnown(w)?'ok':''}">${isKnown(w)?'✓ ':''}${disp(w)}</span>`).join('')}</div><button class="btn sm pink" data-act="practice" data-id="${st.id}">🎯 Practice these words</button>`}
+      </div></div>`;}).join('')}</div>
+  </div>`);
+}
+function practiceList(st){
+  let miss=st.targets.filter(w=>!isKnown(w)).map(w=>BYW[w]);
+  miss=shuffle(miss).slice(0,6);
+  if(miss.length<3){const extra=shuffle(st.targets.map(w=>BYW[w]).filter(w=>!miss.includes(w))).slice(0,3-miss.length);miss=miss.concat(extra);}
+  return miss;
+}
+/* ---- story player ---- */
+function openStory(id){micOff();
+  stopAll();
+  const st=STORIES.find(s=>s.id===id);
+  QS={st,i:0,startUnlocked:unlockedIds()};
+  storyPage();
+}
+function sceneHtml(bg,items){
+  const all=(DECOR[bg]||[]).map(s=>({s,decor:true})).concat(items.map(s=>({s,decor:false})));
+  return `<div class="scene bg-${bg}" id="scene"><div class="ground"></div>${all.map(({s,decor},k)=>{
+    const [e,x,y,sz,an]=s.split(',');
+    const cls=(an||'').split(' ').map((c,j)=>j===0?`anim-${c}`:c).join(' ');
+    const em=decor?`<span class="em ${cls}">${e}</span>`:`<span class="em ${cls}">${e}</span>`;
+    return `<div class="it ${decor?'decor':''}" style="left:${x}%;top:${y}%;--s:${sz};animation-delay:${k*.08}s">${em}</div>`;}).join('')}</div>`;
+}
+/* read tokens [a,b) aloud, slowed, highlighting each word as it is spoken */
+function storyClip(toks){
+  if(!(S.settings.sound&&S.settings.murf))return null;
+  const k='m:@'+mkey(toks.map(t=>t.disp).join(' ')),c=CLIPS[k];
+  return c&&c.w&&c.w.length===toks.length?{k,c}:null;
+}
+function segBuf(k,c,t0,t1,rate){
+  const bk=`~seg${rate}:${t0.toFixed(3)}:${t1.toFixed(3)}:${k}`;if(BUFS[bk])return BUFS[bk];
+  const i0=Math.max(0,Math.floor(t0*c.sr)),i1=Math.min(c.data.length,Math.ceil(t1*c.sr)),n=Math.max(1,i1-i0),fade=Math.round(c.sr*.012);
+  const f=new Float32Array(n);
+  for(let i=0;i<n;i++){let v=c.data[i0+i]/32768;if(i<fade)v*=i/fade;if(n-1-i<fade)v*=(n-1-i)/fade;f[i]=v;}
+  const y=rate&&rate!==1?stretchPCM(f,c.sr,rate):f,b=ac().createBuffer(1,y.length,c.sr);b.getChannelData(0).set(y);
+  return BUFS[bk]=b;
+}
+async function readAlong(toks,W,a,b,rate0,my){
+  const rate=effRate(rate0);
+  const sc=storyClip(toks);
+  const mineHere=useMine()&&splitSent(toks.slice(a,b).map(x=>x.disp).join(' ')).every(x=>{const c=clipsFor(x);return c&&c.length&&c.every(i=>i.mine);});
+  if(sc&&!mineHere&&ac()){
+    const w=sc.c.w,end=sc.c.data.length/sc.c.sr;
+    const t0=a===0?0:Math.max(w[a-1][1],w[a][0]-.05);
+    const t1=b>=toks.length?end:Math.max(w[b-1][1]+.02,Math.min(w[b-1][1]+.09,w[b][0]));
+    const buf=segBuf(sc.k,sc.c,t0,t1,rate),t=performance.now();
+    const hl=(async()=>{
+      for(let q=a;q<b;q++){
+        const on=(w[q][0]-t0)/rate*1000,off=Math.max(on+180,(w[q][1]-t0)/rate*1000);
+        await sleep(Math.max(0,on-(performance.now()-t)));if(my!==TOK)return;
+        const el=W(q);if(el)el.classList.add('on');
+        await sleep(Math.max(0,off-(performance.now()-t)));if(el)el.classList.remove('on');
+      }})();
+    await Promise.all([playBuf(buf),hl]);
+    return;
+  }
+  const idx=[];for(let q=a;q<b;q++)idx.push(q);
+  const text=idx.map(q=>toks[q].disp).join(' ');
+  const dur=speechDur(text,rate0);
+  const wts=idx.map(q=>toks[q].disp.replace(/[^A-Za-z']/g,'').length+2),wsum=wts.reduce((x,y)=>x+y,0);
+  const hl=(async()=>{
+    if(dur)await sleep(70/rate);
+    for(let n=0;n<idx.length;n++){
+      if(my!==TOK)return;const el=W(idx[n]);if(el)el.classList.add('on');
+      await sleep(dur?Math.max(170,(dur*1000-140)*wts[n]/wsum):460+toks[idx[n]].disp.length*75);
+      if(el)el.classList.remove('on');
+    }})();
+  await Promise.all([say(text,{rate:.7,slow:rate0}),hl]);
+}
+async function storyPage(){
+  stopAll();
+  const my=TOK,st=QS.st,s=st.sents[QS.i];
+  setView(`<div class="col">
+    ${top('',`<button class="rbtn" data-act="stories" aria-label="Back to stories">←</button>`,`<div class="dots">${st.sents.map((_,k)=>`<i class="${k<QS.i?'d':k===QS.i?'c':''}"></i>`).join('')}</div>`)}
+    ${sceneHtml(st.bg,s.items)}
+    <div class="sent" id="sent">${s.toks.map((t,k)=>`<span class="w ${t.target?'tg':''}" data-k="${k}">${t.disp}</span>`).join(' ')}</div>
+    <div id="act" class="act compact"></div>
+    <div class="story-ctl" id="ctl"></div>
+  </div>`);
+  const W=k=>$(`.w[data-k="${k}"]`);
+  await sleep(700);if(my!==TOK)return;
+  let k=0;
+  while(k<s.toks.length){
+    let j=k;while(j<s.toks.length&&!s.toks[j].target)j++;
+    if(j>k){
+      await readAlong(s.toks,W,k,j,.82,my);
+      if(my!==TOK)return;
+      await sleep(250);if(my!==TOK)return;
+    }
+    if(j<s.toks.length){
+      const tk=s.toks[j],w=BYW[tk.w],el=W(j);
+      el.classList.add('active');
+      const res=await new Promise(resolve=>{mountActivity($('#act'),w,{compact:true,onCorrect:kind=>resolve(kind),onSkip:()=>resolve('skip')});});
+      if(my!==TOK)return;
+      record(w,res);
+      const sc=$('#starcount');if(sc)sc.textContent=S.stars;
+      $('#act').innerHTML='';A=null;
+      el.classList.remove('active');el.classList.add('ok');
+      if(res==='skip'){await say(`That word is ${w.w}.`,{rate:.75,slow:.85});}
+      else{FX.ding();burst(w.emoji,6);await say(`${rand(SHORT)} ${w.w}!`,{rate:.8,slow:.85});}
+      if(my!==TOK)return;
+    }
+    k=j+1;
+  }
+  $('#scene').classList.add('done');
+  FX.sparkle();confetti(28);
+  const full=s.toks.map(t=>t.disp).join(' ');
+  await sleep(400);if(my!==TOK)return;
+  await readAlong(s.toks,W,0,s.toks.length,.8,my);
+  if(my!==TOK)return;
+  const last=QS.i>=st.sents.length-1;
+  $('#ctl').innerHTML=`<button class="btn big ${last?'pink':'green'}" data-act="storynext">${last?'The End 🎉':'Next page ➜'}</button>`;
+}
+function storyEnd(){micOff();
+  const st=QS.st;stopAll();
+  S.stories[st.id]=(S.stories[st.id]||0)+1;
+  const sticker=earnSticker();persist();
+  const newStories=unlockedIds().filter(id=>!QS.startUnlocked.includes(id)).map(id=>STORIES.find(s=>s.id===id));
+  setView(`<div class="col center">
+    <div class="bigtitle">The End! 🎉</div>
+    <div class="stickerbig">${sticker||st.emoji}</div>
+    <div class="statline">${sticker?'You earned a new sticker!':'What a great story!'}</div>
+    <div class="statline">You read "${st.title}"!</div>
+    ${newStories.map(s=>`<div class="banner">📖 New story: ${s.title}!</div>`).join('')}
+    <div class="menu">
+      <button class="btn big green" data-act="story" data-id="${st.id}">↻&nbsp; Read again</button>
+      <button class="btn big pink" data-act="stories">📖&nbsp; More stories</button>
+      <button class="btn ghost" data-act="home">🏠 Home</button>
+    </div>
+  </div>`);
+  confetti(90);FX.tada();
+  say(`The end! You read the whole story${S.name?`, ${S.name}`:''}! Great reading!`);
+}
+
+
+/* =====================================================================
+   VOICE RECORDER (grown-ups)
+   ===================================================================== */
+const escH=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+/* every line the game can say, grouped for recording; each line once */
+function recGroups(){
+  const nm=S.name||'',seen=new Set(),G=[];
+  const item=(t,key,big,sub)=>({t,key,big,sub});
+  const grp=(id,title,texts,note)=>{const items=[];
+    texts.forEach(t=>splitSent(t).forEach(x=>{const k=mkey(x);if(!k||seen.has(k)||PHK[k]||/^that word is \w+$/.test(k))return;seen.add(k);items.push(item(x,recKey(k)));}));
+    if(items.length)G.push({id,title,items,note});};
+  G.push({id:'letters',title:'Letter sounds',note:'Say just the sound, short and clean: /t/ not “tuh”, /m/ as a short “mmm”.',
+    items:PHON.map(x=>item(x[1],'p:'+x[0],disp(x[1]),`${x[3]?x[3]+' · ':''}as in “${x[2]}”`))});
+  [1,2,3,4,5].forEach(l=>{const ws=WORDS.filter(w=>w.lvl===l);ws.forEach(w=>seen.add(w.w));
+    G.push({id:'w'+l,title:`Words · level ${l}`,note:'Read each word clearly, the way you want your child to hear it.',items:ws.map(w=>item(w.w,'w:'+w.w,disp(w.w),w.emoji))});});
+  grp('praise','Praise',[...PRAISE,...SHORT],'Said when a word is read right. The word itself comes from your word recordings.');
+  grp('talk',"Ollie's prompts",[...START_LINES,...TRY1,'That word is',...FIXED_LINES,'Silent e!'],'“That word is” is recorded once; the word is added from your word recordings.');
+  if(nm)grp('name','Lines with your child’s name',[`Hi ${nm}! Ready to read?`,`Hi ${nm}!`,`Amazing reading, ${nm}!`,`You read the whole story, ${nm}!`,`Hi ${nm}! I'm Ollie. Let's read!`,`Hi ${nm}! I'm Ollie the owl. Let's read together!`]);
+  grp('hints','Letter hints',PHON.map(x=>`like ${x[2]}`).concat([...new Set(WORDS.flatMap(w=>w.tiles.filter(t=>t.s==='-').map(t=>`silent ${t.t}`)))]),'Played after a letter sound when a letter is tapped.');
+  grp('sfx','Fun sounds',WORDS.flatMap(w=>w.sfx.split('|').filter(x=>x[0]!=='~')),'Played in the celebration for some words. Have fun with these.');
+  STORIES.forEach(st=>{const T=[];st.sents.forEach(se=>{
+      let k=0;while(k<se.toks.length){let j=k;while(j<se.toks.length&&!se.toks[j].target)j++;if(j>k)T.push(se.toks.slice(k,j).map(t=>t.disp).join(' '));k=j+1;}
+      T.push(se.toks.map(t=>t.disp).join(' '));});
+    grp('st-'+st.id,`Story: ${st.title}`,T,'Short pieces are read before your child reads the next word; whole sentences are read back at the end.');});
+  const rest=[...murfTexts()].filter(([k])=>k[0]!=='@').map(([,t])=>t);
+  grp('other','Other lines',rest);
+  return G;
+}
+let GUIDE=null;
+async function recordInto(key,meter,statusFn){
+  const kind=key[0];
+  let stream;try{stream=await getMic();}catch(e){statusFn(micHelp(e.name||'error'));return null;}
+  statusFn('Recording… speak now.');
+  const cap=startCapture(stream,{maxSec:kind==='p'?2.5:kind==='w'?3.5:10,quietSec:kind==='p'?.6:kind==='w'?.7:1.1,
+    onLevel:x=>{if(meter)meter.style.width=Math.min(100,x*500)+'%';}});
+  GUIDE=cap;
+  const raw=await cap.done;GUIDE=null;if(meter)meter.style.width='0';
+  const c=trimClip(raw);
+  if(!c){statusFn("Didn't catch that. Try again a little louder or closer.");return null;}
+  delete c.off;
+  if(!await saveClip(key,c)){statusFn('Could not save on this device (storage blocked?).');return null;}
+  statusFn('');return c;
+}
+function guided(items,title,onDone){
+  const todo=items.filter(x=>!hasClip(x.key));
+  const box=document.createElement('div');box.className='gwrap';document.body.appendChild(box);
+  let i=0,busy=false;
+  const close=()=>{if(GUIDE){GUIDE.stop();GUIDE=null;}box.remove();onDone&&onDone();};
+  if(!todo.length){box.innerHTML=`<div class="gcard"><div class="gtext">Everything in “${escH(title)}” is recorded 🎉</div><div class="gnav"><span></span><button class="btn sm green" data-g="close">Done</button></div></div>`;}
+  const show=()=>{
+    if(i>=todo.length){box.innerHTML=`<div class="gcard"><div class="gtext">All done 🎉</div><div class="gsub">${escH(title)}</div><div class="gnav"><span></span><button class="btn sm green" data-g="close">Done</button></div></div>`;return;}
+    const it=todo[i],has=hasClip(it.key);
+    box.innerHTML=`<div class="gcard">
+      <div class="gtop"><span>${escH(title)} · ${i+1} of ${todo.length}</span><button class="vb" data-g="close" aria-label="Close">✕</button></div>
+      <div class="gtext">${escH(it.big||it.t)}</div>${it.sub?`<div class="gsub">${escH(it.sub)}</div>`:''}
+      <div class="vmeter"><i id="g-meter"></i></div>
+      <div class="gbtns"><button class="vb rec big" data-g="rec" aria-label="Record">●</button><button class="vb" data-g="play" aria-label="Play" ${has?'':'disabled'}>▶</button></div>
+      <div class="gstat" id="g-stat">${has?'Sounds good? Tap Next. Or record again.':'Tap ● and say it. Recording stops when you finish.'}</div>
+      <div class="gnav"><button class="btn sm ghost" data-g="skip">Skip</button><button class="btn sm green" data-g="next" ${has?'':'disabled'}>Next ➜</button></div></div>`;
+  };
+  if(todo.length)show();
+  box.onclick=async e=>{
+    const b=e.target.closest('[data-g]');if(!b)return;const g=b.dataset.g;ac();
+    if(g==='close')return close();
+    if(g==='skip'||g==='next'){if(GUIDE){GUIDE.stop();}i++;show();return;}
+    const it=todo[i];if(!it)return;
+    if(g==='play'){stopSpeech();playClip(it.key);return;}
+    if(g==='rec'){
+      if(GUIDE){GUIDE.stop();return;}
+      if(busy)return;busy=true;stopSpeech();
+      b.classList.add('on');b.textContent='■';
+      const st=t=>{const x=$('#g-stat',box);if(x&&t)x.textContent=t;};
+      const c=await recordInto(it.key,$('#g-meter',box),st);
+      busy=false;if(!box.isConnected)return;
+      b.classList.remove('on');b.textContent='●';
+      if(c){$('[data-g=play]',box).disabled=false;$('[data-g=next]',box).disabled=false;st('Sounds good? Tap Next. Or record again.');await sleep(120);playClip(it.key);}
+    }
+  };
+}
+function screenVoice(){micOff();
+  stopAll();
+  const G=recGroups(),all=G.flatMap(g=>g.items);
+  const row=it=>`<div class="vrow ${hasClip(it.key)?'has':''}" data-k="${escH(it.key)}"><div class="vl">${it.key[0]==='p'||it.key[0]==='w'?`<b>${escH(it.big||it.t)}</b><span>${escH(it.sub||'')}</span>`:`<span class="vt">${escH(it.t)}</span>`}</div>
+    <button class="vb rec" data-v="rec" aria-label="Record">●</button><button class="vb" data-v="play" aria-label="Play" ${hasClip(it.key)?'':'disabled'}>▶</button><button class="vb" data-v="del" aria-label="Delete" ${hasClip(it.key)?'':'disabled'}>✕</button></div>`;
+  setView(`<div class="col">
+    ${top('🎙️ Record your voice',`<button class="rbtn" data-act="settings" aria-label="Back to settings">←</button>`)}
+    <div class="vhead"><b>Everything Ollie says, in your voice.</b> Tap ● and say the line; it stops by itself and plays back. Record as much or as little as you like: anything you haven't recorded uses the AI voice (or the device voice).
+      <div class="row" style="margin-top:10px"><span>Use my recordings<small>Off = AI voice everywhere</small></span><label class="sw"><input type="checkbox" id="v-mine" ${useMine()?'checked':''}></label></div>
+      <div id="v-status" style="margin-top:8px;font-weight:700"></div>
+      <button class="btn sm green" data-go="all" style="margin-top:10px">🎙️ Record what's missing, one by one</button></div>
+    <div class="vmeter"><i id="v-meter"></i></div>
+    ${G.map((g,gi)=>`<details class="vsec" data-g="${gi}"><summary>${escH(g.title)} <span data-gc="${gi}" style="font-weight:600;color:var(--ink2)"></span></summary>
+      ${g.note?`<p class="vp">${escH(g.note)}</p>`:''}<button class="btn sm pink vgo" data-go="${gi}">Record missing here, one by one</button>
+      <div class="vlist"></div></details>`).join('')}
+  </div>`);
+  const col=$('.col',view),meter=$('#v-meter'),stat=$('#v-status');
+  const counts=()=>{G.forEach((g,gi)=>{const e=$(`[data-gc="${gi}"]`,col);if(e)e.textContent=`· ${g.items.filter(x=>hasClip(x.key)).length}/${g.items.length}`;});
+    stat.textContent=`${all.filter(x=>hasClip(x.key)).length} of ${all.length} lines recorded.`;};
+  const status=msg=>{if(msg)stat.textContent=msg;else counts();};
+  counts();
+  // rows are built when a section is opened (keeps the page fast)
+  $$('details.vsec',col).forEach(d=>d.addEventListener('toggle',()=>{const l=$('.vlist',d);if(d.open&&!l.childElementCount)l.innerHTML=G[+d.dataset.g].items.map(row).join('');}));
+  const refresh=r=>{const h=hasClip(r.dataset.k);r.classList.toggle('has',h);$$('[data-v=play],[data-v=del]',r).forEach(b=>b.disabled=!h);};
+  $('#v-mine').onchange=e=>{S.settings.mine=e.target.checked;persist();};
+  let cur=null;
+  col.onclick=async ev=>{
+    const go=ev.target.closest('[data-go]');
+    if(go){ac();stopSpeech();const g=go.dataset.go==='all'?{items:all,title:'Everything'}:G[+go.dataset.go];
+      guided(g.items,g.title,()=>{$$('.vrow',col).forEach(refresh);counts();});return;}
+    const b=ev.target.closest('[data-v]');if(!b)return;
+    const r=b.closest('.vrow'),k=r.dataset.k,v=b.dataset.v;
+    ac();
+    if(v==='play'){stopSpeech();playClip(k);return;}
+    if(v==='del'){await delClip(k);refresh(r);counts();return;}
+    if(cur){const same=cur===k;if(GUIDE)GUIDE.stop();if(same)return;await sleep(80);}
+    stopSpeech();cur=k;
+    b.classList.add('on');b.textContent='■';
+    const c=await recordInto(k,meter,status);
+    if(cur===k)cur=null;
+    b.classList.remove('on');b.textContent='●';
+    if(!view.contains(r))return;
+    refresh(r);counts();
+    if(c){await sleep(120);playClip(k);}
+  };
+}
+/* =====================================================================
+   GROWN-UP SETTINGS
+   ===================================================================== */
+const LEVEL_NAMES={1:'Just starting: 2-letter words',2:'3-letter words',3:'3-letter plus sight words',4:'4-letter words',5:'5-letter words'};
+function openSettings(){micOff();
+  stopAll();
+  const lv=[1,2,3,4,5].map(l=>{const ws=WORDS.filter(w=>w.lvl===l);return `<span>Level ${l}</span><span>${ws.filter(w=>isKnown(w.w)).length} of ${ws.length} known</span>`}).join('');
+  const voices=enVoices();
+  modal.innerHTML=`<div class="mcard">
+    <h2>Grown-up settings</h2>
+    <div><h3>Child's name</h3><input type="text" id="s-name" value="${(S.name||'').replace(/"/g,'&quot;')}" placeholder="Name" maxlength="20" autocomplete="off"></div>
+    <div class="row"><span>Sounds and voice<small>Turn everything off for quiet play</small></span><label class="sw"><input type="checkbox" id="s-sound" ${S.settings.sound?'checked':''}></label></div>
+    <div class="row"><span>Use the microphone<small>Off means a grown-up taps the green ✓ instead</small></span><label class="sw"><input type="checkbox" id="s-mic" ${S.settings.mic?'checked':''}></label></div>
+    <div class="row"><span>CAPITAL letters<small>Show letters in uppercase</small></span><label class="sw"><input type="checkbox" id="s-upper" ${S.settings.upper?'checked':''}></label></div>
+    <div class="row"><span>Unlock all stories<small>Skip the word requirements</small></span><label class="sw"><input type="checkbox" id="s-unlock" ${S.settings.unlockAll?'checked':''}></label></div>
+    <div><h3>Word level</h3><select id="s-level">${[1,2,3,4,5].map(l=>`<option value="${l}" ${S.frontier===l?'selected':''}>${LEVEL_NAMES[l]}</option>`).join('')}</select>
+      <p style="margin-top:6px">The game moves up and down on its own. This just sets where it starts.</p></div>
+    <div><h3>Your voice</h3>
+      <p>${clipCount('p:')} of ${PHON.length} letter sounds · ${clipCount('w:')+clipCount('r:')} words and lines recorded. You can record every line Ollie says; anything not recorded uses the AI voice.</p>
+      <div class="row" style="margin-top:6px"><span>Use my recordings<small>Off = AI voice everywhere</small></span><label class="sw"><input type="checkbox" id="s-mine" ${useMine()?'checked':''}></label></div>
+      <button class="btn sm pink" id="s-rec" style="margin-top:8px">🎙️ Record your voice</button></div>
+    <div><h3>AI voice</h3>
+      <select id="m-prov" style="margin-top:6px"><option value="murf">Murf</option><option value="el">ElevenLabs (free: 10,000 characters a month)</option></select>
+      <p id="m-info" style="margin-top:8px"></p>
+      <input type="password" id="m-key" placeholder="Paste your API key" autocomplete="off" style="margin-top:8px">
+      <label class="row" style="font-size:15px;font-weight:500;margin-top:6px"><span>Remember key on this device</span><input type="checkbox" id="m-remember" checked style="width:22px;height:22px"></label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"><button class="btn sm blue" id="m-load">Load voices</button></div>
+      <select id="m-voice" hidden style="margin-top:8px"></select>
+      <select id="m-style" hidden style="margin-top:8px"></select>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn sm yellow" id="m-prev" hidden>▶ Preview</button>
+        <button class="btn sm green" id="m-build" hidden>Build voice pack</button>
+        <button class="btn sm ghost" id="m-del" hidden>Delete voice pack</button></div>
+      <div id="m-phrow" hidden style="margin-top:10px"><button class="btn sm pink" id="m-phon">🔤 Remake letter sounds (phonetic)</button>
+        <p class="tip" style="margin-top:6px">Remakes the 38 letter sounds from exact phonetic codes instead of spellings like “kuh”: held sounds (sss, mmm) are stretched, clipped sounds (k, t) are cut short. Uses about 2,000 ElevenLabs characters. Your own recordings still take priority.</p></div>
+      <div class="small-status" id="m-status" style="margin-top:8px"></div>
+      <div class="row" id="m-onrow" hidden style="margin-top:6px"><span>Use AI voice<small>Off = the device voice</small></span><label class="sw"><input type="checkbox" id="m-on"></label></div>
+    </div>
+    <div><h3>Device voice</h3><select id="s-voice"><option value="">Automatic (best available)</option>${voices.map(v=>`<option value="${v.voiceURI}" ${S.settings.voice===v.voiceURI?'selected':''}>${v.name}${voiceScore(v)>=40?' ★':''}</option>`).join('')}</select>
+      <p class="tip" style="margin-top:6px">Web pages can only use the basic voices the browser offers them. Siri voices, and voices downloaded in iPhone Settings, aren't available to websites, so recording your own voice gives the most natural result. On Windows, Edge offers natural “Online (Natural)” voices.</p></div>
+    <div><h3>Voice boost while the mic is on <small id="s-boostv" style="font-weight:600">${boostLvl()<=1?'off':boostLvl().toFixed(1)+'×'}</small></h3>
+      <input type="range" id="s-boostl" min="1" max="3.5" step=".1" value="${boostLvl()}" style="width:100%;accent-color:var(--primary)">
+      <p class="tip">iPhone/iPad turn playback down while the mic is on; this makes up for it. The first line after your child speaks plays at 60% of this. All the way left = off.</p></div>
+    <div><h3>Ollie's talking speed <small id="s-vspdv" style="font-weight:600">${Math.round(vspd()*100)}%</small></h3>
+      <input type="range" id="s-vspd" min=".6" max="1.1" step=".05" value="${vspd()}" style="width:100%;accent-color:var(--primary)">
+      <p class="tip">Slows the AI voice without lowering its pitch. No rebuild needed.</p></div>
+    <div><h3>Sound effects volume</h3><input type="range" id="s-fx" min="0" max="100" step="5" value="${Math.round(S.settings.fx*100)}" style="width:100%;accent-color:var(--primary)">
+      <p class="tip">The phone's volume buttons control everything; this sets the effects (pops, dings, fanfares) relative to the voice.</p></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn sm blue" id="s-testv">🔊 Test voice</button>
+      <button class="btn sm pink" id="s-testm" ${HAS_SR?'':'disabled'}>🎤 Test microphone</button>
+    </div>
+    <div class="small-status" id="s-status">${HAS_SR?(MICBLOCK&&MICWHY?micHelp(MICWHY):'Tap “Test microphone” and say “hello”.'):micHelp('nosr')}</div>
+    <div><h3>Progress</h3><div class="lvls">${lv}</div>
+      <p style="margin-top:8px">${S.stars} stars · ${S.rounds} rounds · ${S.stickers.length} stickers</p></div>
+    <div><h3>Voice built into the game</h3>
+      <p>${EMBED.id?`This copy of the game has a built-in voice (made ${EMBED.made}). `:''}Make a new <b>index.html</b> with the Murf voice and your recordings inside it (about ${bakeMB()} MB). Replace the file on Netlify with it and every device that opens the game gets the voice automatically.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"><button class="btn sm green" id="s-bake">📦 Make game file with voice</button>
+        <button class="btn sm blue" id="s-bakesave" hidden>💾 Save index.html</button><button class="btn sm ghost" id="s-bakeshare" hidden>Share…</button></div>
+      <div class="small-status" id="s-bakest" style="margin-top:8px"></div></div>
+    <div><h3>Backup</h3><p>Save progress and your recordings to a file, e.g. to move them to another device.${clipCount('m:')?' The Murf voice pack saves as its own file because it is large.':''} Restore takes either file.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"><button class="btn sm blue" id="s-exp">💾 Save backup</button>
+      ${clipCount('m:')?`<button class="btn sm blue" id="s-expv">💾 Save voice pack (about ${packMB()} MB)</button>`:''}
+      <label class="btn sm ghost" style="cursor:pointer">📂 Restore backup<input type="file" id="s-imp" accept=".json,application/json" hidden></label></div></div>
+    <button class="btn sm ghost" id="s-reset">Erase all progress</button>
+    <button class="btn green" id="s-close">Done</button>
+  </div>`;
+  modal.classList.add('on');
+  const st=(k,v)=>{S.settings[k]=v;persist();};
+  $('#s-name').oninput=e=>{S.name=e.target.value.trim();persist();};
+  $('#s-sound').onchange=e=>st('sound',e.target.checked);
+  $('#s-mic').onchange=e=>{st('mic',e.target.checked);MICBLOCK=false;};
+  $('#s-upper').onchange=e=>st('upper',e.target.checked);
+  $('#s-unlock').onchange=e=>st('unlockAll',e.target.checked);
+  $('#s-level').onchange=e=>{S.frontier=+e.target.value;S.recent=[];persist();};
+  $('#s-voice').onchange=e=>st('voice',e.target.value);
+  $('#s-testv').onclick=async()=>{
+    ac();stopSpeech();const s=$('#s-status');
+    if(!S.settings.sound){s.textContent='Sounds are turned off above.';return;}
+    if(!('speechSynthesis' in window)){s.textContent='This browser has no device voice. Recorded sounds still work.';return;}
+    s.textContent='Speaking…';SPEAK_OK=null;
+    await say(`Hi${S.name?' '+S.name:''}! I'm Ollie the owl. Let's read together!`);
+    s.textContent=SPEAK_OK?`Voice used: ${LASTVOICE}. If you heard nothing, turn up the volume with the side buttons.`
+      :`The device voice didn't start (${enVoices().length} English voices listed). Close Safari fully and reopen the page, then try again. Recorded sounds still work either way.`;
+  };
+  /* ---- Murf ---- */
+  const mInfo=()=>{
+    const n=clipCount('m:'),todo=murfTodo();
+    const chars=todo.reduce((a,[,t])=>a+t.length,0);
+    $('#m-info').textContent=n?`Voice pack on this device: ${n} lines${todo.length?` · ${todo.length} new lines to add (about ${chars.toLocaleString()} characters)`:' · up to date'}.`
+      :`A natural AI voice for everything Ollie says. Uses your ${PROV[prov()]} API key once to build a voice pack (about ${chars.toLocaleString()} characters), stored on this device.`;
+    const bt=S.settings.murfBuilt||'';$('#m-info').textContent+=n&&bt?` Current voice: ${bt.startsWith('el:')?'ElevenLabs':'Murf'}.`:'';
+    $('#m-onrow').hidden=!n;$('#m-on').checked=!!S.settings.murf;$('#m-del').hidden=!n;
+    $('#m-phrow').hidden=!(n&&prov()==='el'&&String(S.settings.murfBuilt||'').startsWith('el:'));
+    if(n&&S.settings.murfVoice){$('#m-build').hidden=!$('#m-voice').options.length;}
+  };
+  mInfo();
+  $('#m-key').value=murfKey.get();
+  $('#m-prov').value=prov();
+  $('#m-prov').onchange=e=>{S.settings.ttsProv=e.target.value;persist();$('#m-key').value=murfKey.get();
+    ['#m-voice','#m-style','#m-prev','#m-build'].forEach(x=>$(x).hidden=true);$('#m-voice').innerHTML='';VOICES=[];
+    mStat(prov()==='el'?'Get a key: sign in at elevenlabs.io › Developers › API Keys › Create key. Paste it above, then Load voices.':'Paste your Murf API key, then Load voices.');mInfo();};
+  const mStat=t=>{const e=$('#m-status');if(e)e.textContent=t;};
+  const keyNow=()=>{const k=$('#m-key').value.trim();if($('#m-remember').checked)murfKey.set(k);else murfKey.set('');return k;};
+  let VOICES=[],building=false;
+  const fillStyles=()=>{const v=VOICES.find(x=>x.id===$('#m-voice').value);const st=(v&&v.styles)||[];
+    $('#m-style').innerHTML=st.map(x=>`<option ${x===(S.settings.murfStyle||'Conversational')?'selected':''}>${x}</option>`).join('');$('#m-style').hidden=!st.length;};
+  $('#m-load').onclick=async()=>{
+    const k=keyNow();if(!k){mStat('Paste your API key first.');return;}
+    mStat('Loading voices…');
+    try{VOICES=await murfVoices(k);}catch(e){mStat(murfErr(e));return;}
+    if(!VOICES.length){mStat('No English voices came back.');return;}
+    $('#m-voice').innerHTML=VOICES.map(v=>`<option value="${v.id}" ${v.id===S.settings.murfVoice?'selected':''}>${v.name}${v.gender?' · '+v.gender:''}${v.accent?' · '+v.accent:''}${v.desc?' · '+v.desc:''}</option>`).join('');
+    $('#m-voice').hidden=false;fillStyles();$('#m-prev').hidden=false;$('#m-build').hidden=false;
+    mStat(`${VOICES.length} voices. Pick one, tap Preview, then Build voice pack.`);
+  };
+  $('#m-voice').onchange=fillStyles;
+  $('#m-prev').onclick=async()=>{
+    const k=keyNow();ac();stopSpeech();mStat('Making a preview…');
+    try{const r=await murfClip(k,$('#m-voice').value,$('#m-style').hidden?'':$('#m-style').value,"Hi! I'm Ollie the owl. Let's read together!");
+      await saveClip('m:__preview',r.clip);await playClip('m:__preview');await delClip('m:__preview');
+      const left=r.remaining!=null?r.remaining:(prov()==='el'?await elLeft(k):null);
+      mStat(left!=null?`${PROV[prov()]} characters left: ${Number(left).toLocaleString()}.`:'Preview played.');}
+    catch(e){mStat(murfErr(e));}
+  };
+  let wipeArm=0;
+  $('#m-build').onclick=async()=>{
+    if(building)return;const k=keyNow();if(!k){mStat('Paste your API key first.');return;}
+    const voice=$('#m-voice').value||S.settings.murfVoice,style=$('#m-style').hidden?'':$('#m-style').value;
+    // never silently throw away an existing pack because a different voice/style is selected
+    const have=clipCount('m:'),tag=packTag(voice,style);
+    if(have&&S.settings.murfBuilt&&S.settings.murfBuilt!==tag&&!wipeArm){
+      wipeArm=1;setTimeout(()=>wipeArm=0,6000);
+      mStat(`That's a different voice from your current pack. Building will replace all ${have} lines with the new voice (about ${murfTexts().size} lines to make). Tap Build again to do that, or pick the original voice.`);return;}
+    wipeArm=0;
+    building=true;ac();const b=$('#m-build');b.disabled=true;
+    mStat('Starting…');
+    try{
+      const P=PROV[prov()];
+      const r=await murfBuild(k,voice,style,(d,t,rem,note)=>mStat(`Building voice pack: ${d} of ${t}${rem!=null?` · ${Number(rem).toLocaleString()} ${P} characters left`:''}. ${note||'Keep this screen open.'}`));
+      const left=r.remaining!=null?r.remaining:(prov()==='el'?await elLeft(k):null);
+      mStat(`Done. Ollie now uses the ${P} voice.${left!=null?` ${P} characters left: ${Number(left).toLocaleString()}.`:''}`);
+    }catch(e){mStat(murfErr(e)+(e.skipped?' Tap Build later to try them again.':' Lines already made are kept; tap Build again to continue.'));}
+    building=false;if(document.body.contains(b))b.disabled=false;mInfo();
+  };
+  $('#m-on').onchange=e=>{st('murf',e.target.checked);};
+  let phArm=0;
+  $('#m-phon').onclick=async e=>{
+    if(building)return;const k=keyNow();if(!k){mStat('Paste your ElevenLabs API key first.');return;}
+    const voice=String(S.settings.murfBuilt||'').replace(/^el:/,'').split('|')[0];
+    if(!phArm){phArm=1;e.target.textContent='Tap again to remake 38 sounds';setTimeout(()=>{phArm=0;if(document.body.contains(e.target))e.target.textContent='🔤 Remake letter sounds (phonetic)';},5000);return;}
+    phArm=0;e.target.textContent='🔤 Remake letter sounds (phonetic)';
+    building=true;e.target.disabled=true;ac();mStat('Making letter sounds…');
+    try{const r=await elPhonemes(k,voice,(d,t,note)=>mStat(`Letter sounds: ${d} of ${t}. ${note||''}`));
+      const left=await elLeft(k);
+      mStat(`Done: ${r.done-r.bad.length} letter sounds remade${r.bad.length?` (${r.bad.length} came back silent and were left as they were)`:''}. Tap letters in a round to hear them; record any that still sound wrong.${left!=null?` ElevenLabs characters left: ${Number(left).toLocaleString()}.`:''}`);}
+    catch(err){mStat(murfErr(err)+' Sounds already remade are kept.');}
+    building=false;if(document.body.contains(e.target))e.target.disabled=false;
+  };
+  let delArm=0;
+  $('#m-del').onclick=async e=>{
+    if(!delArm){delArm=1;e.target.textContent='Tap again to delete';setTimeout(()=>{delArm=0;if(document.body.contains(e.target))e.target.textContent='Delete voice pack';},4000);return;}
+    await murfDelete();mStat('Voice pack deleted.');mInfo();
+  };
+  if(murfKey.get()&&clipCount('m:')&&murfTodo().length)$('#m-load').textContent='Load voices / add new lines';
+  $('#s-boostl').oninput=e=>{const v=+e.target.value;S.settings.boostLvl=v;S.settings.boost=v>1;persist();$('#s-boostv').textContent=v<=1?'off':v.toFixed(1)+'×';};
+  $('#s-vspd').oninput=e=>{S.settings.vspd=+e.target.value;persist();$('#s-vspdv').textContent=Math.round(vspd()*100)+'%';};
+  $('#s-vspd').onchange=()=>{ac();stopSpeech();say("Hi! I'm Ollie the owl. Let's read together!");};
+  $('#s-fx').oninput=e=>{const v=+e.target.value/100;S.settings.fx=v;persist();if(master)master.gain.value=v;};
+  $('#s-fx').onchange=()=>{ac();FX.ding&&FX.ding();};
+  $('#s-testm').onclick=async()=>{
+    ac();stopSpeech();const s=$('#s-status');
+    if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+      s.textContent='Asking for the microphone…';
+      try{await probeMic();MICPRE=true;}
+      catch(e){MICBLOCK=true;MICWHY=e.name||'error';s.textContent=micHelp(MICWHY)+` [${MICWHY}]`;return;}
+      await sleep(250);
+    }
+    s.textContent='Listening… say “hello”.';
+    const r=await listenFor('hello');
+    if(r.ok||r.heard){MICBLOCK=false;MICWHY='';s.textContent=`Heard: “${r.heard||'hello'}”. The microphone works!`;}
+    else if(['not-allowed','service-not-allowed','audio-capture','network'].includes(r.err)){MICBLOCK=true;MICWHY=r.err;s.textContent=micHelp(r.err)+` [${r.err}]`;}
+    else s.textContent=`I didn't hear anything [${r.err}]. Try again a little closer to the microphone.`;
+  };
+  $('#s-rec').onclick=()=>{modal.classList.remove('on');modal.innerHTML='';screenVoice();};
+  $('#s-mine').onchange=e=>{st('mine',e.target.checked);};
+  $('#s-exp').onclick=async()=>{const r=await exportBackup();$('#s-status').textContent=r==='saved'?'Backup file saved to your downloads.':r==='declined'?'Backup not saved.':'Could not save the backup here.';};
+  let BAKED=null;
+  $('#s-bake').onclick=async()=>{
+    const x=$('#s-bakest'),b=$('#s-bake');b.disabled=true;x.textContent='Making the game file…';$('#s-bakesave').hidden=$('#s-bakeshare').hidden=true;await sleep(50);
+    try{BAKED=await bakeStandalone(t=>{x.textContent=t;});
+      x.textContent=`Ready (${Math.round(BAKED.size/1048576)} MB). Tap Save, then upload index.html on your Netlify site’s Deploys page.`;
+      $('#s-bakesave').hidden=false;
+      try{$('#s-bakeshare').hidden=!(navigator.canShare&&navigator.canShare({files:[new File([BAKED],'index.html',{type:'text/html'})]}));}catch(e){}
+    }catch(e){x.textContent='Couldn’t make the file: '+(e.message||String(e));}
+    if(document.body.contains(b))b.disabled=false;
+  };
+  $('#s-bakesave').onclick=()=>{
+    if(!BAKED)return;const x=$('#s-bakest');
+    saveFile('index.html',BAKED).then(r=>{x.textContent=r==='saved'?'Saved. On iPhone it’s in the Files app › Downloads. Upload it on your Netlify site’s Deploys page.':r==='declined'?'Not saved.':'Couldn’t save here. Try Share… instead.';});
+  };
+  $('#s-bakeshare').onclick=async()=>{
+    if(!BAKED)return;const x=$('#s-bakest');
+    try{await navigator.share({files:[new File([BAKED],'index.html',{type:'text/html'})],title:'index.html'});x.textContent='Shared. Upload index.html on your Netlify site’s Deploys page.';}
+    catch(e){if(e&&e.name!=='AbortError')x.textContent='Sharing didn’t work: '+(e.message||e.name);}
+  };
+  if($('#s-expv'))$('#s-expv').onclick=async()=>{
+    const x=$('#s-status');x.textContent='Preparing the voice pack file…';await sleep(50);
+    const r=await exportVoicePack();x.textContent=r==='saved'?'Voice pack saved to your downloads.':r==='declined'?'Voice pack not saved.':'Could not save the voice pack here.';};
+  $('#s-imp').onchange=async e=>{
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    const stt=t=>{const x=$('#s-status');if(x)x.textContent=t;};
+    stt('Restoring…');
+    try{const r=await importBackup(f,(d,t)=>stt(`Restoring… ${d} of ${t}`));closeSettings();
+      setBubble(r.kind==='voicepack'?`Voice pack restored (${r.n} lines).`:`Backup restored (${r.n} recordings).`);}
+    catch(err){stt("That file isn't an Ollie backup, or it couldn't be read.");}
+    e.target.value='';
+  };
+  let armed=0;
+  $('#s-reset').onclick=e=>{
+    if(!armed){armed=1;e.target.textContent='Tap again to erase everything';setTimeout(()=>{armed=0;e.target.textContent='Erase all progress'},4000);return;}
+    const keepName=S.name;S=defaults();S.name=keepName;S.seen=true;persist();closeSettings();screenHome();
+  };
+  $('#s-close').onclick=closeSettings;
+}
+function closeSettings(){modal.classList.remove('on');modal.innerHTML='';screenHome();}
+
+function welcome(){
+  modal.innerHTML=`<div class="mcard" style="text-align:center;align-items:center">
+    <div style="font-size:90px;line-height:1">🦉</div>
+    <h2>Hi! I'm Ollie!</h2>
+    <p>Let's read words together. What's your name?</p>
+    <input type="text" id="w-name" placeholder="Type a name" maxlength="20" autocomplete="off" style="text-align:center">
+    <p>Grown-ups: the first time the microphone is tapped, your device will ask to use it. Tap <b>Allow</b>. Press and hold ⚙️ on the home screen for settings, including recording the letter sounds in your own voice.</p>
+    <button class="btn big green" id="w-go">Let's go!</button>
+  </div>`;
+  modal.classList.add('on');
+  $('#w-go').onclick=()=>{ac();S.name=$('#w-name').value.trim();S.seen=true;persist();modal.classList.remove('on');modal.innerHTML='';screenHome();say(S.name?`Hi ${S.name}! I'm Ollie. Let's read!`:"Hi! I'm Ollie. Let's read!");};
+}
+
+/* =====================================================================
+   EVENTS
+   ===================================================================== */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  ac();
+  const id=b.dataset.id;
+  switch(b.dataset.act){
+    case 'home':screenHome();break;
+    case 'play':startRound();break;
+    case 'stories':screenStories();break;
+    case 'stickers':screenStickers();break;
+    case 'story':openStory(id);break;
+    case 'practice':startRound(practiceList(STORIES.find(s=>s.id===id)));break;
+    case 'settings':openSettings();break;
+    case 'scenes':screenScenes();break;
+    case 'scene':screenScene(id);break;
+    case 'storynext':QS.i++;if(QS.i>=QS.st.sents.length)storyEnd();else storyPage();break;
+    case 'owl':stopSpeech();owlTalk();say(greet()+" Tap Let's Read to start!");break;
+    case 'owlsay':{const bb=$('#bubble');if(bb){stopSpeech();owlTalk();say(bb.textContent);}break;}
+  }
+});
+document.addEventListener('contextmenu',e=>e.preventDefault());
+
+if(!S.seen)screenHome(),welcome();else screenHome();
+})();
+</script>
+</body>
+</html>
