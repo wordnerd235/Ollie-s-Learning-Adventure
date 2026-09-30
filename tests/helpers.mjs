@@ -36,6 +36,7 @@ export async function installStubs(context) {
       constructor() { this.lang = 'en-US'; this.continuous = false; this.onresult = this.onerror = this.onend = this.onstart = null; this.t = 0; }
       heard() { return typeof window.__say === 'function' ? window.__say() : window.__say; }
       deliver(said, i) {
+        (window.__deliveries = window.__deliveries || []).push(Date.now());
         const res = [{ transcript: said, confidence: 0.9 }]; res.isFinal = true;
         const results = []; results[i] = res;
         this.onresult && this.onresult({ resultIndex: i, results });

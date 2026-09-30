@@ -45,3 +45,18 @@ test('the mic ignores Ollie talking, and the moment after', async ({ browser }) 
   await page.evaluate(w => { window.__say = w; }, w);                 // the child says it
   await page.locator('#celenext').waitFor();
 });
+
+test('the mic stays on for the whole round: one start for all six words', async ({ browser }) => {
+  const page = await round(browser, 'mic-round');
+  await page.evaluate(() => { window.__ttsMs = 30; });
+  await page.evaluate(f => { window.__say = new Function('return (' + f + ')()'); }, SAY_TILES.toString());
+  await ensureMic(page);
+  await expect.poll(() => page.evaluate(() => window.__recStarts)).toBe(1);
+  for (let i = 0; i < 6; i++) {
+    await page.locator('#celenext').waitFor({ timeout: 20_000 });
+    await page.waitForTimeout(300);
+    await page.click('#celenext');
+  }
+  await expect(page.locator('.bigtitle')).toContainText('Round complete!');
+  expect(await page.evaluate(() => window.__recStarts)).toBe(1);
+});

@@ -123,7 +123,14 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:4px solid 
 .title{margin:0;font-size:clamp(34px,10vw,58px);line-height:1;font-weight:700;letter-spacing:-.5px;color:var(--ink);text-shadow:0 3px 0 rgba(255,255,255,.55)}
 .title span{color:var(--primary)}
 .menu{display:flex;flex-direction:column;gap:20px;width:100%;max-width:440px;margin-top:6px}
-.stats{display:flex;gap:14px;font-weight:600;font-size:19px;background:var(--card);border-radius:999px;padding:8px 18px}
+.stats{display:flex;gap:14px;align-items:center;font-weight:600;font-size:19px;background:var(--card);border-radius:999px;padding:8px 18px}
+.known{font:inherit;font-weight:700;color:var(--ink);background:var(--card2);border:0;border-radius:999px;padding:6px 14px;box-shadow:0 4px 0 var(--line);cursor:pointer}
+.known:active{transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px}
+.kw{background:var(--card);border:0;border-radius:22px;padding:10px 6px;box-shadow:0 5px 0 var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink);cursor:pointer}
+.kw .ke{font-size:44px;line-height:1}
+.kw .kt{font-family:var(--letters);font-weight:700;font-size:26px}
+.kw.boing{animation:tboing .5s}
 .gear{position:absolute;right:6px;top:6px;width:48px;height:48px;border-radius:50%;border:0;background:var(--card);font-size:22px;opacity:.7}
 .hint{font-size:13px;color:var(--ink2);margin-top:-6px}
 
@@ -661,7 +668,7 @@ function pickVoice(){
   return vs[0];
 }
 let lastCancel=0,SPEAK_OK=null,LASTVOICE='';const BADV=new Set();
-let TTS_ACT=0,SEQ_ACT=0,HUSH_AT=0,AUDIO_END=0,LISTEN_CONT=false;
+let TTS_ACT=0,SEQ_ACT=0,HUSH_AT=0,AUDIO_END=0,LISTEN_CONT=false,LISTEN_SESSION=false;
 function audioBusy(){return TTS_ACT>0||SEQ_ACT>0||PLAYING.size>0||(('speechSynthesis' in window)&&speechSynthesis.speaking);}
 /* a one-shot listen stops while the game makes sound; a continuous listen stays open (no iOS mic chime)
    and ignores what it hears instead (see listenFor) */
@@ -1260,7 +1267,7 @@ const FIXED_LINES=['Nice! Tap each letter, then squish the sounds together.','No
    "You're doing great! Try once more, or tap Skip.","I can't hear you on this device. A grown-up can tap the green button when you read it!",
    'Tap the microphone again and say the word!','Tap the microphone and say the word!','Tap the mic and say the word!',
    "No problem! Let's try another!",'You earned a new sticker!','Great reading!','The end!',"Tap Let's Read to start!",
-   'Hi friend! Ready to read?',"I'm Ollie the owl. Let's read together!","I'm Ollie. Let's read!",'Hi!','Amazing reading!','You read the whole story!'];
+   'Hi friend! Ready to read?','Hello, again! Ready to read?',"I'm Ollie the owl. Let's read together!","I'm Ollie. Let's read!",'Hi!','Amazing reading!','You read the whole story!'];
 const STORYFULL=[];
 function murfTexts(){
   const nm=S.name||'',T=[];const add=t=>{if(t)T.push(t);};
@@ -1355,7 +1362,7 @@ async function afterMicSettled(ms=450){
   const w=CAP_END+ms-Date.now();if(w>0)await sleep(w);
   if(AC&&AC.state!=='running'){try{await AC.resume();}catch(e){}}
 }
-function micOff(){MIC_ON=false;stopListening();setVoiceBoost();}
+function micOff(){MIC_ON=false;MIC.target=null;MIC.run++;MIC.live=false;stopListening();setVoiceBoost();}
 const IN_FRAME=(()=>{try{return window.self!==window.top}catch(e){return true}})();
 try{const fp=document.permissionsPolicy||document.featurePolicy;
   if(IN_FRAME&&fp&&fp.allowsFeature&&!fp.allowsFeature('microphone')){MICBLOCK=true;MICWHY='frame';}}catch(e){}
@@ -1390,7 +1397,7 @@ function matches(word,heard){
   if(word.length>=4)return toks.some(t=>t.length>=3&&lev(t,word)<=1);
   return false;
 }
-function stopListening(){if(curRec){try{curRec.abort()}catch(e){}curRec=null;}}
+function stopListening(){if(curRec){if(LISTEN_SESSION&&MIC_ON)return;try{curRec.abort()}catch(e){}curRec=null;}}
 let SRI=null,srBusy=false,srSess=0;
 function getSR(){
   if(!SRI){SRI=new SRc();SRI.lang='en-US';SRI.interimResults=true;SRI.maxAlternatives=5;SRI.continuous=false;}
@@ -1401,10 +1408,10 @@ function getSR(){
    text that began while deaf is cut off the front of later results. A wrong word calls opts.onMiss
    and keeps listening. */
 function listenFor(word,long,opts={}){
-  const cont=!!opts.cont;
+  const cont=!!opts.cont||!!opts.session,sess=!!opts.session,W=typeof word==='function'?word:()=>word;
   return new Promise(async resolve=>{
     const my=++srSess;let done=false,heard='',tm=0,rec;const pre=[];
-    const finish=r=>{if(done)return;done=true;if(cont)LISTEN_CONT=false;CAP_END=Date.now();clearTimeout(tm);if(srBusy){try{rec.abort()}catch(e){}}if(curRec===rec)curRec=null;if(srBusy||heard)AFTER_CAP=true;sessionPlayback();bounceAC();r.heard=heard;resolve(r);};
+    const finish=r=>{if(done)return;done=true;if(cont)LISTEN_CONT=false;if(sess)LISTEN_SESSION=false;CAP_END=Date.now();clearTimeout(tm);if(srBusy){try{rec.abort()}catch(e){}}if(curRec===rec)curRec=null;if(srBusy||heard)AFTER_CAP=true;sessionPlayback();bounceAC();r.heard=heard;resolve(r);};
     try{rec=getSR();rec.continuous=cont;}catch(e){finish({ok:false,err:'start'});return;}
     for(let n=0;n<14&&srBusy;n++)await sleep(50);   // let a previous session end first
     if(my!==srSess){finish({ok:false,err:'aborted'});return;}
@@ -1412,14 +1419,17 @@ function listenFor(word,long,opts={}){
     rec.onstart=()=>{srBusy=true;};
     rec.onresult=e=>{
       if(my!==srSess)return;
-      const deaf=cont&&deafNow();
+      const w=W(),deaf=cont&&(deafNow()||!w);
       for(let i=e.resultIndex;i<e.results.length;i++){
         const res=e.results[i];
         if(deaf){pre[i]=res[0]?res[0].transcript:'';continue;}
+        const full=res[0]?res[0].transcript:'';
         for(let j=0;j<res.length;j++){
           let tx=res[j].transcript;const p=pre[i]||'';if(p&&tx.startsWith(p))tx=tx.slice(p.length);
           if(j===0)heard=tx.trim();
-          if(matches(word,tx)){finish({ok:true});return;}
+          if(matches(w,tx)){
+            if(sess){pre[i]=full;heard='';opts.onHit&&opts.onHit();return;}   // keep listening for the next word
+            finish({ok:true});return;}
         }
       }
       if(deaf)return;
@@ -1432,11 +1442,35 @@ function listenFor(word,long,opts={}){
     };
     rec.onerror=e=>{if(my!==srSess||(e&&e.error==='aborted'))return;if(cont&&e&&e.error==='no-speech')return;finish({ok:false,err:(e&&e.error)||'error'});};
     rec.onend=()=>{srBusy=false;if(my===srSess)finish({ok:false,err:'end'});};
-    curRec=rec;if(cont)LISTEN_CONT=true;
+    curRec=rec;if(cont)LISTEN_CONT=true;if(sess)LISTEN_SESSION=true;
     sessionRecord();
     try{rec.start();srBusy=true;}
     catch(e){await sleep(300);try{rec.start();srBusy=true;}catch(e2){finish({ok:false,err:'start'});}}
   });
+}
+/* MIC SESSION: while the mic is on, one continuous listen covers the whole round or story (every
+   stop/start makes iOS chime, and sound right after a stop is lost). Each word activity sets
+   MIC.target {word, hit, miss, blocked}; between words, and while Ollie talks, what is heard is ignored.
+   It ends when the mic is turned off, the exercise ends (micOff), or iOS ends it and it can't restart. */
+const MIC={target:null,run:0,live:false,fresh:false};
+async function micSession(){
+  if(MIC.live)return;MIC.live=true;const my=++MIC.run;let fast=0;
+  const T=()=>MIC.target;
+  while(MIC_ON&&my===MIC.run){
+    const t0=Date.now();
+    const r=await listenFor(()=>T()&&T().word,true,{session:true,
+      onHit:()=>{const t=T();MIC.target=null;fast=0;t&&t.hit();},
+      onMiss:r=>{fast=0;T()&&T().miss(r);}});
+    if(!MIC_ON||my!==MIC.run)break;
+    const hard=['not-allowed','service-not-allowed','audio-capture','network','start'].includes(r.err);
+    if(hard&&MIC.fresh){MIC.fresh=false;await sleep(400);continue;}   // first try after the permission prompt can fail once
+    if(hard){MIC_ON=false;setVoiceBoost();T()&&T().blocked(r.err);break;}
+    MIC.fresh=false;
+    if(r.heard&&T()){fast=0;T().miss(r);continue;}
+    // iOS ended it: start again, but don't spin if it keeps ending instantly
+    if(Date.now()-t0<800){if(++fast>=3){MIC_ON=false;setVoiceBoost();T()&&T().idle();break;}await sleep(500);}else fast=0;
+  }
+  if(my===MIC.run)MIC.live=false;
 }
 async function probeMic(){
   sessionRecord();
@@ -1476,6 +1510,7 @@ let TOK=0,A=null,RS=null,QS=null;
 function stopAll(){
   TOK++;stopSpeech();stopListening();if(CAP){CAP.stop();CAP=null;}if(GUIDE){GUIDE.stop();GUIDE=null;}$$('.gwrap').forEach(x=>x.remove());
   if(A){A.dead=true;A=null;}
+  MIC.target=null;
   ov.innerHTML='';ov.className='overlay';clearFx();
 }
 function setView(html){view.innerHTML=html;view.scrollTop=0;}
@@ -1620,7 +1655,7 @@ function mountActivity(host,word,opts){
     setBubble('Now squish the sounds together and say the word!');
   }
   function success(){
-    if(a.done)return;a.done=true;stopListening();
+    if(a.done)return;a.done=true;if(MIC.target===target)MIC.target=null;stopListening();
     opts.onCorrect((a.helped||a.misses>0)?'helped':'clean');
   }
   async function miss(r){
@@ -1643,47 +1678,30 @@ function mountActivity(host,word,opts){
     mountActivity(host,word,opts);
     setBubble("I can't hear you on this device. A grown-up can tap the green button when you read it!",true);
   }
-  // Mic is a toggle: once on it keeps listening across words until tapped off or the screen changes.
-  // It pauses whenever Ollie is talking so it never hears the game say the word.
+  // Mic is a toggle: once on it keeps listening for the rest of the round or story (see MIC SESSION),
+  // ignoring whatever it hears while Ollie talks.
+  const target={word:word.w,
+    hit:()=>{if(!a.dead&&!a.done)success();},
+    miss:r=>{if(!a.dead&&!a.done)miss(r);},
+    blocked:code=>{if(!a.dead&&!a.done)blocked(code);},
+    idle:()=>{if(!a.dead&&!a.done)setMic('idle');}};
+  function listen(){if(a.dead||a.done)return;MIC.target=target;setMic('listen');micSession();}
   async function mic(){
     if(a.done)return;
     ac();
-    if(MIC_ON){MIC_ON=false;a.loop++;stopListening();setVoiceBoost();setMic('idle');return;}
+    if(MIC_ON){micOff();setMic('idle');return;}
     stopSpeech();litOff();
     if(!MICPRE&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
       // ask for microphone permission first: this is what makes the browser show its "Allow" prompt
       if(labelEl)labelEl.textContent='Getting the microphone ready…';
-      try{await probeMic();MICPRE=true;a.fresh=true;}
+      try{await probeMic();MICPRE=true;MIC.fresh=true;}
       catch(e){if(a.dead||a.done)return;setMic('idle');return blocked(e.name||'error');}
       if(a.dead||a.done)return;
       await sleep(250);
     }
-    MIC_ON=true;setVoiceBoost();micLoop();
+    MIC_ON=true;setVoiceBoost();listen();
   }
-  async function micLoop(){
-    const my=++a.loop;let fast=0;
-    const gone=()=>a.dead||a.done||!MIC_ON||my!==a.loop;
-    while(!gone()){
-      setMic('listen');
-      const t0=Date.now(),r=await listenFor(word.w,true,{cont:true,onMiss:r=>{if(!gone()){fast=0;miss(r);}}});
-      if(gone())break;
-      if(r.ok)return success();
-      const hard=['not-allowed','service-not-allowed','audio-capture','network','start'].includes(r.err);
-      if(hard&&a.fresh){a.fresh=false;await sleep(400);continue;}   // first try after the permission prompt can fail once
-      if(hard)return blocked(r.err);
-      a.fresh=false;
-      if(Date.now()-HUSH_AT<1500)continue;                         // stopped because Ollie started talking
-      if(!r.heard){
-        // silence: keep listening, but don't spin if the recognizer keeps ending instantly
-        if(Date.now()-t0<800){if(++fast>=3){MIC_ON=false;setVoiceBoost();break;}await sleep(500);}else fast=0;
-        continue;
-      }
-      fast=0;
-      await miss(r);
-    }
-    if(!a.dead&&!a.done)setMic(MIC_ON&&my===a.loop?'wait':'idle');
-  }
-  if(!fb&&MIC_ON)setTimeout(()=>{if(!a.dead&&!a.done&&MIC_ON)micLoop();},0);
+  if(!fb&&MIC_ON)listen();
   host.onclick=ev=>{
     if(a.dead)return;
     const t=ev.target.closest('.tile');
@@ -1694,7 +1712,7 @@ function mountActivity(host,word,opts){
     else if(act==='mic')mic();
     else if(act==='grown')success();
     else if(act==='retrymic'){MICBLOCK=false;MICWHY='';MICPRE=false;a.dead=true;mountActivity(host,word,opts);setBubble('Tap the microphone and say the word!');}
-    else if(act==='skip'){if(a.done)return;a.done=true;stopListening();stopSpeech();opts.onSkip();}
+    else if(act==='skip'){if(a.done)return;a.done=true;if(MIC.target===target)MIC.target=null;stopListening();stopSpeech();opts.onSkip();}
   };
 }
 
@@ -1716,7 +1734,7 @@ function screenHome(){micOff();
       <button class="btn big pink" data-act="stories">📖&nbsp; Story Time${ready?`<span class="badge">${ready}</span>`:''}</button>
       <button class="btn big yellow" data-act="stickers">🌟&nbsp; My Stickers</button>
     </div>
-    <div class="stats"><span>⭐ ${S.stars}</span><span>🧠 ${n} word${n===1?'':'s'} I know</span></div>
+    <div class="stats"><span>⭐ ${S.stars}</span><button class="known" data-act="known">🧠 ${n} word${n===1?'':'s'} I know</button></div>
     <button class="gear" id="gear" aria-label="Grown-up settings. Press and hold.">⚙️</button>
     <div class="hint">Grown-ups: press and hold ⚙️</div>
   </div>`);
@@ -1800,6 +1818,16 @@ function finishRound(){micOff();
   confetti(90);FX.tada();
   const nm=S.name?`, ${S.name}`:'';
   say(`Amazing reading${nm}! ${sticker?'You earned a new sticker!':''}`);
+}
+/* ---- words I know ---- */
+function screenKnown(){micOff();
+  stopAll();
+  const ws=WORDS.filter(w=>isKnown(w.w));
+  setView(`<div class="col">
+    ${top('🧠 Words I know')}
+    ${ws.length?`<div class="kgrid">${ws.map(w=>`<button class="kw" data-act="sayword" data-id="${w.w}"><span class="ke">${w.emoji}</span><span class="kt">${disp(w.w)}</span></button>`).join('')}</div>`
+      :'<div class="stickerbig" style="text-align:center">📚</div><div class="hint" style="text-align:center">Words you read show up here!</div>'}
+  </div>`);
 }
 /* ---- stickers ---- */
 function screenStickers(){micOff();
@@ -2423,9 +2451,9 @@ function closeSettings(){modal.classList.remove('on');modal.innerHTML='';screenH
 /* A returning player (page opened again or refreshed) hears the greeting. Once the voice is ready it
    plays straight away if the browser allows sound; iPhone/iPad allow no sound before the first tap,
    so there it plays on the first tap, unless that tap already starts something (a menu button). */
-let GREETED=false;
+let GREETED=false;const RETURN_GREET='Hello, again! Ready to read?';
 function greetOnReturn(){
-  const greetNow=()=>{if(GREETED||!$('.home')||$('#vgate'))return;GREETED=true;owlTalk();say(greet());};
+  const greetNow=()=>{if(GREETED||!$('.home')||$('#vgate'))return;GREETED=true;setBubble(RETURN_GREET);say(RETURN_GREET);};
   const onTap=e=>{
     if(waiting()&&!SILENT)return;   // still loading: the voice card is up
     document.removeEventListener('pointerup',onTap,true);
@@ -2473,6 +2501,8 @@ document.addEventListener('click',e=>{
     case 'play':startRound();break;
     case 'stories':screenStories();break;
     case 'stickers':screenStickers();break;
+    case 'known':screenKnown();break;
+    case 'sayword':{stopSpeech();const el=b;el.classList.remove('boing');void el.offsetWidth;el.classList.add('boing');say(`${id}!`,{rate:.8,slow:.85});break;}
     case 'story':openStory(id);break;
     case 'practice':startRound(practiceList(STORIES.find(s=>s.id===id)));break;
     case 'settings':openSettings();break;
