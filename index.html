@@ -862,7 +862,7 @@ let CAP=null;
 function getMic(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){const e=new Error('no getUserMedia');e.name=window.isSecureContext===false?'insecure':'NotSupportedError';return Promise.reject(e);}
   sessionRecord();
-  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}).catch(e=>{sessionPlayback();throw e;});
+  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:true,autoGainControl:false}}).catch(e=>{sessionPlayback();throw e;});
 }
 function startCapture(stream,{maxSec=3,onLevel,quietSec=.6}={}){
   const ctx=ac(),src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(2048,1,1),mute=ctx.createGain();
@@ -899,10 +899,20 @@ function trimClip({sr,f},o={}){
   if(peak<.01)return null;
   const floor=[...r].sort((x,y)=>x-y)[Math.floor(nw*.1)],thr=o.loose?peak*.015:Math.max(floor*3,peak*.08);
   let a=0;while(a<nw&&r[a]<thr)a++;let b=nw-1;while(b>a&&r[b]<thr)b--;
-  const out=d.slice(Math.max(0,(a-(o.loose?6:4))*win),Math.min(d.length,(b+(o.loose?15:8))*win));
+  const s0=Math.max(0,(a-(o.loose?6:4))*win);
+  const out=d.slice(s0,Math.min(d.length,(b+(o.loose?15:8))*win));
+  // recordings: a gentle noise gate turns room noise in the pauses down to 15%
+  // (opens 20 ms before the voice, closes over 80 ms after it; AI clips are left alone)
+  let gate=null;
+  if(!o.loose){
+    const gt=Math.max(floor*2.5,peak*.04),gw=new Float32Array(nw);
+    for(let w=0;w<nw;w++)if(r[w]>=gt)for(let k=Math.max(0,w-2);k<=w;k++)gw[k]=1;
+    let lvl=.15;for(let w=0;w<nw;w++){lvl=gw[w]?1:Math.max(.15,lvl-.85/8);gw[w]=lvl;}
+    gate=i=>{const x=(s0+i)/win-.5,w=Math.max(0,Math.min(nw-1,Math.floor(x))),w2=Math.min(nw-1,w+1),t=Math.max(0,Math.min(1,x-w));return gw[w]+(gw[w2]-gw[w])*t;};
+  }
   let mx=0;for(let i=0;i<out.length;i++)mx=Math.max(mx,Math.abs(out[i]));
   const g=Math.min(o.loose?3:10,(o.loose?.85:.9)/Math.max(mx,1e-4)),fade=Math.round(rate*.008),q16=new Int16Array(out.length);
-  for(let i=0;i<out.length;i++){let v=out[i]*g;if(i<fade)v*=i/fade;const k=out.length-1-i;if(k<fade)v*=k/fade;q16[i]=Math.max(-32767,Math.min(32767,Math.round(v*32767)));}
+  for(let i=0;i<out.length;i++){let v=out[i]*g*(gate?gate(i):1);if(i<fade)v*=i/fade;const k=out.length-1-i;if(k<fade)v*=k/fade;q16[i]=Math.max(-32767,Math.min(32767,Math.round(v*32767)));}
   return {sr:rate,data:q16,at:Date.now(),off:Math.max(0,(a-(o.loose?6:4))*win)/rate};
 }
 /* ---- backup / restore ---- */
