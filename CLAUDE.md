@@ -33,7 +33,14 @@ One IIFE. Section banners (search for them):
   - `m:@<mkey>`: whole story sentences, with word timings `w:[[start,end],…]` in seconds
 - Recording: `getMic`, `startCapture` (ScriptProcessor, auto-stops on silence), `trimClip`.
 - Backup/restore: progress plus recordings go in one JSON file; the voice pack is a separate JSON file.
-- `BUILT-IN VOICE`: the "Make game file with voice" button embeds every clip into a copy of the page as `<script type="application/json" id="ollie-pack" data-id=…>`, stored as lossless pcm16 base64 (older packs used IMA ADPCM). `loadEmbedded()` imports it into IndexedDB on first load of a new pack id. The page source for this comes from `PRISTINE`, an `outerHTML` snapshot taken as the script starts, with host-injected `<script src>` tags stripped.
+- `VOICE FILES`: the voice lives next to the game in `voice/`, not inside `index.html`.
+  - `voice/manifest.json` lists two parts: `ai` (the `m:` clips) and `mine` (the owner's `p:`/`w:`/`r:` clips). Each part has a version `v` (a hash of its files), its file names, byte count, line count; `ai` also has the `murf` voice tag.
+  - `voice/ai-N.bin`, `voice/mine-N.bin`: binary, "OLLV" + u32 format + u32 header length + JSON header `{part, clips:[[key, sr, samples, timings|null, at]]}` + raw 16-bit samples (lossless). A part is split into files of at most 20 MB (GitHub's web uploader takes up to 25 MB per file).
+  - `loadVoice()` runs on every page load: it fetches the manifest (no cache) and downloads only the parts whose `v` differs from localStorage `ollie-voice-v:<part>`, showing a small bar (`#vload`). While it downloads, missing lines use the device voice. A failed download is retried next load.
+  - `importPart()`: a new AI voice (different `murf.built`) replaces the old voice's `m:` clips, as before. Owner recordings are only replaced by newer ones (`at`).
+  - A part's `pack` field is the id of the old all-in-one file it was extracted from; a device that imported that file (localStorage `ollie-pack-id`) marks the part current without downloading it.
+  - Settings › Voice files › "Make voice files" (`buildVoiceFiles()`): builds the files from this device, marks each as changed or "same as the site", then a fresh tap on 💾 per file (or Share…) saves it. The owner uploads the changed files plus `manifest.json` to `voice/` on GitHub.
+- `tools/extract.html`: standalone page that turns an old all-in-one `index.html` (with the `ollie-pack` script) into `voice/` files, in the browser. Its packing code must stay identical to `index.html`'s.
 - `MURF AI VOICE PACK` (now provider-generic):
   - Providers: `murf` or `el` (ElevenLabs), chosen with `S.settings.ttsProv`.
   - `murfTexts()` lists every line the game can say.
@@ -60,7 +67,7 @@ One IIFE. Section banners (search for them):
    - After each listen: `bounceAC()` (suspend/resume) and `sessionPlayback()`.
    - The permission probe uses getUserMedia with echo cancellation, noise suppression and auto-gain turned off.
 4. **iOS blocks media-element `play()` outside a user gesture.** All game audio goes through Web Audio buffers. Don't reintroduce `<audio>` playback, which is why slowed audio uses WSOLA, not `playbackRate`.
-5. **iOS blocks downloads that start long after the tap.** Making the file is two steps: build, then a fresh tap on Save, or Share….
+5. **iOS blocks downloads that start long after the tap.** Making the voice files is two steps: build, then a fresh tap on each file's 💾, or Share….
 6. **speechSynthesis quirks:**
    - Calling `speak()` right after `cancel()` drops the utterance, so there is a ~120 ms gap (`lastCancel`).
    - Some listed voices never start, so a watchdog falls back to the next voice (`BADV`).
@@ -79,13 +86,15 @@ One IIFE. Section banners (search for them):
 11. AI voices can't make clean isolated phonics sounds; the owner's own recordings are the answer. Recordings always take priority unless "Use my recordings" is off.
 
 ## Current state (Sept 30, 2026)
-- The repo's `index.html` is ~44.5 MB because the voice is embedded:
-  - 534 ElevenLabs lines, all with timings
-  - the owner's 38 letter sounds, 75 words and 63 phrases
-- GitHub warns about files over 50 MB, rejects files over 100 MB, and every code commit re-stores the whole file. **Priority:** move the voice out of `index.html` into separate file(s) the page loads.
-- Unverified on real iOS: the device voice fix and whether the recognition tone is reduced.
+- The voice was moved out of `index.html` into `voice/` (branch `voice-files`). `index.html` is ~160 KB of code.
+- The owner's real voice (534 ElevenLabs lines plus 38 letter sounds, 75 words and 63 phrases) is still only in their 44.5 MB all-in-one file and on their devices. Getting it into `voice/`: open `tools/extract.html`, pick the big file, save the files, upload them to `voice/`.
+- Unverified on real iOS: the device voice fix, whether the recognition tone is reduced, and the new voice download/export.
 
 ## Testing
+- Run: `cd tests && npm install && npx playwright test`. The first run makes a fixture in `tests/.work/` (about a minute), later runs reuse it; delete `.work/` to remake it.
+  - The fixture is made the way the real one was: the old game code (`tests/fixtures/old-game.html`) builds a full AI pack against a fake ElevenLabs, gets a few injected "owner recordings", and saves an all-in-one file with "Make game file with voice"; `tools/extract.html` then extracts it.
+  - `tests/server.mjs` serves each test's own "site" at `/game/<name>/` (the repo's `index.html` plus a copy of the voice files).
+  - Covered: fresh device gets the voice (sample-for-sample equal to the old file's), no re-download on the next visit, no download on a device that has the old file's voice, export → upload → another device gets the new recording (and only the changed part downloads), a full round, a full story. Both game tests assert nothing fell back to the device voice.
 - Syntax: extract the main `<script>` and run `node --check`.
 - Behavior: Playwright + headless Chromium.
   - Serve over `http://localhost`; IndexedDB and fetch need it.

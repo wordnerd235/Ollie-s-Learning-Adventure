@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ollie voice extractor</title>
+<style>
+:root{--bg:#f6f4ff;--card:#fff;--ink:#2b2350;--ink2:#6b6198;--line:rgba(43,35,80,.14);--go:#159f72}
+@media (prefers-color-scheme:dark){:root{--bg:#1a1550;--card:#2a2566;--ink:#f5f1ff;--ink2:#c4bbf0;--line:rgba(255,255,255,.16);--go:#34d399}}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.45 system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:14px}
+h1{margin:0;font-size:26px}
+p{margin:0;color:var(--ink2)}
+.card{background:var(--card);border-radius:16px;padding:14px 16px;border:1px solid var(--line)}
+button,label.pick{font:inherit;font-weight:600;border:0;border-radius:12px;padding:10px 16px;background:var(--go);color:#fff;cursor:pointer;display:inline-block}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+#status{font-weight:600;white-space:pre-line}
+</style>
+</head>
+<body>
+<main>
+  <h1>🦉 Ollie voice extractor</h1>
+  <p>Pick the old all-in-one <b>index.html</b> (the big one with the voice inside). This page takes the voice out of it and saves it as the files for the <b>voice</b> folder on GitHub. Nothing is uploaded; it all happens in this browser.</p>
+  <div class="card"><label class="pick">📂 Pick the old index.html<input type="file" id="pick" accept=".html,text/html" hidden></label></div>
+  <div class="card" id="status">Waiting for a file.</div>
+  <div class="card" id="files" hidden></div>
+  <p>Then on GitHub: open the repository, go into the <b>voice</b> folder (or create it), Add file › Upload files, and drop in every file listed above, including <b>manifest.json</b>.</p>
+</main>
+<script>
+(()=>{
+'use strict';
+/* Must match the VOICE FILES section of index.html. */
+const CHUNK=20*1048576;
+const PARTS={ai:['m:'],mine:['p:','w:','r:']};
+const partOf=k=>k==='m:__preview'?null:Object.keys(PARTS).find(p=>PARTS[p].some(x=>k.startsWith(x)))||null;
+function hasher(){
+  let a=0x811c9dc5,b=0x01000193^0x5bd1e995,n=0;
+  return {update(u8){for(let i=0;i<u8.length;i++){const x=u8[i];a=Math.imul(a^x,0x01000193);b=Math.imul(b^x,0x5bd1e995)^(b>>>15);}n+=u8.length;},
+    hex(){const h=x=>(x>>>0).toString(16).padStart(8,'0');return h(a)+h(Math.imul(b^n,0x01000193));}};
+}
+const u8of=d=>new Uint8Array(d.buffer,d.byteOffset,d.byteLength);
+function unb64(t){const bin=atob(t),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;}
+/* the oldest packs used IMA ADPCM */
+const IMA_IDX=[-1,-1,-1,-1,2,4,6,8,-1,-1,-1,-1,2,4,6,8];
+const IMA_STEP=[7,8,9,10,11,12,13,14,16,17,19,21,23,25,28,31,34,37,41,45,50,55,60,66,73,80,88,97,107,118,130,143,157,173,190,209,230,253,279,307,337,371,408,449,494,544,598,658,724,796,876,963,1060,1166,1282,1411,1552,1707,1878,2066,2272,2499,2749,3024,3327,3660,4026,4428,4871,5358,5894,6484,7132,7845,8630,9493,10442,11487,12635,13899,15289,16818,18500,20350,22385,24623,27086,29794,32767];
+function imaDecode(u8,n){
+  const pcm=new Int16Array(n);let pred=0,idx=0;
+  for(let i=0;i<n;i++){
+    const code=(i&1)?(u8[i>>1]>>4):(u8[i>>1]&15),step=IMA_STEP[idx];
+    let vp=step>>3;if(code&4)vp+=step;if(code&2)vp+=step>>1;if(code&1)vp+=step>>2;
+    pred+=(code&8)?-vp:vp;if(pred>32767)pred=32767;else if(pred<-32768)pred=-32768;
+    idx+=IMA_IDX[code];if(idx<0)idx=0;else if(idx>88)idx=88;
+    pcm[i]=pred;
+  }
+  return pcm;
+}
+function readOldPack(html){
+  const m=new RegExp('<script type="application/json" id="ollie-pack"([^>]*)>([\\s\\S]*?)<'+'/script>').exec(html);
+  if(!m)throw new Error('That file has no voice inside it. Pick the big index.html that was made with “Make game file with voice”.');
+  const id=(/data-id="([^"]*)"/.exec(m[1])||[])[1]||'';
+  const j=JSON.parse(m[2]),clips={};
+  for(const k in j.clips){
+    const [sr,len,b64,w]=j.clips[k],u=unb64(b64);
+    clips[k]={sr,data:j.fmt==='pcm16'?new Int16Array(u.buffer,0,len):imaDecode(u,len),w:w||null};
+  }
+  return {id:id||j.id||'',murf:j.murf||{},clips};
+}
+function packPart(part,clips){
+  const keys=Object.keys(clips).filter(k=>partOf(k)===part).sort(),chunks=[];let cur=null;
+  keys.forEach(k=>{const sz=clips[k].data.length*2;
+    if(!cur||(cur.bytes+sz>CHUNK&&cur.keys.length)){cur={keys:[],bytes:0};chunks.push(cur);}
+    cur.keys.push(k);cur.bytes+=sz;});
+  const H=hasher(),files=[];let bytes=0;
+  chunks.forEach((ch,i)=>{
+    const head=JSON.stringify({part,clips:ch.keys.map(k=>{const c=clips[k];return [k,c.sr,c.data.length,c.w||null,0];})});
+    let hb=new TextEncoder().encode(head);const pad=(4-(12+hb.length)%4)%4;
+    if(pad){const x=new Uint8Array(hb.length+pad).fill(32);x.set(hb);hb=x;}
+    const pre=new Uint8Array(12);pre.set([79,76,76,86]);const dv=new DataView(pre.buffer);dv.setUint32(4,1,true);dv.setUint32(8,hb.length,true);
+    const parts=[pre,hb];H.update(pre);H.update(hb);
+    ch.keys.forEach(k=>{const u=u8of(clips[k].data);parts.push(u);H.update(u);});
+    const blob=new Blob(parts,{type:'application/octet-stream'});bytes+=blob.size;
+    files.push({name:`${part}-${i+1}.bin`,blob});
+  });
+  return {files,n:keys.length,bytes,v:keys.length?H.hex():''};
+}
+const $=s=>document.querySelector(s),status=t=>{$('#status').textContent=t;};
+const mb=n=>(n/1048576).toFixed(1)+' MB';
+function save(f){const a=document.createElement('a');a.href=URL.createObjectURL(f.blob);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},5000);}
+let OUT=[];
+$('#pick').onchange=async e=>{
+  const file=e.target.files&&e.target.files[0];if(!file)return;
+  $('#files').hidden=true;status(`Reading ${file.name} (${mb(file.size)})…`);await new Promise(r=>setTimeout(r,30));
+  try{
+    const pack=readOldPack(await file.text());
+    const man={format:1,made:new Date().toISOString().slice(0,10),parts:{}},lines=[];OUT=[];
+    for(const part of Object.keys(PARTS)){
+      const b=packPart(part,pack.clips);if(!b.n)continue;
+      const en={v:b.v,files:b.files.map(f=>f.name),bytes:b.bytes,n:b.n};
+      if(part==='ai')en.murf={voice:pack.murf.voice||'',style:pack.murf.style||'',built:pack.murf.built||''};
+      if(pack.id)en.pack=pack.id;   // devices that already have this voice from the old file skip the download
+      man.parts[part]=en;OUT.push(...b.files);
+      lines.push(`${part==='ai'?'AI voice':'Your recordings'}: ${b.n} lines, ${mb(b.bytes)}`);
+    }
+    OUT.push({name:'manifest.json',blob:new Blob([JSON.stringify(man,null,1)],{type:'application/json'})});
+    status('Done.\n'+lines.join('\n')+'\nSave each file below.');
+    $('#files').innerHTML=OUT.map((f,i)=>`<div class="row"><span>${f.name} · ${f.blob.size>=1048576?mb(f.blob.size):Math.max(1,Math.round(f.blob.size/1024))+' KB'}</span><button data-i="${i}">💾 Save</button></div>`).join('')
+      +`<div class="row"><span>All files at once (on a computer)</span><button data-i="all">💾 Save all</button></div>`;
+    $('#files').hidden=false;
+  }catch(err){status('Couldn’t read that file: '+(err.message||err));}
+  e.target.value='';
+};
+$('#files').onclick=async e=>{
+  const b=e.target.closest('button[data-i]');if(!b)return;
+  if(b.dataset.i==='all'){for(const f of OUT){save(f);await new Promise(r=>setTimeout(r,400));}return;}
+  save(OUT[+b.dataset.i]);b.textContent='✓ Saved';
+};
+})();
+</script>
+</body>
+</html>

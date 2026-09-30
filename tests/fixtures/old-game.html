@@ -357,11 +357,6 @@ details.vlev summary{font-weight:700;font-size:17px;padding:8px 2px;cursor:point
 .vmeter{height:8px;border-radius:4px;background:var(--line);overflow:hidden;position:sticky;top:0;z-index:2}
 .vmeter i{display:block;height:100%;width:0;background:var(--green);transition:width .06s}
 .tip{font-size:14px!important}
-/* voice download progress */
-.vload{position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:90;display:flex;align-items:center;gap:10px;
-  background:var(--card2);border-radius:999px;padding:8px 16px;box-shadow:0 5px 0 var(--line),0 10px 20px rgba(43,35,80,.18);pointer-events:none;font-size:22px}
-.vload b{display:block;width:clamp(90px,34vw,180px);height:12px;border-radius:6px;background:var(--line);overflow:hidden}
-.vload i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
 
 @media (prefers-reduced-motion:reduce){
   .cloud,.owl.talk,.mic,.vb.rec.on{animation:none}
@@ -381,6 +376,8 @@ details.vlev summary{font-weight:700;font-size:17px;padding:8px 2px;cursor:point
 <script>
 (()=>{
 'use strict';
+// the page as it arrived (everything up to and including this script); used to make the game file with voice
+const PRISTINE=(()=>{try{return '<!DOCTYPE html>\n'+document.documentElement.outerHTML;}catch(e){return '';}})();
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -770,7 +767,7 @@ const VDB={
   async all(){const ks=await this.run('readonly',st=>st.getAllKeys()),vs=await this.run('readonly',st=>st.getAll());const o={};(ks||[]).forEach((k,i)=>o[k]=vs[i]);return o;}
 };
 const domReady=new Promise(r=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',r):r());
-VDB.all().then(o=>Object.assign(CLIPS,o)).catch(()=>{}).then(()=>domReady).then(()=>loadVoice()).catch(()=>{});
+VDB.all().then(o=>Object.assign(CLIPS,o)).catch(()=>{}).then(()=>domReady).then(()=>loadEmbedded()).catch(()=>{});
 const hasClip=k=>!!CLIPS[k];
 const clipCount=pre=>Object.keys(CLIPS).filter(k=>k.startsWith(pre)).length;
 async function saveClip(k,c){CLIPS[k]=c;dropBufs(k);try{await VDB.put(k,c);return true;}catch(e){return false;}}
@@ -942,149 +939,83 @@ async function importBackup(file,onProg){
 
 
 /* =====================================================================
-   VOICE FILES — the AI voice and the grown-up's recordings live next to
-   the game in voice/ and are downloaded into IndexedDB on first visit.
-     voice/manifest.json  {format:1, parts:{ai:{v,files,bytes,n,murf}, mine:{…}}}
-     voice/ai-N.bin       AI voice lines (m: keys)
-     voice/mine-N.bin     the grown-up's recordings (p: w: r: keys)
-   .bin layout: "OLLV" · u32 format (1) · u32 header length · header JSON
-   (padded to 4 bytes) · the clips' 16-bit samples back to back.
-   header = {part, clips:[[key, sampleRate, samples, wordTimings|null, recordedAt], …]}
-   v is a hash of the part's files, so a device only downloads a part when it changes.
-   Keep tools/extract.html in step with this format.
+   BUILT-IN VOICE — the Murf pack and recordings can be embedded in the
+   game file itself (IMA ADPCM, 4 bits/sample) so new devices get them.
    ===================================================================== */
-const VOICE_DIR='voice/',VOICE_CHUNK=20*1048576;
-const VOICE_PARTS={ai:{pre:['m:'],label:'AI voice'},mine:{pre:['p:','w:','r:'],label:'Your recordings'}};
-const partOf=k=>k==='m:__preview'?null:Object.keys(VOICE_PARTS).find(p=>VOICE_PARTS[p].pre.some(x=>k.startsWith(x)))||null;
-const partKeys=p=>Object.keys(CLIPS).filter(k=>partOf(k)===p).sort();
-const voiceVer={get(p){try{return localStorage.getItem('ollie-voice-v:'+p)||''}catch(e){return ''}},
-  set(p,v){try{localStorage.setItem('ollie-voice-v:'+p,v)}catch(e){}}};
-let VOICE={site:null,err:'',busy:false};
-/* two-lane FNV-1a over bytes, fed in pieces; the same in tools/extract.html */
-function hasher(){
-  let a=0x811c9dc5,b=0x01000193^0x5bd1e995,n=0;
-  return {update(u8){for(let i=0;i<u8.length;i++){const x=u8[i];a=Math.imul(a^x,0x01000193);b=Math.imul(b^x,0x5bd1e995)^(b>>>15);}n+=u8.length;},
-    hex(){const h=x=>(x>>>0).toString(16).padStart(8,'0');return h(a)+h(Math.imul(b^n,0x01000193));}};
-}
-const u8of=d=>new Uint8Array(d.buffer,d.byteOffset,d.byteLength);
-/* build one part's files from the clips on this device */
-function packPart(part){
-  const keys=partKeys(part),chunks=[];let cur=null;
-  keys.forEach(k=>{const c=CLIPS[k],sz=c.data.length*2;
-    if(!cur||(cur.bytes+sz>VOICE_CHUNK&&cur.keys.length)){cur={keys:[],bytes:0};chunks.push(cur);}
-    cur.keys.push(k);cur.bytes+=sz;});
-  const H=hasher(),files=[];let bytes=0;
-  chunks.forEach((ch,i)=>{
-    const head=JSON.stringify({part,clips:ch.keys.map(k=>{const c=CLIPS[k];return [k,c.sr,c.data.length,c.w||null,part==='mine'?(c.at||0):0];})});
-    let hb=new TextEncoder().encode(head);const pad=(4-(12+hb.length)%4)%4;
-    if(pad){const x=new Uint8Array(hb.length+pad).fill(32);x.set(hb);hb=x;}
-    const pre=new Uint8Array(12);pre.set([79,76,76,86]);const dv=new DataView(pre.buffer);dv.setUint32(4,1,true);dv.setUint32(8,hb.length,true);
-    const blobParts=[pre,hb];H.update(pre);H.update(hb);
-    ch.keys.forEach(k=>{const u=u8of(CLIPS[k].data);blobParts.push(u);H.update(u);});
-    const blob=new Blob(blobParts,{type:'application/octet-stream'});bytes+=blob.size;
-    files.push({name:`${part}-${i+1}.bin`,blob});
-  });
-  return {part,files,n:keys.length,bytes,v:keys.length?H.hex():''};
-}
-/* read one .bin file; returns [[key, clip], …] */
-function unpackFile(buf){
-  const dv=new DataView(buf);
-  if(buf.byteLength<12||dv.getUint32(0,false)!==0x4f4c4c56||dv.getUint32(4,true)!==1)throw new Error('not an Ollie voice file');
-  const hl=dv.getUint32(8,true),head=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,12,hl)));
-  let off=12+hl;const out=[];
-  for(const [k,sr,len,w,at] of head.clips){
-    const data=new Int16Array(buf.slice(off,off+len*2));off+=len*2;   // own copy per clip, so IndexedDB stores just this clip
-    const clip={sr,data,at:at||(head.part==='mine'?0:Date.now())};if(w)clip.w=w;out.push([k,clip]);
+const IMA_IDX=[-1,-1,-1,-1,2,4,6,8,-1,-1,-1,-1,2,4,6,8];
+const IMA_STEP=[7,8,9,10,11,12,13,14,16,17,19,21,23,25,28,31,34,37,41,45,50,55,60,66,73,80,88,97,107,118,130,143,157,173,190,209,230,253,279,307,337,371,408,449,494,544,598,658,724,796,876,963,1060,1166,1282,1411,1552,1707,1878,2066,2272,2499,2749,3024,3327,3660,4026,4428,4871,5358,5894,6484,7132,7845,8630,9493,10442,11487,12635,13899,15289,16818,18500,20350,22385,24623,27086,29794,32767];
+function imaEncode(pcm){
+  const out=new Uint8Array((pcm.length+1)>>1);let pred=0,idx=0;
+  for(let i=0;i<pcm.length;i++){
+    let step=IMA_STEP[idx],diff=pcm[i]-pred,code=0;if(diff<0){code=8;diff=-diff;}
+    let vp=step>>3;
+    if(diff>=step){code|=4;diff-=step;vp+=step;}step>>=1;
+    if(diff>=step){code|=2;diff-=step;vp+=step;}step>>=1;
+    if(diff>=step){code|=1;vp+=step;}
+    pred+=(code&8)?-vp:vp;if(pred>32767)pred=32767;else if(pred<-32768)pred=-32768;
+    idx+=IMA_IDX[code];if(idx<0)idx=0;else if(idx>88)idx=88;
+    if(i&1)out[i>>1]|=code<<4;else out[i>>1]=code;
   }
-  return {part:head.part,clips:out};
+  return out;
 }
-async function fetchBytes(url,onBytes){
-  const r=await fetch(url);if(!r.ok)throw new Error(`${url}: error ${r.status}`);
-  if(!r.body||!r.body.getReader){const b=await r.arrayBuffer();onBytes(b.byteLength);return b;}
-  const rd=r.body.getReader(),parts=[];let n=0;
-  for(;;){const {done,value}=await rd.read();if(done)break;parts.push(value);n+=value.length;onBytes(value.length);}
-  const out=new Uint8Array(n);let o=0;parts.forEach(p=>{out.set(p,o);o+=p.length;});return out.buffer;
+function imaDecode(u8,n){
+  const pcm=new Int16Array(n);let pred=0,idx=0;
+  for(let i=0;i<n;i++){
+    const code=(i&1)?(u8[i>>1]>>4):(u8[i>>1]&15),step=IMA_STEP[idx];
+    let vp=step>>3;if(code&4)vp+=step;if(code&2)vp+=step>>1;if(code&1)vp+=step>>2;
+    pred+=(code&8)?-vp:vp;if(pred>32767)pred=32767;else if(pred<-32768)pred=-32768;
+    idx+=IMA_IDX[code];if(idx<0)idx=0;else if(idx>88)idx=88;
+    pcm[i]=pred;
+  }
+  return pcm;
 }
-/* put a part's clips into IndexedDB. A new AI voice replaces the old one's lines;
-   the grown-up's own recordings are only replaced by newer ones. */
-async function importPart(part,info,bufs){
-  if(part==='ai'){const m=info.murf||{};
-    if(m.built&&S.settings.murfBuilt&&S.settings.murfBuilt!==m.built){for(const k of Object.keys(CLIPS))if(k.startsWith('m:'))await delClip(k);}}
+let EMBED={id:'',made:'',n:0};
+const bakeKeys=()=>Object.keys(CLIPS).filter(k=>k!=='m:__preview');
+const bakeMB=()=>{let n=0;bakeKeys().forEach(k=>n+=CLIPS[k].data.length);return Math.max(1,Math.round((n*2*1.34+140000)/1048576));};
+async function bakeStandalone(onProg){
+  let html=PRISTINE;
+  if(!html.includes('ollie-word-adventure-v1')||!html.includes('</body>'))
+    throw new Error('Couldn’t read the game’s own code on this page. Reload the page and try again.');
+  // keep only the game: drop any scripts a host or viewer added (the game itself loads no external scripts)
+  html=html.replace(new RegExp('<script[^>]*\\ssrc=[^>]*></'+'script>\\s*','gi'),'');
+  // (marker strings are split so this code never matches itself)
+  html=html.replace(new RegExp('<script type="application/json" id="ollie-'+'pack"[^>]*>[\\s\\S]*?<'+'/script>\\s*','g'),'');
+  html=html.replace(new RegExp('<script[^>]*src="/\\.netlify/[^"]*"[^>]*></'+'script>\\s*','g'),'');
+  const at=html.lastIndexOf('</body>');
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7),made=new Date().toISOString().slice(0,10);
+  const ks=bakeKeys();
+  const parts=[html.slice(0,at),'<script type="application/json" id="ollie-'+`pack" data-id="${id}" data-made="${made}" data-n="${ks.length}">`,
+    '{"id":"'+id+'","made":"'+made+'","fmt":"pcm16","murf":'+JSON.stringify({voice:S.settings.murfVoice||'',style:S.settings.murfStyle||'',built:S.settings.murfBuilt||''})+',"clips":{'];
+  for(let i=0;i<ks.length;i++){
+    const c=CLIPS[ks[i]];
+    parts.push((i?',':'')+JSON.stringify(ks[i])+':['+c.sr+','+c.data.length+',"'+b64(new Uint8Array(c.data.buffer,c.data.byteOffset,c.data.length*2))+'"'+(c.w?','+JSON.stringify(c.w):'')+']');
+    if(i%40===39){onProg&&onProg(`Packing the voice: ${i+1} of ${ks.length}…`);await sleep(0);}
+  }
+  parts.push('}}<'+'/script>\n',html.slice(at));
+  try{localStorage.setItem('ollie-pack-id',id);}catch(e){}
+  return new Blob(parts,{type:'application/octet-stream'});
+}
+async function loadEmbedded(){
+  const el=document.getElementById('ollie-pack');if(!el)return;
+  EMBED={id:el.dataset.id||'',made:el.dataset.made||'',n:+el.dataset.n||0};
+  let seen='';try{seen=localStorage.getItem('ollie-pack-id')||'';}catch(e){}
+  if(seen===EMBED.id&&bakeKeys().length){el.remove();return;}
+  let j;try{j=JSON.parse(el.textContent);}catch(e){return;}
+  el.remove();
+  const m=j.murf||{};
+  // a different voice on this device would mix voices: the built-in pack wins
+  if(m.built&&S.settings.murfBuilt&&S.settings.murfBuilt!==m.built){for(const k of Object.keys(CLIPS))if(k.startsWith('m:'))await delClip(k);}
   let batch=[];
-  for(const buf of bufs){
-    for(const [k,clip] of unpackFile(buf).clips){
-      if(partOf(k)!==part)continue;
-      if(part==='mine'&&CLIPS[k]&&(CLIPS[k].at||0)>(clip.at||0))continue;
-      CLIPS[k]=clip;dropBufs(k);batch.push([k,clip]);
-      if(batch.length>=50){try{await VDB.putMany(batch);}catch(e){}batch=[];await sleep(0);}
-    }
+  for(const k in j.clips){
+    const [sr,len,b,wt]=j.clips[k],u=unb64(b);
+    const data=j.fmt==='pcm16'?new Int16Array(u.buffer,0,len):imaDecode(u,len);   // older files used compressed audio
+    const clip={sr,data,at:Date.now()};if(wt)clip.w=wt;dropBufs(k);
+    CLIPS[k]=clip;batch.push([k,clip]);
+    if(batch.length>=50){try{await VDB.putMany(batch);}catch(e){}batch=[];await sleep(0);}
   }
   if(batch.length){try{await VDB.putMany(batch);}catch(e){}}
-  if(part==='ai'){const m=info.murf||{};S.settings.murf=true;
-    if(m.built){S.settings.murfVoice=m.voice||'';S.settings.murfStyle=m.style||'';S.settings.murfBuilt=m.built;}S.missing=[];persist();}
-}
-function voiceBar(frac){
-  let el=$('#vload');
-  if(frac==null){if(el)el.remove();return;}
-  if(!el){el=document.createElement('div');el.id='vload';el.className='vload';el.setAttribute('role','progressbar');
-    el.innerHTML='<span aria-hidden="true">🦉🔊</span><b><i></i></b>';document.body.appendChild(el);}
-  const p=Math.round(Math.min(1,frac)*100);$('i',el).style.width=p+'%';el.setAttribute('aria-valuenow',p);el.title=`Getting Ollie's voice… ${p}%`;
-}
-async function loadVoice(){
-  let man;
-  try{const r=await fetch(VOICE_DIR+'manifest.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;man=await r.json();}catch(e){return;}
-  if(!man||man.format!==1||!man.parts)return;
-  VOICE.site=man;
-  let oldPack='';try{oldPack=localStorage.getItem('ollie-pack-id')||'';}catch(e){}
-  const todo=[];
-  for(const part of Object.keys(VOICE_PARTS)){
-    const p=man.parts[part];if(!p||!p.v||!Array.isArray(p.files)||!p.files.length)continue;
-    if(voiceVer.get(part)===p.v)continue;
-    // this device already has these clips from the old all-in-one game file
-    if(p.pack&&p.pack===oldPack&&partKeys(part).length){voiceVer.set(part,p.v);continue;}
-    todo.push([part,p]);
-  }
-  if(!todo.length)return;
-  VOICE.busy=true;
-  const total=todo.reduce((a,[,p])=>a+(p.bytes||0),0)||1;let got=0;
-  voiceBar(0);
-  try{
-    for(const [part,p] of todo){
-      const bufs=[];
-      for(const f of p.files)bufs.push(await fetchBytes(VOICE_DIR+f+'?v='+p.v,n=>{got+=n;voiceBar(got/total);}));
-      await importPart(part,p,bufs);
-      voiceVer.set(part,p.v);
-    }
-    VOICE.err='';
-  }catch(e){VOICE.err=e.message||String(e);}
-  VOICE.busy=false;voiceBar(null);
-}
-function voiceSiteInfo(){
-  const P=VOICE.site&&VOICE.site.parts;
-  let t=P?'Voice on the site: '+Object.keys(VOICE_PARTS).filter(p=>P[p]).map(p=>`${VOICE_PARTS[p].label.toLowerCase()} (${P[p].n||0} lines)`).join(', ')+'.'
-    :'No voice files were found next to the game, so Ollie uses the voice on this device.';
-  if(VOICE.busy)t+=' Downloading it now…';else if(VOICE.err)t+=' The last download didn’t finish ('+VOICE.err+'); it will try again next time.';
-  return escH(t);
-}
-/* make the voice files from this device, to upload to the voice/ folder on GitHub */
-function buildVoiceFiles(){
-  const site=(VOICE.site&&VOICE.site.parts)||{},out={parts:[],files:[]},man={format:1,made:new Date().toISOString().slice(0,10),parts:{}};
-  for(const part of Object.keys(VOICE_PARTS)){
-    const b=packPart(part),s=site[part];
-    if(!b.n){if(s)man.parts[part]=s;continue;}      // none on this device: keep what the site has
-    const had=s?s.v:voiceVer.get(part);
-    const e={v:b.v,files:b.files.map(f=>f.name),bytes:b.bytes,n:b.n};
-    if(part==='ai')e.murf={voice:S.settings.murfVoice||'',style:S.settings.murfStyle||'',built:S.settings.murfBuilt||''};
-    if(s&&s.pack&&s.v===b.v)e.pack=s.pack;
-    man.parts[part]=e;
-    out.parts.push({part,label:VOICE_PARTS[part].label,n:b.n,changed:had!==b.v});
-    b.files.forEach(f=>out.files.push({...f,part,changed:had!==b.v}));
-  }
-  const changed=out.files.some(f=>f.changed);
-  out.files.push({name:'manifest.json',blob:new Blob([JSON.stringify(man,null,1)],{type:'application/json'}),part:'manifest',changed});
-  // this device now holds exactly these versions
-  out.commit=()=>out.parts.forEach(x=>voiceVer.set(x.part,man.parts[x.part].v));
-  return out;
+  if(m.built){S.settings.murf=true;S.settings.murfVoice=m.voice||'';S.settings.murfStyle=m.style||'';S.settings.murfBuilt=m.built;S.missing=[];persist();}
+  try{localStorage.setItem('ollie-pack-id',EMBED.id);}catch(e){}
 }
 
 /* =====================================================================
@@ -2163,12 +2094,10 @@ function openSettings(){micOff();
     <div class="small-status" id="s-status">${HAS_SR?(MICBLOCK&&MICWHY?micHelp(MICWHY):'Tap “Test microphone” and say “hello”.'):micHelp('nosr')}</div>
     <div><h3>Progress</h3><div class="lvls">${lv}</div>
       <p style="margin-top:8px">${S.stars} stars · ${S.rounds} rounds · ${S.stickers.length} stickers</p></div>
-    <div><h3>Voice files</h3>
-      <p>${voiceSiteInfo()}</p>
-      <p style="margin-top:6px">After recording new lines or building a new AI voice, make the voice files here. Save the ones marked “changed” and <b>manifest.json</b>, then upload them to the <b>voice</b> folder on GitHub (Add file › Upload files). Every device then gets the new voice the next time it opens the game.</p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"><button class="btn sm green" id="s-bake">📦 Make voice files</button>
-        <button class="btn sm ghost" id="s-bakeshare" hidden>Share changed files…</button></div>
-      <div class="vlist" id="s-vfiles" style="margin-top:8px"></div>
+    <div><h3>Voice built into the game</h3>
+      <p>${EMBED.id?`This copy of the game has a built-in voice (made ${EMBED.made}). `:''}Make a new <b>index.html</b> with the Murf voice and your recordings inside it (about ${bakeMB()} MB). Replace the file on Netlify with it and every device that opens the game gets the voice automatically.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"><button class="btn sm green" id="s-bake">📦 Make game file with voice</button>
+        <button class="btn sm blue" id="s-bakesave" hidden>💾 Save index.html</button><button class="btn sm ghost" id="s-bakeshare" hidden>Share…</button></div>
       <div class="small-status" id="s-bakest" style="margin-top:8px"></div></div>
     <div><h3>Backup</h3><p>Save progress and your recordings to a file, e.g. to move them to another device.${clipCount('m:')?' The Murf voice pack saves as its own file because it is large.':''} Restore takes either file.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"><button class="btn sm blue" id="s-exp">💾 Save backup</button>
@@ -2298,31 +2227,22 @@ function openSettings(){micOff();
   $('#s-mine').onchange=e=>{st('mine',e.target.checked);};
   $('#s-exp').onclick=async()=>{const r=await exportBackup();$('#s-status').textContent=r==='saved'?'Backup file saved to your downloads.':r==='declined'?'Backup not saved.':'Could not save the backup here.';};
   let BAKED=null;
-  const vfShow=()=>{
-    const fmt=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
-    $('#s-vfiles').innerHTML=BAKED.files.map((f,i)=>`<div class="vrow"><div class="vl"><span class="vt">${escH(f.name)}</span><span>${fmt(f.blob.size)} · ${f.changed?'<b style="color:var(--pink-d)">changed: upload</b>':'same as the site'}</span></div>
-      <button class="vb" data-vf="${i}" aria-label="Save ${escH(f.name)}">💾</button></div>`).join('');
-  };
   $('#s-bake').onclick=async()=>{
-    const x=$('#s-bakest'),b=$('#s-bake');
-    if(VOICE.busy){x.textContent='The voice is still downloading. Wait for it to finish, then try again.';return;}
-    b.disabled=true;x.textContent='Making the voice files…';$('#s-bakeshare').hidden=true;$('#s-vfiles').innerHTML='';await sleep(50);
-    try{BAKED=buildVoiceFiles();BAKED.commit();vfShow();
-      const ch=BAKED.files.filter(f=>f.changed);
-      x.textContent=ch.length?`Ready. Tap 💾 on each file marked “changed” (${ch.length} file${ch.length>1?'s':''}, including manifest.json), then upload them to the voice folder on GitHub.`
-        :'Ready. Everything matches the voice on the site, so there is nothing to upload.';
-      try{const fl=ch.map(f=>new File([f.blob],f.name,{type:f.blob.type}));$('#s-bakeshare').hidden=!(fl.length&&navigator.canShare&&navigator.canShare({files:fl}));}catch(e){}
-    }catch(e){x.textContent='Couldn’t make the files: '+(e.message||String(e));}
+    const x=$('#s-bakest'),b=$('#s-bake');b.disabled=true;x.textContent='Making the game file…';$('#s-bakesave').hidden=$('#s-bakeshare').hidden=true;await sleep(50);
+    try{BAKED=await bakeStandalone(t=>{x.textContent=t;});
+      x.textContent=`Ready (${Math.round(BAKED.size/1048576)} MB). Tap Save, then upload index.html on your Netlify site’s Deploys page.`;
+      $('#s-bakesave').hidden=false;
+      try{$('#s-bakeshare').hidden=!(navigator.canShare&&navigator.canShare({files:[new File([BAKED],'index.html',{type:'text/html'})]}));}catch(e){}
+    }catch(e){x.textContent='Couldn’t make the file: '+(e.message||String(e));}
     if(document.body.contains(b))b.disabled=false;
   };
-  $('#s-vfiles').onclick=e=>{
-    const b=e.target.closest('[data-vf]');if(!b||!BAKED)return;const f=BAKED.files[+b.dataset.vf],x=$('#s-bakest');
-    saveFile(f.name,f.blob).then(r=>{x.textContent=r==='saved'?`Saved ${f.name}. On iPhone it’s in the Files app › Downloads.`:r==='declined'?'Not saved.':'Couldn’t save here. Try Share… instead.';if(r==='saved')b.textContent='✓';});
+  $('#s-bakesave').onclick=()=>{
+    if(!BAKED)return;const x=$('#s-bakest');
+    saveFile('index.html',BAKED).then(r=>{x.textContent=r==='saved'?'Saved. On iPhone it’s in the Files app › Downloads. Upload it on your Netlify site’s Deploys page.':r==='declined'?'Not saved.':'Couldn’t save here. Try Share… instead.';});
   };
   $('#s-bakeshare').onclick=async()=>{
     if(!BAKED)return;const x=$('#s-bakest');
-    const fl=BAKED.files.filter(f=>f.changed).map(f=>new File([f.blob],f.name,{type:f.blob.type}));
-    try{await navigator.share({files:fl});x.textContent='Shared. Upload these files to the voice folder on GitHub.';}
+    try{await navigator.share({files:[new File([BAKED],'index.html',{type:'text/html'})],title:'index.html'});x.textContent='Shared. Upload index.html on your Netlify site’s Deploys page.';}
     catch(e){if(e&&e.name!=='AbortError')x.textContent='Sharing didn’t work: '+(e.message||e.name);}
   };
   if($('#s-expv'))$('#s-expv').onclick=async()=>{
