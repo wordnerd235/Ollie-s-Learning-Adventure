@@ -529,7 +529,7 @@ const STORIES=STORY_RAW.map(st=>{
    ===================================================================== */
 const KEY='ollie-word-adventure-v1';
 const defaults=()=>({name:'',seen:false,frontier:2,words:{},stars:0,stickers:[],stories:{},rounds:0,recent:[],recentWords:[],
-  settings:{sound:true,mic:true,upper:false,unlockAll:false,voice:'',fx:.5,boost:false,boostLvl:1,boostV:2,vspd:.85}});
+  settings:{sound:true,mic:true,upper:false,unlockAll:false,voice:'',fx:.5,boost:false,boostLvl:1,vspd:.85}});   // (no boostV here: load() merges defaults, which would hide an old device)
 function load(){
   try{const j=JSON.parse(localStorage.getItem(KEY));
     if(j){const d=defaults();return {...d,...j,settings:{...d.settings,...(j.settings||{})}}}}catch(e){}

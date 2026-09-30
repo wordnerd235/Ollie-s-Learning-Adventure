@@ -61,7 +61,7 @@ One IIFE. Section banners (search for them):
 - `GROWN-UP SETTINGS`, `EVENTS`.
 
 ## Publishing (the owner tests on the live site)
-- There is no separate test site: changes go to `master`, which GitHub Pages serves as the live game. Work on a branch, run the tests, then:
+- There is no separate test site: changes go to `master`, which GitHub Pages serves as the live game. Work on a branch, run the tests, and publish **only if `npx playwright test` itself exits 0** (chain on its exit code, never on a piped `grep`; that once let a failing test publish). Then:
   1. `tools/save-previous.sh`: saves the index.html that is live now as `previous/index.html` (served at `/previous/`, voice from `../voice/`, same progress and recordings because it is the same site);
   2. commit `previous/index.html` with the change, fast-forward `master`, push.
 - Tell the owner the change is live and that `/previous/` has the version before it. Anything older is in git history.
