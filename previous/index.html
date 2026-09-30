@@ -864,15 +864,18 @@ function getMic(){
   sessionRecord();
   return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:true,autoGainControl:false}}).catch(e=>{sessionPlayback();throw e;});
 }
-function startCapture(stream,{maxSec=3,onLevel,quietSec=.6}={}){
+function startCapture(stream,{maxSec=3,onLevel,quietSec=.6,skipSec=0,onReady}={}){
   const ctx=ac(),src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(2048,1,1),mute=ctx.createGain();
   mute.gain.value=0;
   const chunks=[];let heard=false,quiet=0,floor=1,stopped=false,resolve,el=0;
   const done=new Promise(r=>resolve=r);
   proc.onaudioprocess=e=>{
     if(stopped)return;
-    const d=new Float32Array(e.inputBuffer.getChannelData(0));chunks.push(d);
-    let q=0;for(let i=0;i<d.length;i++)q+=d[i]*d[i];const rms=Math.sqrt(q/d.length),dt=d.length/ctx.sampleRate;el+=dt;
+    const d=new Float32Array(e.inputBuffer.getChannelData(0)),dt=d.length/ctx.sampleRate;
+    // drop the start of the take: iOS plays its mic chirp as the microphone opens
+    if(skipSec>0){skipSec-=dt;if(skipSec<=0)onReady&&onReady();return;}
+    chunks.push(d);
+    let q=0;for(let i=0;i<d.length;i++)q+=d[i]*d[i];const rms=Math.sqrt(q/d.length);el+=dt;
     if(rms<floor)floor=rms;
     onLevel&&onLevel(rms);
     if(rms>Math.max(.025,floor*4)){heard=true;quiet=0;}else if(heard)quiet+=dt;
@@ -2126,8 +2129,9 @@ let GUIDE=null;
 async function recordInto(key,meter,statusFn){
   const kind=key[0];
   let stream;try{stream=await getMic();}catch(e){statusFn(micHelp(e.name||'error'));return null;}
-  statusFn('Recording… speak now.');
+  statusFn('Get ready…');
   const cap=startCapture(stream,{maxSec:kind==='p'?2.5:kind==='w'?3.5:10,quietSec:kind==='p'?.6:kind==='w'?.7:1.1,
+    skipSec:.35,onReady:()=>statusFn('Recording… speak now.'),
     onLevel:x=>{if(meter)meter.style.width=Math.min(100,x*500)+'%';}});
   GUIDE=cap;
   const raw=await cap.done;GUIDE=null;if(meter)meter.style.width='0';
