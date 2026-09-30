@@ -10,6 +10,8 @@ Owner: technical (electrical/controls engineer), not a web developer. Prefers di
 - **Skip** is always available. A grown-up ✓ button appears after misses, or replaces the mic entirely when the mic is unavailable.
 - **Stories:** 9 stories unlock as their words are learned. Ollie narrates the lead-in words, the child reads each target word, then the whole sentence is read back with word highlighting. A story counts as done once read through (this clears the Story Time badge).
 - **Stickers:** earned per round/story. There are 6 illustrated "sticker scenes" with Ollie where stickers can be placed, dragged, resized, flipped, and cleared.
+- **Greeting:** a returning player (page reopened or refreshed) hears "Hi <name>! Ready to read?" once the voice is ready (`greetOnReturn`). iOS allows no sound before the first tap, so there it plays on the first tap, unless that tap is a menu button.
+- **Sticker turning:** ↺/↻ turn the selected sticker 15° (`p.r`, stored with the scene).
 - **Grown-up settings:** press and hold ⚙️ on the home screen for ~1 s.
 
 UI rules: the child is 5 and can't read instructions, so anything the child must act on needs to work without reading. Grown-up text is fine. Keep all wording gender-neutral. Ollie (🦉) animates only when showing a new message, never constantly.
@@ -94,7 +96,7 @@ One IIFE. Section banners (search for them):
     - Never commit API keys; they are stored only in the device's localStorage.
 12. **Voice limiter:** clips are normalised to 90% peak, so the `vbus` limiter threshold is -1 dB; at the old -4 dB it squashed every peak (heard as distortion). It still catches the iOS mic boost.
 13. **Recording** uses getUserMedia with echo cancellation, noise suppression and auto-gain off (stored recordings were clean; voice processing only hurts), then `bounceAC()` and a 300 ms wait before the take is played back.
-15. **Sound right after the mic stops is lost on iPhone** while iOS switches back from recording to playback. `afterMicSettled()` waits until 900 ms after the last listen ended (`CAP_END`) and the AudioContext is running; use it before any line that can follow a listen directly (the word after a correct read, story narration after the child's word). The owner didn't hear the word when it played 250 ms after the listen.
+15. **Sound right after the mic stops is lost on iPhone** while iOS switches back from recording to playback. `afterMicSettled()` waits until 450 ms after the last listen ended (was 900; halved at the owner's request, below it is unverified on iPhone) (`CAP_END`) and the AudioContext is running; use it before any line that can follow a listen directly (the word after a correct read, story narration after the child's word). The owner didn't hear the word when it played 250 ms after the listen.
 14. **Speech order:** a correct read in a round says the word, then the word's fun sound ("Meow meow!"), then the praise. In stories the child's word gets a ding and a burst, but no spoken praise or repeat. Skipping says "No problem! That word is X." while X is still on screen, then shows the next word with "Let's try another!". Tapping a letter plays its sound; the example ("like apple") only follows a second tap on the same letter in a row.
 11. AI voices can't make clean isolated phonics sounds; the owner's own recordings are the answer. Recordings always take priority unless "Use my recordings" is off.
 

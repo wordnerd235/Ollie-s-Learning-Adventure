@@ -33,7 +33,8 @@ test('a correct read says the word, then its fun sound, then the praise', async 
   expect(ip).toBeGreaterThan(iw);
   // on iPhone, sound right after the mic stops is lost while audio switches back from recording: wait for it
   const entry = (await log(page))[iw], recEnd = await page.evaluate(() => window.__recEnd);
-  expect(entry.at - recEnd).toBeGreaterThanOrEqual(850);
+  expect(entry.at - recEnd).toBeGreaterThanOrEqual(400);
+  expect(entry.at - recEnd).toBeLessThan(900);                                   // but not the old 0.9 s
   expect(ip).toBe(said.length - 1);                                             // the praise comes last
   for (const t of said.slice(iw + 1, ip)) expect(PRAISE).not.toContain(t);      // anything between is the fun sound
   expect(said[ip].includes(word)).toBe(false);                                   // the word isn't said again with the praise
