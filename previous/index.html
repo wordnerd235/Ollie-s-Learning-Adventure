@@ -349,7 +349,7 @@ input[type=text],select{font:inherit;font-size:18px;padding:12px 14px;border-rad
 .vb.big{width:86px;height:86px;font-size:34px}
 .gstat{text-align:center;font-size:15px;color:var(--ink2);min-height:1.4em}
 .gnav{display:flex;gap:10px;justify-content:space-between}
-.gnav .btn:disabled,.gbtns .vb:disabled{opacity:.35;filter:grayscale(.6)}
+#w-go:disabled,.gnav .btn:disabled,.gbtns .vb:disabled{opacity:.35;filter:grayscale(.6)}
 .vb:disabled{opacity:.3}
 @keyframes recpulse{50%{transform:scale(1.12)}}
 details.vlev{background:var(--card);border-radius:16px;padding:4px 10px 8px}
@@ -542,6 +542,7 @@ function shuffleFixed(a){let s=7;return a.map(v=>[v,(s=(s*9301+49297)%233280)]).
    AUDIO: speech + synthesized effects
    ===================================================================== */
 let AC=null,master=null,noiseBuf=null,vbus=null;
+let SILENT=false;   // "Continue without sound" while the voice downloads: this visit only, off again once it arrives
 const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 /* iOS turns playback down while the microphone is in use; compensate on Ollie's voice */
 let AFTER_CAP=false,IN_SEQ=false;
@@ -584,7 +585,7 @@ function unlockAudio(){
 ['touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,unlockAudio,{capture:true,passive:true}));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)micOff();if(!document.hidden&&AC){sessionPlayback();try{AC.resume().catch(()=>{});}catch(e){}}});
 function osc({t=0,dur=.3,type='sine',f=[[0,440]],vol=.3,att=.01,filt=null,vib=0,vibHz=6}){
-  const a=ac();if(!a||!S.settings.sound)return;
+  const a=ac();if(!a||!S.settings.sound||SILENT)return;
   const t0=a.currentTime+t;
   const o=a.createOscillator();o.type=type;
   o.frequency.setValueAtTime(f[0][1],t0);
@@ -603,7 +604,7 @@ function osc({t=0,dur=.3,type='sine',f=[[0,440]],vol=.3,att=.01,filt=null,vib=0,
   g.connect(master);o.start(t0);o.stop(t0+dur+.05);
 }
 function noise({t=0,dur=.3,vol=.3,type='bandpass',f=[[0,1000]],q=1,att=.005}){
-  const a=ac();if(!a||!S.settings.sound)return;
+  const a=ac();if(!a||!S.settings.sound||SILENT)return;
   if(!noiseBuf){noiseBuf=a.createBuffer(1,a.sampleRate*2,a.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;}
   const t0=a.currentTime+t;
   const s=a.createBufferSource();s.buffer=noiseBuf;
@@ -667,6 +668,7 @@ async function waitAudioIdle(cancel){let quiet=0,t=0;while(t<12000){if(cancel())
 function pauseSilent(){try{if(SILENT_EL&&!SILENT_EL.paused)SILENT_EL.pause();}catch(e){}}
 function resumeSilent(){try{if(SILENT_EL&&SILENT_EL.paused&&TTS_ACT<=0)SILENT_EL.play().catch(()=>{});}catch(e){}}
 function sayTTS(text,{rate=.9,pitch=1,vol=1}={}){
+  if(SILENT)return Promise.resolve();
   TTS_ACT++;hushMic();pauseSilent();
   let ended=false;const endAct=()=>{if(!ended){ended=true;TTS_ACT--;setTimeout(resumeSilent,150);}};
   return new Promise(res0=>{const res=()=>{endAct();res0();};
@@ -725,6 +727,7 @@ function clipsFor(part){
   return null;
 }
 function say(text,opts){
+  if(SILENT)return Promise.resolve();
   if(text&&S.settings.sound&&(useMine()||S.settings.murf)){
     const parts=splitSent(text),seq=[],miss=[];
     parts.forEach(x=>{const c=clipsFor(x);if(c)seq.push(...c);else miss.push(x);});
@@ -785,6 +788,7 @@ function playClip(k){
   return playBuf(b);
 }
 function playBuf(b){
+  if(SILENT)return Promise.resolve();
   const ctx=ac();hushMic();if(!IN_SEQ)applyBoost();
   return new Promise(res=>{
     const src=ctx.createBufferSource();src.buffer=b;src.connect(vbus||ctx.destination);
@@ -960,7 +964,7 @@ const partOf=k=>k==='m:__preview'?null:Object.keys(VOICE_PARTS).find(p=>VOICE_PA
 const partKeys=p=>Object.keys(CLIPS).filter(k=>partOf(k)===p).sort();
 const voiceVer={get(p){try{return localStorage.getItem('ollie-voice-v:'+p)||''}catch(e){return ''}},
   set(p,v){try{localStorage.setItem('ollie-voice-v:'+p,v)}catch(e){}}};
-let VOICE={site:null,err:'',busy:false};
+let VOICE={site:null,err:'',busy:false,state:'checking',frac:0};   // state: checking | loading | ready | failed
 /* two-lane FNV-1a over bytes, fed in pieces; the same in tools/extract.html */
 function hasher(){
   let a=0x811c9dc5,b=0x01000193^0x5bd1e995,n=0;
@@ -1029,9 +1033,43 @@ function voiceBar(frac){
   if(frac==null){if(el)el.remove();return;}
   if(!el){el=document.createElement('div');el.id='vload';el.className='vload';el.setAttribute('role','progressbar');
     el.innerHTML='<span aria-hidden="true">🦉🔊</span><b><i></i></b>';document.body.appendChild(el);}
+  VOICE.frac=frac;gateUpdate();
   const p=Math.round(Math.min(1,frac)*100);$('i',el).style.width=p+'%';el.setAttribute('aria-valuenow',p);el.title=`Getting Ollie's voice… ${p}%`;
 }
+/* Until the voice is on this device, the welcome's "Let's go" waits (and a returning player sees a
+   small card instead of the menu), so Ollie's first words are in the downloaded voice.
+   "Continue without sound" skips the wait with everything muted for this visit. */
+const waiting=()=>VOICE.state==='checking'||VOICE.state==='loading';
+function gateUpdate(){
+  const pct=Math.round(Math.min(1,VOICE.frac||0)*100);
+  $$('[data-vgate-bar]').forEach(i=>i.style.width=pct+'%');
+  const go=$('#w-go');
+  if(go){
+    const w=waiting()&&!SILENT;go.disabled=w;
+    $('#w-wait').style.display=w?'flex':'none';
+    $('#w-fail').hidden=VOICE.state!=='failed';
+  }
+  const g=$('#vgate');
+  if(!g&&VOICE.state==='loading'&&S.seen&&!SILENT&&!modal.classList.contains('on'))voiceGate();
+  if(g&&!waiting())g.remove();
+}
+function voiceGate(){
+  const g=document.createElement('div');g.id='vgate';g.className='gwrap';
+  g.innerHTML=`<div class="gcard" style="align-items:center;text-align:center">
+    <div style="font-size:80px;line-height:1" aria-hidden="true">🦉🔊</div>
+    <div class="gtext" style="min-height:0">Getting Ollie's voice…</div>
+    <div class="vmeter" style="width:100%;height:14px;border-radius:7px"><i data-vgate-bar></i></div>
+    <button class="link" data-a="silent">Continue without sound</button></div>`;
+  g.onclick=e=>{if(e.target.closest('[data-a="silent"]')){SILENT=true;stopSpeech();g.remove();}};
+  document.body.appendChild(g);gateUpdate();
+}
 async function loadVoice(){
+  try{await fetchVoice();}catch(e){VOICE.err=e.message||String(e);}
+  VOICE.state=VOICE.err?'failed':'ready';VOICE.busy=false;voiceBar(null);
+  if(VOICE.state==='ready')SILENT=false;
+  gateUpdate();
+}
+async function fetchVoice(){
   let man;
   try{const r=await fetch(VOICE_DIR+'manifest.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;man=await r.json();}catch(e){return;}
   if(!man||man.format!==1||!man.parts)return;
@@ -1046,7 +1084,7 @@ async function loadVoice(){
     todo.push([part,p]);
   }
   if(!todo.length)return;
-  VOICE.busy=true;
+  VOICE.busy=true;VOICE.state='loading';gateUpdate();
   const total=todo.reduce((a,[,p])=>a+(p.bytes||0),0)||1;let got=0;
   voiceBar(0);
   try{
@@ -2372,9 +2410,16 @@ function welcome(){
     <input type="text" id="w-name" placeholder="Type a name" maxlength="20" autocomplete="off" style="text-align:center">
     <p>Grown-ups: the first time the microphone is tapped, your device will ask to use it. Tap <b>Allow</b>. Press and hold ⚙️ on the home screen for settings, including recording the letter sounds in your own voice.</p>
     <button class="btn big green" id="w-go">Let's go!</button>
+    <div id="w-wait" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:6px">
+      <p>Getting Ollie's voice…</p>
+      <div class="vmeter" style="width:100%;height:14px;border-radius:7px"><i data-vgate-bar></i></div>
+      <button class="link" id="w-silent">Continue without sound</button></div>
+    <p id="w-fail" hidden>Ollie's voice didn't download. The device voice will be used for now; it tries again next time.</p>
   </div>`;
   modal.classList.add('on');
-  $('#w-go').onclick=()=>{ac();S.name=$('#w-name').value.trim();S.seen=true;persist();modal.classList.remove('on');modal.innerHTML='';screenHome();say(S.name?`Hi ${S.name}! I'm Ollie. Let's read!`:"Hi! I'm Ollie. Let's read!");};
+  $('#w-silent').onclick=()=>{SILENT=true;gateUpdate();};
+  gateUpdate();
+  $('#w-go').onclick=()=>{if($('#w-go').disabled)return;ac();S.name=$('#w-name').value.trim();S.seen=true;persist();modal.classList.remove('on');modal.innerHTML='';screenHome();say(S.name?`Hi ${S.name}! I'm Ollie. Let's read!`:"Hi! I'm Ollie. Let's read!");};
 }
 
 /* =====================================================================

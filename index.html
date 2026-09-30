@@ -705,7 +705,7 @@ const vspd=()=>Math.min(1.1,Math.max(.6,+S.settings.vspd||.85));
 const effRate=r=>{const v=Math.max(.55,(r||1)*vspd());return Math.abs(v-1)<.02?1:Math.round(v*100)/100;};
 function playSeq(keys,rate){
   const my=SEQ;SEQ_ACT++;hushMic();
-  const run=CHAIN.then(async()=>{applyBoost();IN_SEQ=true;for(const x of keys){if(my!==SEQ)return;const it=typeof x==='string'?{k:x}:x;const p=playClipAt(it.k,it.mine?1:effRate(rate));if(p)await p;}}).finally(()=>{IN_SEQ=false;SEQ_ACT--;});
+  const run=CHAIN.then(async()=>{applyBoost();IN_SEQ=true;for(const x of keys){if(my!==SEQ)return;const it=typeof x==='string'?{k:x}:x;if(it.pause){await sleep(it.pause);continue;}const p=playClipAt(it.k,it.mine?1:effRate(rate));if(p)await p;}}).finally(()=>{IN_SEQ=false;SEQ_ACT--;});
   CHAIN=run.catch(()=>{});return run;
 }
 function noteMissing(parts){
@@ -726,11 +726,13 @@ function clipsFor(part){
   if(S.settings.murf&&CLIPS['m:'+k])return [{k:'m:'+k,mine:false}];
   return null;
 }
+const SENT_GAP=280;
 function say(text,opts){
   if(SILENT)return Promise.resolve();
   if(text&&S.settings.sound&&(useMine()||S.settings.murf)){
     const parts=splitSent(text),seq=[],miss=[];
-    parts.forEach(x=>{const c=clipsFor(x);if(c)seq.push(...c);else miss.push(x);});
+    // clips are trimmed tight, so leave a breath between sentences ("I'm Ollie. Let's read!")
+    parts.forEach((x,i)=>{const c=clipsFor(x);if(c){if(i&&seq.length)seq.push({pause:SENT_GAP});seq.push(...c);}else miss.push(x);});
     if(!miss.length&&seq.length){sessionPlayback();return playSeq(seq,opts&&opts.slow);}
     if(S.settings.murf)noteMissing(miss.filter(x=>!CLIPS['m:'+mkey(x)]));
   }
@@ -831,6 +833,7 @@ function playClipAt(k,rate){
 /* seconds a Murf line will take (null if it would use the device voice) */
 function speechDur(text,rate){
   if(!S.settings.sound)return null;let t=0;
+  splitSent(text).forEach((x,i)=>{if(i)t+=SENT_GAP/1000;});
   for(const x of splitSent(text)){const c=clipsFor(x);if(!c)return null;
     for(const it of c){const cl=CLIPS[it.k];t+=cl.data.length/cl.sr/(it.mine?1:effRate(rate));}}
   return t||null;
