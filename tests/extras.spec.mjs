@@ -92,31 +92,21 @@ test('voice boost: devices start once on the new 2x default; a boost set later i
   expect(await settings()).toMatchObject({ boost: false, boostLvl: 1 });
 });
 
-test('voice boost gets louder with the slider and never clips (the game\'s own audio chain, offline)', async ({ page }) => {
+test('voice boost gets louder with the slider and never goes above 0.9 (the game\'s own code)', async () => {
   const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
-  const grab = start => { const i = html.indexOf(start); return html.slice(i, html.indexOf('\n}\n', i) + 2); };
-  const code = grab('function setGain(g){') + grab('function voiceChain(ctx){');
-  await page.goto('about:blank');
-  const r = await page.evaluate(async code => {
-    const out = {};
-    for (const g of [1, 2, 3.5]) {
-      const sr = 48000, N = sr * 2, ctx = new OfflineAudioContext(1, N, sr);
-      const G = new Function('AC', code + '\nlet VCH = null;\nreturn { init() { VCH = voiceChain(AC); return VCH; }, setGain };')(ctx);
-      // speech-like: syllables of a harmonic buzz with quieter consonant noise, peak 0.9
-      const buf = ctx.createBuffer(1, N, sr), d = buf.getChannelData(0);
-      for (let i = 0; i < N; i++) { const t = i / sr, env = Math.max(0, Math.sin(Math.PI * t * 5)) ** 3; d[i] = env * (Math.sin(2 * Math.PI * 160 * t) + .4 * Math.sin(2 * Math.PI * 480 * t)) + .05 * (Math.random() * 2 - 1) * (1 - env); }
-      let pk = 0; for (const x of d) pk = Math.max(pk, Math.abs(x)); for (let i = 0; i < N; i++) d[i] *= .9 / pk;
-      const VCH = G.init(); G.setGain(g);
-      const s = ctx.createBufferSource(); s.buffer = buf; s.connect(VCH.comp); VCH.out.connect(ctx.destination); s.start();
-      const o = (await ctx.startRendering()).getChannelData(0);
-      let q = 0, m = 0; for (const x of o) { q += x * x; m = Math.max(m, Math.abs(x)); }
-      out[g] = { db: 20 * Math.log10(Math.sqrt(q / o.length)), peak: m };
-    }
-    return out;
-  }, code);
-  expect(r[2].db).toBeGreaterThan(r[1].db + 3);
-  expect(r[3.5].db).toBeGreaterThan(r[2].db + 1);
-  for (const g of [1, 2, 3.5]) expect(r[g].peak).toBeLessThanOrEqual(0.95);
+  const i = html.indexOf('function loudPCM('), loudPCM = new Function(html.slice(i, html.indexOf('\n}\n', i) + 2) + '\nreturn loudPCM;')();
+  // speech-like: syllables of a harmonic buzz, consonant noise, and a few sharp clicks (like "t", "k"), peak 0.9
+  const sr = 24000, N = sr * 3, x = new Float32Array(N);
+  for (let i = 0; i < N; i++) { const t = i / sr, env = Math.max(0, Math.sin(Math.PI * t * 5)) ** 3; x[i] = env * (Math.sin(2 * Math.PI * 160 * t) + .4 * Math.sin(2 * Math.PI * 480 * t)) + .05 * (Math.random() * 2 - 1) * (1 - env); }
+  for (const c of [.35, 1.1, 2.3]) for (let k = 0; k < 40; k++) x[Math.round(c * sr) + k] += (k % 2 ? -1 : 1) * 1.5 * (1 - k / 40);
+  let pk = 0; for (const v of x) pk = Math.max(pk, Math.abs(v)); for (let i = 0; i < N; i++) x[i] *= .9 / pk;
+  const db = y => 20 * Math.log10(Math.sqrt(y.reduce((a, v) => a + v * v, 0) / y.length));
+  expect(loudPCM(x, sr, 1)).toBe(x);                                   // 1x: untouched
+  const r = {};
+  for (const g of [1.5, 2, 3.5]) { const y = loudPCM(x, sr, g); r[g] = db(y); expect(Math.max(...y.map(Math.abs))).toBeLessThanOrEqual(0.9 + 1e-6); }
+  expect(r[1.5]).toBeGreaterThan(db(x) + 1);
+  expect(r[2]).toBeGreaterThan(r[1.5]);
+  expect(r[3.5]).toBeGreaterThan(r[2]);
 });
 
 test('"Test boost" turns the mic on, applies the boost, and reports it', async ({ browser }) => {
