@@ -40,6 +40,7 @@ export async function installStubs(context) {
             const res = [alt]; res.isFinal = true;
             this.onresult && this.onresult({ resultIndex: 0, results: [res] });
           }
+          window.__recEnd = Date.now();
           this.onend && this.onend();
         }, 250);
       }
@@ -53,7 +54,7 @@ export async function installStubs(context) {
       getVoices: () => [{ name: 'Samantha', lang: 'en-US', voiceURI: 'Samantha', default: true }],
       speak(u) {
         window.__tts.push(u.text); synth.speaking = true;
-        window.__ttsLog.push({ text: u.text, tiles: [...document.querySelectorAll('#act .tile')].map(t => t.textContent).join('').toLowerCase() });
+        window.__ttsLog.push({ text: u.text, tiles: [...document.querySelectorAll('#act .tile')].map(t => t.textContent).join('').toLowerCase(), at: Date.now() });
         setTimeout(() => { u.onstart && u.onstart(); }, 5);
         setTimeout(() => { synth.speaking = false; u.onend && u.onend(); }, 30);
       },

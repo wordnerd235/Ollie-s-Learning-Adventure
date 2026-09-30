@@ -31,6 +31,9 @@ test('a correct read says the word, then its fun sound, then the praise', async 
   const iw = said.indexOf(`${word}!`), ip = said.findIndex(t => PRAISE.includes(t));
   expect(iw).toBeGreaterThanOrEqual(0);
   expect(ip).toBeGreaterThan(iw);
+  // on iPhone, sound right after the mic stops is lost while audio switches back from recording: wait for it
+  const entry = (await log(page))[iw], recEnd = await page.evaluate(() => window.__recEnd);
+  expect(entry.at - recEnd).toBeGreaterThanOrEqual(850);
   expect(ip).toBe(said.length - 1);                                             // the praise comes last
   for (const t of said.slice(iw + 1, ip)) expect(PRAISE).not.toContain(t);      // anything between is the fun sound
   expect(said.filter(t => t.includes(word) && t !== `${word}!`)).toEqual([]);   // the word isn't said again with the praise

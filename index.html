@@ -1305,7 +1305,13 @@ function murfErr(e){
    ===================================================================== */
 const SRc=window.SpeechRecognition||window.webkitSpeechRecognition;
 const HAS_SR=!!SRc;
-let MICBLOCK=false,curRec=null,MICWHY='',MICPRE=false,MIC_ON=false;
+let MICBLOCK=false,curRec=null,MICWHY='',MICPRE=false,MIC_ON=false,CAP_END=0;
+/* iPhone: sound played while iOS switches back from recording to playback is lost,
+   so a line right after the mic stops (e.g. the word after a correct read) waits for it to settle */
+async function afterMicSettled(ms=900){
+  const w=CAP_END+ms-Date.now();if(w>0)await sleep(w);
+  if(AC&&AC.state!=='running'){try{await AC.resume();}catch(e){}}
+}
 function micOff(){MIC_ON=false;stopListening();setVoiceBoost();}
 const IN_FRAME=(()=>{try{return window.self!==window.top}catch(e){return true}})();
 try{const fp=document.permissionsPolicy||document.featurePolicy;
@@ -1350,7 +1356,7 @@ function getSR(){
 function listenFor(word,long){
   return new Promise(async resolve=>{
     const my=++srSess;let done=false,heard='',tm=0,rec;
-    const finish=r=>{if(done)return;done=true;clearTimeout(tm);if(srBusy){try{rec.abort()}catch(e){}}if(curRec===rec)curRec=null;if(srBusy||heard)AFTER_CAP=true;sessionPlayback();bounceAC();r.heard=heard;resolve(r);};
+    const finish=r=>{if(done)return;done=true;CAP_END=Date.now();clearTimeout(tm);if(srBusy){try{rec.abort()}catch(e){}}if(curRec===rec)curRec=null;if(srBusy||heard)AFTER_CAP=true;sessionPlayback();bounceAC();r.heard=heard;resolve(r);};
     try{rec=getSR();}catch(e){finish({ok:false,err:'start'});return;}
     for(let n=0;n<14&&srBusy;n++)await sleep(50);   // let a previous session end first
     if(my!==srSess){finish({ok:false,err:'aborted'});return;}
@@ -1702,7 +1708,7 @@ async function celebrate(w){
   $('#celenext').onclick=nextInRound;
   FX.ding();confetti();burst(w.emoji);
   if(w.anim==='fall')rainfall(w.emoji);
-  await sleep(250);if(my!==TOK)return;
+  await sleep(250);await afterMicSettled();if(my!==TOK)return;
   await say(`${w.w}!`,{rate:.8,slow:.85});if(my!==TOK)return;
   await playSfx(w.sfx,my);if(my!==TOK)return;
   await say(praise,{rate:.8,slow:.85});
@@ -1958,7 +1964,7 @@ async function storyPage(){
       $('#act').innerHTML='';A=null;
       el.classList.remove('active');el.classList.add('ok');
       if(res==='skip'){await say(`That word is ${w.w}.`,{rate:.75,slow:.85});}
-      else{FX.ding();burst(w.emoji,6);await sleep(450);}
+      else{FX.ding();burst(w.emoji,6);await sleep(450);await afterMicSettled();}
       if(my!==TOK)return;
     }
     k=j+1;
