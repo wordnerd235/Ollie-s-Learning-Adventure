@@ -529,13 +529,15 @@ const STORIES=STORY_RAW.map(st=>{
    ===================================================================== */
 const KEY='ollie-word-adventure-v1';
 const defaults=()=>({name:'',seen:false,frontier:2,words:{},stars:0,stickers:[],stories:{},rounds:0,recent:[],recentWords:[],
-  settings:{sound:true,mic:true,upper:false,unlockAll:false,voice:'',fx:.5,boost:true,boostLvl:2.4,vspd:.85}});
+  settings:{sound:true,mic:true,upper:false,unlockAll:false,voice:'',fx:.5,boost:false,boostLvl:1,vspd:.85}});   // (no boostV here: load() merges defaults, which would hide an old device)
 function load(){
   try{const j=JSON.parse(localStorage.getItem(KEY));
     if(j){const d=defaults();return {...d,...j,settings:{...d.settings,...(j.settings||{})}}}}catch(e){}
   return defaults();
 }
 let S=load();
+// the old default 2.4x voice boost made Ollie crackle, then quieter, with the mic on: turn it off once
+if(S.settings.boostV!==2){S.settings.boost=false;S.settings.boostLvl=1;S.settings.boostV=2;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const isKnown=w=>((S.words[w]||{}).sc||0)>=1.8;
 const knownCount=()=>WORDS.filter(w=>isKnown(w.w)).length;
@@ -553,7 +555,7 @@ let SILENT=false;   // "Continue without sound" while the voice downloads: this 
 const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 /* iOS turns playback down while the microphone is in use; compensate on Ollie's voice */
 let AFTER_CAP=false,IN_SEQ=false;
-const boostLvl=()=>S.settings.boost===false?1:Math.max(1,+S.settings.boostLvl||2.4);
+const boostLvl=()=>S.settings.boost===false?1:Math.max(1,+S.settings.boostLvl||1);
 function setGain(g){if(!vbus)return;try{vbus.gain.setTargetAtTime(g,AC.currentTime,.03);}catch(e){vbus.gain.value=g;}}
 function setVoiceBoost(){setGain(IS_IOS&&MIC_ON?boostLvl():1);}
 /* called as each new line starts: the first line after the mic listened plays softer,
@@ -2251,7 +2253,7 @@ function openSettings(){micOff();
       <p class="tip" style="margin-top:6px">Web pages can only use the basic voices the browser offers them. Siri voices, and voices downloaded in iPhone Settings, aren't available to websites, so recording your own voice gives the most natural result. On Windows, Edge offers natural “Online (Natural)” voices.</p></div>
     <div><h3>Voice boost while the mic is on <small id="s-boostv" style="font-weight:600">${boostLvl()<=1?'off':boostLvl().toFixed(1)+'×'}</small></h3>
       <input type="range" id="s-boostl" min="1" max="3.5" step=".1" value="${boostLvl()}" style="width:100%;accent-color:var(--primary)">
-      <p class="tip">iPhone/iPad turn playback down while the mic is on; this makes up for it. The first line after your child speaks plays at 60% of this. All the way left = off.</p></div>
+      <p class="tip">Off by default: with the mic on, boosting made Ollie crackle and then sound quieter. Only raise it if Ollie is too quiet while the mic is on. The first line after your child speaks plays at 60% of this. All the way left = off.</p></div>
     <div><h3>Ollie's talking speed <small id="s-vspdv" style="font-weight:600">${Math.round(vspd()*100)}%</small></h3>
       <input type="range" id="s-vspd" min=".6" max="1.1" step=".05" value="${vspd()}" style="width:100%;accent-color:var(--primary)">
       <p class="tip">Slows the AI voice without lowering its pitch. No rebuild needed.</p></div>

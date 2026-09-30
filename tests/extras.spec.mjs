@@ -1,5 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { test, expect } from '@playwright/test';
-import { newSite, newDevice, dismissWelcome } from './helpers.mjs';
+import { newSite, newDevice, dismissWelcome, REPO } from './helpers.mjs';
 
 test('a refresh greets a returning player', async ({ browser }) => {
   const site = newSite('greet', { voice: false });
@@ -73,19 +75,46 @@ test('the recorder records and saves a take', async ({ browser }) => {
   await expect(row).toHaveClass(/has/, { timeout: 15_000 });
 });
 
-test('the old 2.4x voice boost is switched off once; a boost set later is kept', async ({ browser }) => {
+test('voice boost: devices start once on the new 2x default; a boost set later is kept', async ({ browser }) => {
   const site = newSite('boost', { voice: false });
   const { page } = await newDevice(browser);
   await page.goto(site.url);
   await dismissWelcome(page);
   const settings = () => page.evaluate(() => JSON.parse(localStorage.getItem('ollie-word-adventure-v1')).settings);
-  expect((await settings()).boost).toBe(false);
-  // a device still on the old default
-  await page.evaluate(() => { const S = JSON.parse(localStorage.getItem('ollie-word-adventure-v1')); S.settings.boost = true; S.settings.boostLvl = 2.4; delete S.settings.boostV; localStorage.setItem('ollie-word-adventure-v1', JSON.stringify(S)); });
+  expect(await settings()).toMatchObject({ boost: true, boostLvl: 2, boostV: 3 });
+  for (const old of [{ boost: true, boostLvl: 2.4, boostV: undefined }, { boost: false, boostLvl: 1, boostV: 2 }]) {
+    await page.evaluate(o => { const S = JSON.parse(localStorage.getItem('ollie-word-adventure-v1')); Object.assign(S.settings, o); if (o.boostV === undefined) delete S.settings.boostV; localStorage.setItem('ollie-word-adventure-v1', JSON.stringify(S)); }, old);
+    await page.reload();
+    expect(await settings()).toMatchObject({ boost: true, boostLvl: 2, boostV: 3 });
+  }
+  await page.evaluate(() => { const S = JSON.parse(localStorage.getItem('ollie-word-adventure-v1')); S.settings.boost = false; S.settings.boostLvl = 1; localStorage.setItem('ollie-word-adventure-v1', JSON.stringify(S)); });
   await page.reload();
-  expect(await settings()).toMatchObject({ boost: false, boostLvl: 1, boostV: 2 });
-  // a grown-up turns it up again: that sticks
-  await page.evaluate(() => { const S = JSON.parse(localStorage.getItem('ollie-word-adventure-v1')); S.settings.boost = true; S.settings.boostLvl = 1.5; localStorage.setItem('ollie-word-adventure-v1', JSON.stringify(S)); });
-  await page.reload();
-  expect(await settings()).toMatchObject({ boost: true, boostLvl: 1.5 });
+  expect(await settings()).toMatchObject({ boost: false, boostLvl: 1 });
+});
+
+test('voice boost gets louder with the slider and never clips (the game\'s own audio chain, offline)', async ({ page }) => {
+  const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+  const grab = start => { const i = html.indexOf(start); return html.slice(i, html.indexOf('\n}\n', i) + 2); };
+  const code = grab('function setGain(g){') + grab('function voiceChain(ctx){');
+  await page.goto('about:blank');
+  const r = await page.evaluate(async code => {
+    const out = {};
+    for (const g of [1, 2, 3.5]) {
+      const sr = 48000, N = sr * 2, ctx = new OfflineAudioContext(1, N, sr);
+      const G = new Function('AC', code + '\nlet VCH = null;\nreturn { init() { VCH = voiceChain(AC); return VCH; }, setGain };')(ctx);
+      // speech-like: syllables of a harmonic buzz with quieter consonant noise, peak 0.9
+      const buf = ctx.createBuffer(1, N, sr), d = buf.getChannelData(0);
+      for (let i = 0; i < N; i++) { const t = i / sr, env = Math.max(0, Math.sin(Math.PI * t * 5)) ** 3; d[i] = env * (Math.sin(2 * Math.PI * 160 * t) + .4 * Math.sin(2 * Math.PI * 480 * t)) + .05 * (Math.random() * 2 - 1) * (1 - env); }
+      let pk = 0; for (const x of d) pk = Math.max(pk, Math.abs(x)); for (let i = 0; i < N; i++) d[i] *= .9 / pk;
+      const VCH = G.init(); G.setGain(g);
+      const s = ctx.createBufferSource(); s.buffer = buf; s.connect(VCH.comp); VCH.out.connect(ctx.destination); s.start();
+      const o = (await ctx.startRendering()).getChannelData(0);
+      let q = 0, m = 0; for (const x of o) { q += x * x; m = Math.max(m, Math.abs(x)); }
+      out[g] = { db: 20 * Math.log10(Math.sqrt(q / o.length)), peak: m };
+    }
+    return out;
+  }, code);
+  expect(r[2].db).toBeGreaterThan(r[1].db + 3);
+  expect(r[3.5].db).toBeGreaterThan(r[2].db + 1);
+  for (const g of [1, 2, 3.5]) expect(r[g].peak).toBeLessThanOrEqual(0.95);
 });
