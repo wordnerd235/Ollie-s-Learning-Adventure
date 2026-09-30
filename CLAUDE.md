@@ -56,6 +56,13 @@ One IIFE. Section banners (search for them):
 - `VOICE RECORDER`: `recGroups()` lists every line in sections (358 lines); `guided()` walks through the missing ones one at a time.
 - `GROWN-UP SETTINGS`, `EVENTS`.
 
+## Publishing (the owner tests on the live site)
+- There is no separate test site: changes go to `master`, which GitHub Pages serves as the live game. Work on a branch, run the tests, then:
+  1. `tools/save-previous.sh`: saves the index.html that is live now as `previous/index.html` (served at `/previous/`, voice from `../voice/`, same progress and recordings because it is the same site);
+  2. commit `previous/index.html` with the change, fast-forward `master`, push.
+- Tell the owner the change is live and that `/previous/` has the version before it. Anything older is in git history.
+- Change `voice/` or the voice format only with care: `previous/` reads the same files.
+
 ## Hard-won lessons: don't regress these
 1. **Never write the literal closing script tag or the pack marker inside the main script.** Build them by concatenation (`'<'+'/script>'`, `'id="ollie-'+'pack"'`). A literal closing tag ends the script early, and the marker in the code would match itself when the pack is stripped.
 2. **iOS silent switch** mutes Web Audio and `speechSynthesis`.
@@ -85,7 +92,7 @@ One IIFE. Section banners (search for them):
     - Never commit API keys; they are stored only in the device's localStorage.
 12. **Voice limiter:** clips are normalised to 90% peak, so the `vbus` limiter threshold is -1 dB; at the old -4 dB it squashed every peak (heard as distortion). It still catches the iOS mic boost.
 13. **Recording** uses getUserMedia with echo cancellation, noise suppression and auto-gain off (stored recordings were clean; voice processing only hurts), then `bounceAC()` and a 300 ms wait before the take is played back.
-14. **Speech order:** a correct read in a round says the word, then the praise, then the word's sound effect. In stories the child's word gets a ding and a burst, but no spoken praise or repeat. Skipping says "No problem! That word is X." while X is still on screen, then shows the next word with "Let's try another!". Tapping a letter plays its sound; the example ("like apple") only follows a second tap on the same letter in a row.
+14. **Speech order:** a correct read in a round says the word, then the word's fun sound ("Meow meow!"), then the praise. In stories the child's word gets a ding and a burst, but no spoken praise or repeat. Skipping says "No problem! That word is X." while X is still on screen, then shows the next word with "Let's try another!". Tapping a letter plays its sound; the example ("like apple") only follows a second tap on the same letter in a row.
 11. AI voices can't make clean isolated phonics sounds; the owner's own recordings are the answer. Recordings always take priority unless "Use my recordings" is off.
 
 ## Current state (Sept 30, 2026)

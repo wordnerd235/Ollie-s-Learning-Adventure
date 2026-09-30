@@ -106,3 +106,17 @@ test('export after recording, upload, and another device gets the new recording'
   await waitForVoice(C.page, man2);
   expect(C.bins.map(u => path.basename(new URL(u).pathname))).toEqual(['mine-1.bin']);
 });
+
+test('the saved previous version loads the same voice from ../voice/', async ({ browser }) => {
+  const site = newSite('previous'), man = site.manifest();
+  const { page, bins } = await newDevice(browser);
+  await page.goto(site.url + 'previous/');
+  await waitForVoice(page, man);
+  expect(bins.every(u => u.includes(`/game/previous/voice/`))).toBe(true);
+  expect(bins.length).toBe(man.parts.ai.files.length + man.parts.mine.files.length);
+  // switching to the current version on the same device: nothing to download
+  bins.length = 0;
+  await page.goto(site.url);
+  await waitForVoice(page, man);
+  expect(bins).toEqual([]);
+});

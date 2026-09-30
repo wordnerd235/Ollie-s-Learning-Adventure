@@ -1,5 +1,6 @@
 // Static server for the tests (IndexedDB and fetch need http://localhost, not file://).
 //   /game/<site>/index.html  -> the repo's index.html (the code under test)
+//   /game/<site>/previous/   -> the repo's previous/index.html (the version that was live before)
 //   /game/<site>/old.html    -> .work/old.html (an old all-in-one game file with the voice inside)
 //   /game/<site>/voice/<f>   -> .work/sites/<site>/voice/<f>
 //   /gen/old.html            -> .work/old-src.html (old game code, used to make the fixture)
@@ -23,6 +24,7 @@ function resolve(url) {
   const [, site, rest] = m;
   if (rest === '' || rest === 'index.html') return path.join(REPO, 'index.html');
   if (rest === 'old.html') return path.join(WORK, 'old.html');
+  if (rest === 'previous/' || rest === 'previous/index.html') return path.join(REPO, 'previous', 'index.html');
   if (rest.startsWith('voice/') && !rest.includes('..')) return path.join(WORK, 'sites', site, rest);
   return null;
 }

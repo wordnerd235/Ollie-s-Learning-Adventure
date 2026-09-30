@@ -17,7 +17,7 @@ const log = page => page.evaluate(() => window.__ttsLog.map(x => ({ ...x })));
 const clearLog = page => page.evaluate(() => { window.__ttsLog.length = 0; });
 const tiles = page => page.evaluate(() => [...document.querySelectorAll('#act .tile')].map(t => t.textContent).join('').toLowerCase());
 
-test('a correct read says the word first, then the praise', async ({ browser }) => {
+test('a correct read says the word, then its fun sound, then the praise', async ({ browser }) => {
   const { page } = await device(browser, 'q-praise');
   await page.click('[data-act="play"]');
   await page.locator('#act .tile').first().waitFor();
@@ -31,6 +31,8 @@ test('a correct read says the word first, then the praise', async ({ browser }) 
   const iw = said.indexOf(`${word}!`), ip = said.findIndex(t => PRAISE.includes(t));
   expect(iw).toBeGreaterThanOrEqual(0);
   expect(ip).toBeGreaterThan(iw);
+  expect(ip).toBe(said.length - 1);                                             // the praise comes last
+  for (const t of said.slice(iw + 1, ip)) expect(PRAISE).not.toContain(t);      // anything between is the fun sound
   expect(said.filter(t => t.includes(word) && t !== `${word}!`)).toEqual([]);   // the word isn't said again with the praise
 });
 
