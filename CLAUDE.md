@@ -83,6 +83,9 @@ One IIFE. Section banners (search for them):
       - It allows 2 requests at once, and browser calls work.
       - Phoneme tags only work on `eleven_flash_v2`.
     - Never commit API keys; they are stored only in the device's localStorage.
+12. **Voice limiter:** clips are normalised to 90% peak, so the `vbus` limiter threshold is -1 dB; at the old -4 dB it squashed every peak (heard as distortion). It still catches the iOS mic boost.
+13. **Recording** uses getUserMedia with echo cancellation, noise suppression and auto-gain off (stored recordings were clean; voice processing only hurts), then `bounceAC()` and a 300 ms wait before the take is played back.
+14. **Speech order:** a correct read in a round says the word, then the praise, then the word's sound effect. In stories the child's word gets a ding and a burst, but no spoken praise or repeat. Skipping says "No problem! That word is X." while X is still on screen, then shows the next word with "Let's try another!". Tapping a letter plays its sound; the example ("like apple") only follows a second tap on the same letter in a row.
 11. AI voices can't make clean isolated phonics sounds; the owner's own recordings are the answer. Recordings always take priority unless "Use my recordings" is off.
 
 ## Current state (Sept 30, 2026)
@@ -95,6 +98,7 @@ One IIFE. Section banners (search for them):
 - Run: `cd tests && npm install && npx playwright test`. The first run makes a fixture in `tests/.work/` (about a minute), later runs reuse it; delete `.work/` to remake it.
   - The fixture is made the way the real one was: the old game code (`tests/fixtures/old-game.html`) builds a full AI pack against a fake ElevenLabs, gets a few injected "owner recordings", and saves an all-in-one file with "Make game file with voice"; `tools/extract.html` then extracts it.
   - `tests/server.mjs` serves each test's own "site" at `/game/<name>/` (the repo's `index.html` plus a copy of the voice files).
+  - `qol.spec.mjs` runs without voice files so every line goes to the stubbed device voice, which logs the text and the word on the tiles at that moment (`window.__ttsLog`); it checks the speech order rules in lesson 14.
   - Covered: fresh device gets the voice (sample-for-sample equal to the old file's), no re-download on the next visit, no download on a device that has the old file's voice, export → upload → another device gets the new recording (and only the changed part downloads), a full round, a full story. Both game tests assert nothing fell back to the device voice.
 - Syntax: extract the main `<script>` and run `node --check`.
 - Behavior: Playwright + headless Chromium.

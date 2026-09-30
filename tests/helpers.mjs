@@ -10,11 +10,11 @@ export const WORK = path.join(HERE, '.work');
 export const BASE_VOICE = path.join(WORK, 'base-voice');
 
 /* A fresh copy of the extracted voice files for one test's "site". */
-export function newSite(name) {
+export function newSite(name, { voice = true } = {}) {
   const dir = path.join(WORK, 'sites', name, 'voice');
   fs.rmSync(path.dirname(dir), { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  for (const f of fs.readdirSync(BASE_VOICE)) fs.copyFileSync(path.join(BASE_VOICE, f), path.join(dir, f));
+  if (voice) for (const f of fs.readdirSync(BASE_VOICE)) fs.copyFileSync(path.join(BASE_VOICE, f), path.join(dir, f));
   return { url: `/game/${name}/`, voiceDir: dir, manifest: () => JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')) };
 }
 
@@ -25,6 +25,7 @@ export async function installStubs(context) {
   await context.addInitScript(() => {
     window.__say = '';
     window.__tts = [];
+    window.__ttsLog = [];   // what the device voice said, and which word was on the tiles at the time
     window.__barSeen = false;
     new MutationObserver(() => { if (document.getElementById('vload')) window.__barSeen = true; })
       .observe(document, { childList: true, subtree: true });
@@ -52,6 +53,7 @@ export async function installStubs(context) {
       getVoices: () => [{ name: 'Samantha', lang: 'en-US', voiceURI: 'Samantha', default: true }],
       speak(u) {
         window.__tts.push(u.text); synth.speaking = true;
+        window.__ttsLog.push({ text: u.text, tiles: [...document.querySelectorAll('#act .tile')].map(t => t.textContent).join('').toLowerCase() });
         setTimeout(() => { u.onstart && u.onstart(); }, 5);
         setTimeout(() => { synth.speaking = false; u.onend && u.onend(); }, 30);
       },

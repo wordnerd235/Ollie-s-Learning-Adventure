@@ -558,9 +558,10 @@ const keep=[];
 function ac(){
   if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
     AC=new C();master=AC.createGain();master.gain.value=S.settings.fx;master.connect(AC.destination);
-    // Ollie's voice (Murf + recordings) goes through its own bus with a limiter, so it can be boosted safely
+    // Ollie's voice (Murf + recordings) goes through its own bus with a limiter, so it can be boosted safely.
+    // The threshold sits just under the clips' 90% peaks, so at normal volume the limiter leaves them alone.
     vbus=AC.createGain();const lim=AC.createDynamicsCompressor();
-    lim.threshold.value=-4;lim.knee.value=2;lim.ratio.value=20;lim.attack.value=.002;lim.release.value=.12;
+    lim.threshold.value=-1;lim.knee.value=1;lim.ratio.value=20;lim.attack.value=.002;lim.release.value=.12;
     vbus.connect(lim);lim.connect(AC.destination);setVoiceBoost();}
   if(AC.state!=='running'){try{AC.resume().catch(()=>{});}catch(e){}}
   return AC;
@@ -845,7 +846,7 @@ let CAP=null;
 function getMic(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){const e=new Error('no getUserMedia');e.name=window.isSecureContext===false?'insecure':'NotSupportedError';return Promise.reject(e);}
   sessionRecord();
-  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).catch(e=>{sessionPlayback();throw e;});
+  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}).catch(e=>{sessionPlayback();throw e;});
 }
 function startCapture(stream,{maxSec=3,onLevel,quietSec=.6}={}){
   const ctx=ac(),src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(2048,1,1),mute=ctx.createGain();
@@ -1502,7 +1503,7 @@ function buildRound(){
    ===================================================================== */
 function mountActivity(host,word,opts){
   const compact=!!opts.compact;
-  const a={word,misses:0,helped:false,busy:false,dead:false,done:false,tok:0,tip:false,loop:0,fresh:false};
+  const a={word,last:-1,misses:0,helped:false,busy:false,dead:false,done:false,tok:0,tip:false,loop:0,fresh:false};
   A=a;
   const fb=!micOK();
   const why=!S.settings.mic?'':!HAS_SR?'nosr':MICBLOCK?MICWHY:'';
@@ -1532,12 +1533,16 @@ function mountActivity(host,word,opts){
     ac();a.helped=true;a.tok++;stopSpeech();litOff();
     const t=word.tiles[i],el=$$('.tile',host)[i];
     el.classList.remove('boing');void el.offsetWidth;el.classList.add('boing');
+    const twice=a.last===i;a.last=twice?-1:i;
     if(t.s==='-'){say(`Silent ${t.t}!`,{rate:.85});return;}
-    sayLetter(t,true);
     if(!a.tip&&!compact){a.tip=true;setBubble('Nice! Tap each letter, then squish the sounds together.');}
+    const my=a.tok,ph=PHK[t.s];
+    await sayLetter(t,false);
+    // tapped the same letter twice in a row: add the example ("like apple")
+    if(twice&&ph&&my===a.tok&&!a.dead)await say(`like ${ph[2]}`,{rate:.7});
   }
   async function soundOut(){
-    ac();if(a.busy)return;a.helped=true;const my=++a.tok;stopSpeech();litOff();
+    ac();if(a.busy)return;a.helped=true;a.last=-1;const my=++a.tok;stopSpeech();litOff();
     const els=$$('.tile',host);
     for(let i=0;i<word.tiles.length;i++){
       if(a.dead||my!==a.tok)return;
@@ -1624,7 +1629,7 @@ function mountActivity(host,word,opts){
     if(t&&host.contains(t))return tapTile(+t.dataset.i);
     const b=ev.target.closest('[data-a]');if(!b)return;
     const act=b.dataset.a;
-    if(act==='hear'){ac();a.helped=true;a.tok++;stopSpeech();litOff();sayWord(word.w);}
+    if(act==='hear'){ac();a.helped=true;a.last=-1;a.tok++;stopSpeech();litOff();sayWord(word.w);}
     else if(act==='sound')soundOut();
     else if(act==='mic')mic();
     else if(act==='grown')success();
@@ -1698,18 +1703,24 @@ async function celebrate(w){
   FX.ding();confetti();burst(w.emoji);
   if(w.anim==='fall')rainfall(w.emoji);
   await sleep(250);if(my!==TOK)return;
-  await playSfx(w.sfx,my);if(my!==TOK)return;
-  await say(`${praise} ${w.w}!`,{rate:.8,slow:.85});
+  await say(`${w.w}!`,{rate:.8,slow:.85});if(my!==TOK)return;
+  await say(praise,{rate:.8,slow:.85});if(my!==TOK)return;
+  await playSfx(w.sfx,my);
 }
 function nextInRound(){
   stopAll();RS.i++;
   if(RS.i>=RS.words.length)return finishRound();
   showWord(false);
 }
-function onRoundSkip(w){
-  record(w,'skip');stopAll();RS.i++;
-  if(RS.i>=RS.words.length)finishRound();else showWord(false);
-  say(`No problem! That word is ${w.w}. Let's try another!`,{rate:.8,slow:.87});
+async function onRoundSkip(w){
+  record(w,'skip');
+  const act=$('#act');if(act)act.style.pointerEvents='none';   // the skipped word stays up until it has been said
+  const my=TOK;
+  const line=`No problem! That word is ${w.w}.`,b=$('#bubble');if(b){b.textContent=line;owlTalk();}
+  await say(line,{rate:.8,slow:.87});
+  if(my!==TOK)return;
+  stopAll();RS.i++;
+  if(RS.i>=RS.words.length)finishRound();else{showWord(false);say("Let's try another!",{rate:.8,slow:.87});}
 }
 function finishRound(){micOff();
   S.rounds++;const sticker=earnSticker();persist();
@@ -1947,7 +1958,7 @@ async function storyPage(){
       $('#act').innerHTML='';A=null;
       el.classList.remove('active');el.classList.add('ok');
       if(res==='skip'){await say(`That word is ${w.w}.`,{rate:.75,slow:.85});}
-      else{FX.ding();burst(w.emoji,6);await say(`${rand(SHORT)} ${w.w}!`,{rate:.8,slow:.85});}
+      else{FX.ding();burst(w.emoji,6);await sleep(450);}
       if(my!==TOK)return;
     }
     k=j+1;
@@ -2020,6 +2031,7 @@ async function recordInto(key,meter,statusFn){
     onLevel:x=>{if(meter)meter.style.width=Math.min(100,x*500)+'%';}});
   GUIDE=cap;
   const raw=await cap.done;GUIDE=null;if(meter)meter.style.width='0';
+  bounceAC();await sleep(300);   // let iOS leave recording mode before the take is played back
   const c=trimClip(raw);
   if(!c){statusFn("Didn't catch that. Try again a little louder or closer.");return null;}
   delete c.off;
