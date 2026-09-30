@@ -118,3 +118,14 @@ test('voice boost gets louder with the slider and never clips (the game\'s own a
   expect(r[3.5].db).toBeGreaterThan(r[2].db + 1);
   for (const g of [1, 2, 3.5]) expect(r[g].peak).toBeLessThanOrEqual(0.95);
 });
+
+test('"Test boost" turns the mic on, applies the boost, and reports it', async ({ browser }) => {
+  const site = newSite('boosttest');
+  const { page } = await newDevice(browser);
+  await page.goto(site.url);
+  await dismissWelcome(page);
+  await page.locator('#gear').dispatchEvent('pointerdown');
+  await page.click('#s-boosttest');
+  await expect(page.locator('#s-boostst')).toContainText('device seen as iPhone/iPad: yes; boost applied: 2.0×');
+  await expect(page.locator('#s-boostst')).toContainText('Done: mic off.', { timeout: 15_000 });
+});

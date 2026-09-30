@@ -552,7 +552,8 @@ function shuffleFixed(a){let s=7;return a.map(v=>[v,(s=(s*9301+49297)%233280)]).
    ===================================================================== */
 let AC=null,master=null,noiseBuf=null,vbus=null;
 let SILENT=false;   // "Continue without sound" while the voice downloads: this visit only, off again once it arrives
-const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+// (Safari's "desktop website" mode reports a Mac, so also check the platform and a touch screen on a "Mac")
+const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||/iPad|iPhone|iPod/.test(navigator.platform||'')||(/Mac/.test(navigator.platform||'')&&navigator.maxTouchPoints>1);
 /* iOS turns playback down while the microphone is in use; compensate on Ollie's voice */
 let AFTER_CAP=false,IN_SEQ=false;
 const boostLvl=()=>S.settings.boost===false?1:Math.max(1,+S.settings.boostLvl||2);
@@ -562,7 +563,9 @@ const boostLvl=()=>S.settings.boost===false?1:Math.max(1,+S.settings.boostLvl||2
 let VCH=null;
 function setGain(g){
   if(!VCH)return;
-  const amt=Math.max(0,Math.min(1,(g-1)/2.5)),t=AC.currentTime,set=(p,v)=>{try{p.setTargetAtTime(v,t,.03);}catch(e){p.value=v;}};
+  // set values directly: Safari may ignore scheduled changes on compressor settings
+  const amt=Math.max(0,Math.min(1,(g-1)/2.5)),set=(p,v)=>{try{p.cancelScheduledValues(0);}catch(e){}p.value=v;};
+  VCH.now=g;
   set(VCH.comp.threshold,-45*amt);set(VCH.comp.knee,10*amt);set(VCH.comp.ratio,1+19*amt);
   set(VCH.make.gain,Math.pow(10,amt*30/20));
 }
@@ -576,11 +579,13 @@ function voiceChain(ctx){
   comp.connect(make);make.connect(lim);lim.connect(clip);
   return {comp,make,out:clip};
 }
-function setVoiceBoost(){setGain(IS_IOS&&MIC_ON?boostLvl():1);}
+let BOOST_TEST=false;   // settings' "Test boost": behave as if the mic were on
+const micLive=()=>MIC_ON||BOOST_TEST;
+function setVoiceBoost(){setGain(IS_IOS&&micLive()?boostLvl():1);}
 /* called as each new line starts: the first line after the mic listened plays softer,
    because iOS has just stopped turning playback down */
 function applyBoost(){
-  if(!(IS_IOS&&MIC_ON)){AFTER_CAP=false;setGain(1);return;}
+  if(!(IS_IOS&&micLive())){AFTER_CAP=false;setGain(1);return;}
   const l=boostLvl();setGain(AFTER_CAP?Math.max(1,l*.6):l);AFTER_CAP=false;
 }
 const keep=[];
@@ -2269,6 +2274,8 @@ function openSettings(){micOff();
       <p class="tip" style="margin-top:6px">Web pages can only use the basic voices the browser offers them. Siri voices, and voices downloaded in iPhone Settings, aren't available to websites, so recording your own voice gives the most natural result. On Windows, Edge offers natural “Online (Natural)” voices.</p></div>
     <div><h3>Voice boost while the mic is on <small id="s-boostv" style="font-weight:600">${boostLvl()<=1?'off':boostLvl().toFixed(1)+'×'}</small></h3>
       <input type="range" id="s-boostl" min="1" max="3.5" step=".1" value="${boostLvl()}" style="width:100%;accent-color:var(--primary)">
+      <button class="btn sm blue" id="s-boosttest" style="margin-top:6px">🎤🔊 Test boost</button>
+      <div class="small-status" id="s-boostst" style="margin-top:6px">Turns the mic on the way a round does, plays one of Ollie's lines at this boost, then turns the mic off.</div>
       <p class="tip">iPhone/iPad turn Ollie down while the mic is on; this makes Ollie louder then (it evens out the voice rather than just turning it up, so it can't crackle). Each step up helps less; the phone's volume buttons do the rest. The first line after your child speaks plays at 60% of this. All the way left = off.</p></div>
     <div><h3>Ollie's talking speed <small id="s-vspdv" style="font-weight:600">${Math.round(vspd()*100)}%</small></h3>
       <input type="range" id="s-vspd" min=".6" max="1.1" step=".05" value="${vspd()}" style="width:100%;accent-color:var(--primary)">
@@ -2394,6 +2401,17 @@ function openSettings(){micOff();
     await murfDelete();mStat('Voice pack deleted.');mInfo();
   };
   if(murfKey.get()&&clipCount('m:')&&murfTodo().length)$('#m-load').textContent='Load voices / add new lines';
+  $('#s-boosttest').onclick=async()=>{
+    const x=$('#s-boostst'),b=$('#s-boosttest');if(BOOST_TEST)return;
+    ac();stopSpeech();b.disabled=true;x.textContent='Turning the mic on…';
+    let st=null;
+    try{st=await getMic();}catch(e){x.textContent=micHelp(e.name||'error');b.disabled=false;return;}
+    BOOST_TEST=true;setVoiceBoost();await sleep(400);
+    x.textContent=`Mic on. Playing at ${boostLvl()<=1?'no boost':boostLvl().toFixed(1)+'×'}… (device seen as iPhone/iPad: ${IS_IOS?'yes':'no'}; boost applied: ${VCH&&VCH.now?VCH.now.toFixed(1)+'×':'none'})`;
+    await say(rand(PRAISE)+" You're a reading star!");
+    st.getTracks().forEach(t=>t.stop());sessionPlayback();BOOST_TEST=false;setVoiceBoost();bounceAC();
+    x.textContent+=' Done: mic off.';b.disabled=false;
+  };
   $('#s-boostl').oninput=e=>{const v=+e.target.value;S.settings.boostLvl=v;S.settings.boost=v>1;persist();$('#s-boostv').textContent=v<=1?'off':v.toFixed(1)+'×';};
   $('#s-vspd').oninput=e=>{S.settings.vspd=+e.target.value;persist();$('#s-vspdv').textContent=Math.round(vspd()*100)+'%';};
   $('#s-vspd').onchange=()=>{ac();stopSpeech();say("Hi! I'm Ollie the owl. Let's read together!");};
