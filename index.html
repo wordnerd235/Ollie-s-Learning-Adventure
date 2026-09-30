@@ -529,15 +529,13 @@ const STORIES=STORY_RAW.map(st=>{
    ===================================================================== */
 const KEY='ollie-word-adventure-v1';
 const defaults=()=>({name:'',seen:false,frontier:2,words:{},stars:0,stickers:[],stories:{},rounds:0,recent:[],recentWords:[],
-  settings:{sound:true,mic:true,upper:false,unlockAll:false,voice:'',fx:.5,boost:true,boostLvl:2,vspd:.85}});   // (no boostV here: load() merges defaults, which would hide an old device)
+  settings:{sound:true,mic:true,upper:false,unlockAll:false,voice:'',fx:.5,vspd:.85}});
 function load(){
   try{const j=JSON.parse(localStorage.getItem(KEY));
     if(j){const d=defaults();return {...d,...j,settings:{...d.settings,...(j.settings||{})}}}}catch(e){}
   return defaults();
 }
 let S=load();
-// the voice boost was reworked (it used to clip): start everyone once on the new default, 2x
-if(S.settings.boostV!==3){S.settings.boost=true;S.settings.boostLvl=2;S.settings.boostV=3;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const isKnown=w=>((S.words[w]||{}).sc||0)>=1.8;
 const knownCount=()=>WORDS.filter(w=>isKnown(w.w)).length;
@@ -554,67 +552,14 @@ let AC=null,master=null,noiseBuf=null,vbus=null;
 let SILENT=false;   // "Continue without sound" while the voice downloads: this visit only, off again once it arrives
 // (Safari's "desktop website" mode reports a Mac, so also check the platform and a touch screen on a "Mac")
 const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||/iPad|iPhone|iPod/.test(navigator.platform||'')||(/Mac/.test(navigator.platform||'')&&navigator.maxTouchPoints>1);
-/* iOS turns playback down while the microphone is in use; compensate on Ollie's voice */
-let AFTER_CAP=false,IN_SEQ=false;
-const boostLvl=()=>S.settings.boost===false?1:Math.max(1,+S.settings.boostLvl||2);
-/* The boost is loudness, not plain gain: clips already peak at 90%, so plain gain clipped (crackles).
-   The browser's own compressor/limiter couldn't stop real consonants overshooting (measured peaks 1.5),
-   so the boost is worked out on the clip itself (loudPCM) and the result kept per clip and setting. */
-let BOOST_NOW=1;
-function setGain(g){BOOST_NOW=Math.round(Math.max(1,g)*10)/10;}
-/* Voice boost, applied to the clip itself before it plays, so it can look ahead: a compressor lifts
-   the quieter parts (more as the setting goes up; loud parts stay where they were), then a look-ahead limiter lowers the level smoothly
-   just before each peak, so nothing ever goes above 0.9 and nothing crackles. 1x = untouched. */
-function loudPCM(x,sr,g){
-  const amt=Math.max(0,Math.min(1,(g-1)/2.5));if(!amt)return x;
-  const n=x.length,y=new Float32Array(n),CEIL=.9,th=-36*amt,ratio=1+5*amt,make=-th*(1-1/ratio);
-  const aA=Math.exp(-1/(sr*.01)),aR=Math.exp(-1/(sr*.15));let e=0;
-  for(let i=0;i<n;i++){
-    const p=x[i]*x[i];e=p>e?aA*e+(1-aA)*p:aR*e+(1-aR)*p;
-    const db=10*Math.log10(e+1e-12),red=db>th?(db-th)*(1-1/ratio):0;
-    y[i]=x[i]*Math.pow(10,(make-red)/20);
-  }
-  // m[i] = the smallest gain any sample within ±L needs; averaging m over ±L/2 keeps every sample
-  // at or below what it needs, while the gain moves smoothly; then a slow release
-  const L=Math.max(2,Math.round(sr*.004)),H=L>>1,need=new Float32Array(n),m=new Float32Array(n),dq=new Int32Array(n);
-  for(let i=0;i<n;i++){const a=Math.abs(y[i]);need[i]=a>CEIL?CEIL/a:1;}
-  let h=0,t=0;
-  for(let j=0;j<n+L;j++){
-    if(j<n){while(t>h&&need[dq[t-1]]>=need[j])t--;dq[t++]=j;}
-    const i=j-L;if(i<0)continue;
-    while(dq[h]<i-L)h++;m[i]=need[dq[h]];
-  }
-  const ps=new Float64Array(n+1);for(let i=0;i<n;i++)ps[i+1]=ps[i]+m[i];
-  const M=k=>k<0?m[0]:k>=n?m[n-1]:m[k];
-  const sum=(a,b)=>{let s=0;if(a<0){s+=(-a)*m[0];a=0;}if(b>n-1){s+=(b-n+1)*m[n-1];b=n-1;}return s+ps[b+1]-ps[a];};
-  const rel=1/(sr*.03);let prev=1;
-  for(let i=0;i<n;i++){const avg=sum(i-H,i+H)/(2*H+1),gg=Math.min(avg,prev+rel);prev=gg;y[i]*=gg;}
-  for(let i=0;i<n;i++)if(y[i]>CEIL)y[i]=CEIL;else if(y[i]<-CEIL)y[i]=-CEIL;   // never reached; belt and braces
-  return y;
-}
-const LOUD=new WeakMap();
-function loudBuf(b){
-  if(BOOST_NOW<=1||!AC)return b;
-  let m=LOUD.get(b);if(!m){m=new Map();LOUD.set(b,m);}
-  let o=m.get(BOOST_NOW);
-  if(!o){o=AC.createBuffer(1,b.length,b.sampleRate);o.getChannelData(0).set(loudPCM(b.getChannelData(0),b.sampleRate,BOOST_NOW));m.set(BOOST_NOW,o);}
-  return o;
-}
-let BOOST_TEST=false;   // settings' "Test boost": behave as if the mic were on
-const micLive=()=>MIC_ON||BOOST_TEST;
-function setVoiceBoost(){setGain(IS_IOS&&micLive()?boostLvl():1);}
-/* called as each new line starts: the first line after the mic listened plays softer,
-   because iOS has just stopped turning playback down */
-function applyBoost(){
-  if(!(IS_IOS&&micLive())){AFTER_CAP=false;setGain(1);return;}
-  const l=boostLvl();setGain(AFTER_CAP?Math.max(1,l*.6):l);AFTER_CAP=false;
-}
+/* iOS plays at the separate call volume while the microphone is in use (volume buttons during a round set it) */
+let IN_SEQ=false;
 const keep=[];
 function ac(){
   if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
     AC=new C();master=AC.createGain();master.gain.value=S.settings.fx;master.connect(AC.destination);
     // Ollie's voice (AI + recordings) goes through its own bus, so it can be made louder while the mic is on
-    vbus=AC.createGain();vbus.connect(AC.destination);setVoiceBoost();}
+    vbus=AC.createGain();vbus.connect(AC.destination);}
   if(AC.state!=='running'){try{AC.resume().catch(()=>{});}catch(e){}}
   return AC;
 }
@@ -759,7 +704,7 @@ const vspd=()=>Math.min(1.1,Math.max(.6,+S.settings.vspd||.85));
 const effRate=r=>{const v=Math.max(.55,(r||1)*vspd());return Math.abs(v-1)<.02?1:Math.round(v*100)/100;};
 function playSeq(keys,rate){
   const my=SEQ;SEQ_ACT++;hushMic();
-  const run=CHAIN.then(async()=>{applyBoost();IN_SEQ=true;for(const x of keys){if(my!==SEQ)return;const it=typeof x==='string'?{k:x}:x;if(it.pause){await sleep(it.pause);continue;}const p=playClipAt(it.k,it.mine?1:effRate(rate));if(p)await p;}}).finally(()=>{IN_SEQ=false;SEQ_ACT--;AUDIO_END=Date.now();});
+  const run=CHAIN.then(async()=>{IN_SEQ=true;for(const x of keys){if(my!==SEQ)return;const it=typeof x==='string'?{k:x}:x;if(it.pause){await sleep(it.pause);continue;}const p=playClipAt(it.k,it.mine?1:effRate(rate));if(p)await p;}}).finally(()=>{IN_SEQ=false;SEQ_ACT--;AUDIO_END=Date.now();});
   CHAIN=run.catch(()=>{});return run;
 }
 function noteMissing(parts){
@@ -845,9 +790,9 @@ function playClip(k){
 }
 function playBuf(b){
   if(SILENT)return Promise.resolve();
-  const ctx=ac();hushMic();if(!IN_SEQ)applyBoost();
+  const ctx=ac();hushMic();
   return new Promise(res=>{
-    const src=ctx.createBufferSource();src.buffer=loudBuf(b);src.connect(vbus||ctx.destination);
+    const src=ctx.createBufferSource();src.buffer=b;src.connect(vbus||ctx.destination);
     let done=false;const fin=()=>{if(done)return;done=true;PLAYING.delete(src);AUDIO_END=Date.now();res();};
     src.onended=fin;PLAYING.add(src);setTimeout(fin,b.duration*1000+500);
     try{src.start();}catch(e){fin();}
@@ -1406,7 +1351,7 @@ async function afterMicSettled(ms=450){
   const w=CAP_END+ms-Date.now();if(w>0)await sleep(w);
   if(AC&&AC.state!=='running'){try{await AC.resume();}catch(e){}}
 }
-function micOff(){MIC_ON=false;MIC.target=null;MIC.run++;MIC.live=false;stopListening();setVoiceBoost();}
+function micOff(){MIC_ON=false;MIC.target=null;MIC.run++;MIC.live=false;stopListening();}
 const IN_FRAME=(()=>{try{return window.self!==window.top}catch(e){return true}})();
 try{const fp=document.permissionsPolicy||document.featurePolicy;
   if(IN_FRAME&&fp&&fp.allowsFeature&&!fp.allowsFeature('microphone')){MICBLOCK=true;MICWHY='frame';}}catch(e){}
@@ -1455,7 +1400,7 @@ function listenFor(word,long,opts={}){
   const cont=!!opts.cont||!!opts.session,sess=!!opts.session,W=typeof word==='function'?word:()=>word;
   return new Promise(async resolve=>{
     const my=++srSess;let done=false,heard='',tm=0,rec;const pre=[];
-    const finish=r=>{if(done)return;done=true;if(cont)LISTEN_CONT=false;if(sess)LISTEN_SESSION=false;CAP_END=Date.now();clearTimeout(tm);if(srBusy){try{rec.abort()}catch(e){}}if(curRec===rec)curRec=null;if(srBusy||heard)AFTER_CAP=true;sessionPlayback();bounceAC();r.heard=heard;resolve(r);};
+    const finish=r=>{if(done)return;done=true;if(cont)LISTEN_CONT=false;if(sess)LISTEN_SESSION=false;CAP_END=Date.now();clearTimeout(tm);if(srBusy){try{rec.abort()}catch(e){}}if(curRec===rec)curRec=null;sessionPlayback();bounceAC();r.heard=heard;resolve(r);};
     try{rec=getSR();rec.continuous=cont;}catch(e){finish({ok:false,err:'start'});return;}
     for(let n=0;n<14&&srBusy;n++)await sleep(50);   // let a previous session end first
     if(my!==srSess){finish({ok:false,err:'aborted'});return;}
@@ -1508,11 +1453,11 @@ async function micSession(){
     if(!MIC_ON||my!==MIC.run)break;
     const hard=['not-allowed','service-not-allowed','audio-capture','network','start'].includes(r.err);
     if(hard&&MIC.fresh){MIC.fresh=false;await sleep(400);continue;}   // first try after the permission prompt can fail once
-    if(hard){MIC_ON=false;setVoiceBoost();T()&&T().blocked(r.err);break;}
+    if(hard){MIC_ON=false;T()&&T().blocked(r.err);break;}
     MIC.fresh=false;
     if(r.heard&&T()){fast=0;T().miss(r);continue;}
     // iOS ended it: start again, but don't spin if it keeps ending instantly
-    if(Date.now()-t0<800){if(++fast>=3){MIC_ON=false;setVoiceBoost();T()&&T().idle();break;}await sleep(500);}else fast=0;
+    if(Date.now()-t0<800){if(++fast>=3){MIC_ON=false;T()&&T().idle();break;}await sleep(500);}else fast=0;
   }
   if(my===MIC.run)MIC.live=false;
 }
@@ -1718,7 +1663,7 @@ function mountActivity(host,word,opts){
     else{setBubble("You're doing great! Try once more, or tap Skip.",true);}
   }
   function blocked(code){
-    MIC_ON=false;setVoiceBoost();MICBLOCK=true;MICWHY=code;a.dead=true;
+    MIC_ON=false;MICBLOCK=true;MICWHY=code;a.dead=true;
     mountActivity(host,word,opts);
     setBubble("I can't hear you on this device. A grown-up can tap the green button when you read it!",true);
   }
@@ -1743,7 +1688,7 @@ function mountActivity(host,word,opts){
       if(a.dead||a.done)return;
       await sleep(250);
     }
-    MIC_ON=true;setVoiceBoost();listen();
+    MIC_ON=true;listen();
   }
   if(!fb&&MIC_ON)listen();
   host.onclick=ev=>{
@@ -2265,7 +2210,7 @@ function openSettings(){micOff();
     <h2>Grown-up settings</h2>
     <div><h3>Child's name</h3><input type="text" id="s-name" value="${(S.name||'').replace(/"/g,'&quot;')}" placeholder="Name" maxlength="20" autocomplete="off"></div>
     <div class="row"><span>Sounds and voice<small>Turn everything off for quiet play</small></span><label class="sw"><input type="checkbox" id="s-sound" ${S.settings.sound?'checked':''}></label></div>
-    <div class="row"><span>Use the microphone<small>Off means a grown-up taps the green ✓ instead</small></span><label class="sw"><input type="checkbox" id="s-mic" ${S.settings.mic?'checked':''}></label></div>
+    <div class="row"><span>Use the microphone<small>Off means a grown-up taps the green ✓ instead. iPhone/iPad: if Ollie is quiet while the mic is on, press volume-up during a round. With the mic on, iOS uses the separate call volume.</small></span><label class="sw"><input type="checkbox" id="s-mic" ${S.settings.mic?'checked':''}></label></div>
     <div class="row"><span>CAPITAL letters<small>Show letters in uppercase</small></span><label class="sw"><input type="checkbox" id="s-upper" ${S.settings.upper?'checked':''}></label></div>
     <div class="row"><span>Unlock all stories<small>Skip the word requirements</small></span><label class="sw"><input type="checkbox" id="s-unlock" ${S.settings.unlockAll?'checked':''}></label></div>
     <div><h3>Word level</h3><select id="s-level">${[1,2,3,4,5].map(l=>`<option value="${l}" ${S.frontier===l?'selected':''}>${LEVEL_NAMES[l]}</option>`).join('')}</select>
@@ -2293,11 +2238,6 @@ function openSettings(){micOff();
     </div>
     <div><h3>Device voice</h3><select id="s-voice"><option value="">Automatic (best available)</option>${voices.map(v=>`<option value="${v.voiceURI}" ${S.settings.voice===v.voiceURI?'selected':''}>${v.name}${voiceScore(v)>=40?' ★':''}</option>`).join('')}</select>
       <p class="tip" style="margin-top:6px">Web pages can only use the basic voices the browser offers them. Siri voices, and voices downloaded in iPhone Settings, aren't available to websites, so recording your own voice gives the most natural result. On Windows, Edge offers natural “Online (Natural)” voices.</p></div>
-    <div><h3>Voice boost while the mic is on <small id="s-boostv" style="font-weight:600">${boostLvl()<=1?'off':boostLvl().toFixed(1)+'×'}</small></h3>
-      <input type="range" id="s-boostl" min="1" max="3.5" step=".1" value="${boostLvl()}" style="width:100%;accent-color:var(--primary)">
-      <button class="btn sm blue" id="s-boosttest" style="margin-top:6px">🎤🔊 Test boost</button>
-      <div class="small-status" id="s-boostst" style="margin-top:6px">Turns the mic on the way a round does, plays one of Ollie's lines at this boost, then turns the mic off.</div>
-      <p class="tip">iPhone/iPad turn Ollie down while the mic is on; this makes Ollie louder then (it evens out the voice rather than just turning it up, so it can't crackle). Each step up helps less; the phone's volume buttons do the rest. The first line after your child speaks plays at 60% of this. All the way left = off.</p></div>
     <div><h3>Ollie's talking speed <small id="s-vspdv" style="font-weight:600">${Math.round(vspd()*100)}%</small></h3>
       <input type="range" id="s-vspd" min=".6" max="1.1" step=".05" value="${vspd()}" style="width:100%;accent-color:var(--primary)">
       <p class="tip">Slows the AI voice without lowering its pitch. No rebuild needed.</p></div>
@@ -2422,18 +2362,6 @@ function openSettings(){micOff();
     await murfDelete();mStat('Voice pack deleted.');mInfo();
   };
   if(murfKey.get()&&clipCount('m:')&&murfTodo().length)$('#m-load').textContent='Load voices / add new lines';
-  $('#s-boosttest').onclick=async()=>{
-    const x=$('#s-boostst'),b=$('#s-boosttest');if(BOOST_TEST)return;
-    ac();stopSpeech();b.disabled=true;x.textContent='Turning the mic on…';
-    let st=null;
-    try{st=await getMic();}catch(e){x.textContent=micHelp(e.name||'error');b.disabled=false;return;}
-    BOOST_TEST=true;setVoiceBoost();await sleep(400);
-    x.textContent=`Mic on. Playing at ${boostLvl()<=1?'no boost':boostLvl().toFixed(1)+'×'}… (device seen as iPhone/iPad: ${IS_IOS?'yes':'no'}; boost applied: ${BOOST_NOW>1?BOOST_NOW.toFixed(1)+'×':'none'})`;
-    await say(rand(PRAISE)+" You're a reading star!");
-    st.getTracks().forEach(t=>t.stop());sessionPlayback();BOOST_TEST=false;setVoiceBoost();bounceAC();
-    x.textContent+=' Done: mic off.';b.disabled=false;
-  };
-  $('#s-boostl').oninput=e=>{const v=+e.target.value;S.settings.boostLvl=v;S.settings.boost=v>1;persist();$('#s-boostv').textContent=v<=1?'off':v.toFixed(1)+'×';};
   $('#s-vspd').oninput=e=>{S.settings.vspd=+e.target.value;persist();$('#s-vspdv').textContent=Math.round(vspd()*100)+'%';};
   $('#s-vspd').onchange=()=>{ac();stopSpeech();say("Hi! I'm Ollie the owl. Let's read together!");};
   $('#s-fx').oninput=e=>{const v=+e.target.value/100;S.settings.fx=v;persist();if(master)master.gain.value=v;};

@@ -557,27 +557,48 @@ const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||/iPad|iPhone|iPod/.te
 /* iOS turns playback down while the microphone is in use; compensate on Ollie's voice */
 let AFTER_CAP=false,IN_SEQ=false;
 const boostLvl=()=>S.settings.boost===false?1:Math.max(1,+S.settings.boostLvl||2);
-/* The boost is loudness, not plain gain: clips already peak at 90%, so plain gain only clipped (crackles)
-   and hit the limiter (no louder). Instead a compressor lifts the quieter parts and makeup gain raises
-   the level, more as the setting goes up (1x = untouched, 3.5x = about +8 dB), and the peaks stay under 0.92. */
-let VCH=null;
-function setGain(g){
-  if(!VCH)return;
-  // set values directly: Safari may ignore scheduled changes on compressor settings
-  const amt=Math.max(0,Math.min(1,(g-1)/2.5)),set=(p,v)=>{try{p.cancelScheduledValues(0);}catch(e){}p.value=v;};
-  VCH.now=g;
-  set(VCH.comp.threshold,-45*amt);set(VCH.comp.knee,10*amt);set(VCH.comp.ratio,1+19*amt);
-  set(VCH.make.gain,Math.pow(10,amt*30/20));
+/* The boost is loudness, not plain gain: clips already peak at 90%, so plain gain clipped (crackles).
+   The browser's own compressor/limiter couldn't stop real consonants overshooting (measured peaks 1.5),
+   so the boost is worked out on the clip itself (loudPCM) and the result kept per clip and setting. */
+let BOOST_NOW=1;
+function setGain(g){BOOST_NOW=Math.round(Math.max(1,g)*10)/10;}
+/* Voice boost, applied to the clip itself before it plays, so it can look ahead: a compressor lifts
+   the quieter parts (more as the setting goes up; loud parts stay where they were), then a look-ahead limiter lowers the level smoothly
+   just before each peak, so nothing ever goes above 0.9 and nothing crackles. 1x = untouched. */
+function loudPCM(x,sr,g){
+  const amt=Math.max(0,Math.min(1,(g-1)/2.5));if(!amt)return x;
+  const n=x.length,y=new Float32Array(n),CEIL=.9,th=-36*amt,ratio=1+5*amt,make=-th*(1-1/ratio);
+  const aA=Math.exp(-1/(sr*.01)),aR=Math.exp(-1/(sr*.15));let e=0;
+  for(let i=0;i<n;i++){
+    const p=x[i]*x[i];e=p>e?aA*e+(1-aA)*p:aR*e+(1-aR)*p;
+    const db=10*Math.log10(e+1e-12),red=db>th?(db-th)*(1-1/ratio):0;
+    y[i]=x[i]*Math.pow(10,(make-red)/20);
+  }
+  // m[i] = the smallest gain any sample within ±L needs; averaging m over ±L/2 keeps every sample
+  // at or below what it needs, while the gain moves smoothly; then a slow release
+  const L=Math.max(2,Math.round(sr*.004)),H=L>>1,need=new Float32Array(n),m=new Float32Array(n),dq=new Int32Array(n);
+  for(let i=0;i<n;i++){const a=Math.abs(y[i]);need[i]=a>CEIL?CEIL/a:1;}
+  let h=0,t=0;
+  for(let j=0;j<n+L;j++){
+    if(j<n){while(t>h&&need[dq[t-1]]>=need[j])t--;dq[t++]=j;}
+    const i=j-L;if(i<0)continue;
+    while(dq[h]<i-L)h++;m[i]=need[dq[h]];
+  }
+  const ps=new Float64Array(n+1);for(let i=0;i<n;i++)ps[i+1]=ps[i]+m[i];
+  const M=k=>k<0?m[0]:k>=n?m[n-1]:m[k];
+  const sum=(a,b)=>{let s=0;if(a<0){s+=(-a)*m[0];a=0;}if(b>n-1){s+=(b-n+1)*m[n-1];b=n-1;}return s+ps[b+1]-ps[a];};
+  const rel=1/(sr*.03);let prev=1;
+  for(let i=0;i<n;i++){const avg=sum(i-H,i+H)/(2*H+1),gg=Math.min(avg,prev+rel);prev=gg;y[i]*=gg;}
+  for(let i=0;i<n;i++)if(y[i]>CEIL)y[i]=CEIL;else if(y[i]<-CEIL)y[i]=-CEIL;   // never reached; belt and braces
+  return y;
 }
-function voiceChain(ctx){
-  const comp=ctx.createDynamicsCompressor(),make=ctx.createGain(),lim=ctx.createDynamicsCompressor(),clip=ctx.createWaveShaper();
-  comp.threshold.value=0;comp.knee.value=0;comp.ratio.value=1;comp.attack.value=.008;comp.release.value=.3;
-  lim.threshold.value=-3;lim.knee.value=3;lim.ratio.value=20;lim.attack.value=.002;lim.release.value=.2;
-  // soft safety clip: untouched below 0.75, never above 0.95
-  const c=new Float32Array(4097);for(let i=0;i<4097;i++){const x=i/2048-1,a=Math.abs(x);c[i]=a<.75?x:Math.sign(x)*(.75+.2*Math.tanh((a-.75)/.2));}
-  clip.curve=c;clip.oversample='none';
-  comp.connect(make);make.connect(lim);lim.connect(clip);
-  return {comp,make,out:clip};
+const LOUD=new WeakMap();
+function loudBuf(b){
+  if(BOOST_NOW<=1||!AC)return b;
+  let m=LOUD.get(b);if(!m){m=new Map();LOUD.set(b,m);}
+  let o=m.get(BOOST_NOW);
+  if(!o){o=AC.createBuffer(1,b.length,b.sampleRate);o.getChannelData(0).set(loudPCM(b.getChannelData(0),b.sampleRate,BOOST_NOW));m.set(BOOST_NOW,o);}
+  return o;
 }
 let BOOST_TEST=false;   // settings' "Test boost": behave as if the mic were on
 const micLive=()=>MIC_ON||BOOST_TEST;
@@ -593,7 +614,7 @@ function ac(){
   if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
     AC=new C();master=AC.createGain();master.gain.value=S.settings.fx;master.connect(AC.destination);
     // Ollie's voice (AI + recordings) goes through its own bus, so it can be made louder while the mic is on
-    vbus=AC.createGain();VCH=voiceChain(AC);vbus.connect(VCH.comp);VCH.out.connect(AC.destination);setVoiceBoost();}
+    vbus=AC.createGain();vbus.connect(AC.destination);setVoiceBoost();}
   if(AC.state!=='running'){try{AC.resume().catch(()=>{});}catch(e){}}
   return AC;
 }
@@ -826,7 +847,7 @@ function playBuf(b){
   if(SILENT)return Promise.resolve();
   const ctx=ac();hushMic();if(!IN_SEQ)applyBoost();
   return new Promise(res=>{
-    const src=ctx.createBufferSource();src.buffer=b;src.connect(vbus||ctx.destination);
+    const src=ctx.createBufferSource();src.buffer=loudBuf(b);src.connect(vbus||ctx.destination);
     let done=false;const fin=()=>{if(done)return;done=true;PLAYING.delete(src);AUDIO_END=Date.now();res();};
     src.onended=fin;PLAYING.add(src);setTimeout(fin,b.duration*1000+500);
     try{src.start();}catch(e){fin();}
@@ -2407,7 +2428,7 @@ function openSettings(){micOff();
     let st=null;
     try{st=await getMic();}catch(e){x.textContent=micHelp(e.name||'error');b.disabled=false;return;}
     BOOST_TEST=true;setVoiceBoost();await sleep(400);
-    x.textContent=`Mic on. Playing at ${boostLvl()<=1?'no boost':boostLvl().toFixed(1)+'×'}… (device seen as iPhone/iPad: ${IS_IOS?'yes':'no'}; boost applied: ${VCH&&VCH.now?VCH.now.toFixed(1)+'×':'none'})`;
+    x.textContent=`Mic on. Playing at ${boostLvl()<=1?'no boost':boostLvl().toFixed(1)+'×'}… (device seen as iPhone/iPad: ${IS_IOS?'yes':'no'}; boost applied: ${BOOST_NOW>1?BOOST_NOW.toFixed(1)+'×':'none'})`;
     await say(rand(PRAISE)+" You're a reading star!");
     st.getTracks().forEach(t=>t.stop());sessionPlayback();BOOST_TEST=false;setVoiceBoost();bounceAC();
     x.textContent+=' Done: mic off.';b.disabled=false;
