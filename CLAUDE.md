@@ -87,7 +87,8 @@ One IIFE. Section banners (search for them):
 
 ## Current state (Sept 30, 2026)
 - The voice was moved out of `index.html` into `voice/` (branch `voice-files`). `index.html` is ~160 KB of code.
-- The owner's real voice (534 ElevenLabs lines plus 38 letter sounds, 75 words and 63 phrases) is still only in their 44.5 MB all-in-one file and on their devices. Getting it into `voice/`: open `tools/extract.html`, pick the big file, save the files, upload them to `voice/`.
+- `voice/` holds the owner's real voice, extracted from their 44.5 MB all-in-one file (pack id `muo9t0q49sr3o`) with `tools/extract.html`: 534 ElevenLabs lines in `ai-1.bin` + `ai-2.bin` (24.5 MB), 176 recordings in `mine-1.bin` (7.2 MB). Verified identical, clip for clip, to what the old file puts on a device.
+- Devices that imported the old file's voice keep recordings stamped with their import time, so their first "Make voice files" marks `mine` as changed even if nothing was re-recorded.
 - Unverified on real iOS: the device voice fix, whether the recognition tone is reduced, and the new voice download/export.
 
 ## Testing

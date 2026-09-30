@@ -1,0 +1,30 @@
+{
+ "format": 1,
+ "made": "2026-09-30",
+ "parts": {
+  "ai": {
+   "v": "0f529d46e271af81",
+   "files": [
+    "ai-1.bin",
+    "ai-2.bin"
+   ],
+   "bytes": 25703204,
+   "n": 534,
+   "murf": {
+    "voice": "pqHfZKP75CvOlQylNhV4",
+    "style": "",
+    "built": "el:pqHfZKP75CvOlQylNhV4|"
+   },
+   "pack": "muo9t0q49sr3o"
+  },
+  "mine": {
+   "v": "004384bcc9b80acb",
+   "files": [
+    "mine-1.bin"
+   ],
+   "bytes": 7540044,
+   "n": 176,
+   "pack": "muo9t0q49sr3o"
+  }
+ }
+}
