@@ -59,7 +59,7 @@ test('the known-words count opens a list of the words, and a word can be heard',
   await expect(page.locator('.menu')).toBeVisible();
 });
 
-test('the recorder waits out the mic chirp, then records and saves a take', async ({ browser }) => {
+test('the recorder records and saves a take', async ({ browser }) => {
   const site = newSite('recorder', { voice: false });
   const { page } = await newDevice(browser);
   await page.goto(site.url);
@@ -69,7 +69,6 @@ test('the recorder waits out the mic chirp, then records and saves a take', asyn
   await page.locator('details.vsec summary').first().click();
   const row = page.locator('details.vsec .vrow').first();
   await row.locator('[data-v="rec"]').click();
-  await expect(page.locator('#v-status')).toHaveText('Get ready…');
   await expect(page.locator('#v-status')).toHaveText('Recording… speak now.');
   await expect(row).toHaveClass(/has/, { timeout: 15_000 });
 });
