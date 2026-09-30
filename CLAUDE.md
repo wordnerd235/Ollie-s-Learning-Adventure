@@ -73,7 +73,7 @@ One IIFE. Section banners (search for them):
    - Workaround: set `navigator.audioSession.type='playback'` and loop a silent `<audio>` element.
    - The silent loop is paused while the device voice speaks, because it is suspected of silencing the iPhone device voice (unconfirmed).
 3. **iOS turns playback down while the mic is in use.**
-   - `vbus` boost (setting `boostLvl`, default 2.4×).
+   - `vbus` boost (setting `boostLvl`) is **off by default** (1×). At 2.4× the owner heard pops and crackles with the mic on, and higher settings made Ollie quieter (limiter squashing); with it off the game played perfectly. Devices with the old setting are switched off once (`boostV:2`).
    - The first line after listening plays at 60% of the boost (`AFTER_CAP`).
    - After each listen: `bounceAC()` (suspend/resume) and `sessionPlayback()`.
    - The permission probe uses getUserMedia with echo cancellation, noise suppression and auto-gain turned off.
@@ -95,7 +95,7 @@ One IIFE. Section banners (search for them):
       - It allows 2 requests at once, and browser calls work.
       - Phoneme tags only work on `eleven_flash_v2`.
     - Never commit API keys; they are stored only in the device's localStorage.
-12. **Voice limiter:** clips are normalised to 90% peak, so the `vbus` limiter threshold is -1 dB; at the old -4 dB it squashed every peak (heard as distortion). It still catches the iOS mic boost.
+12. **Voice limiter:** clips are normalised to 90% peak, so the `vbus` limiter threshold is -1 dB; at the old -4 dB it squashed every peak (heard as distortion). It still catches the iOS mic boost if a grown-up turns it up.
 13. **Recording: keep the original settings.** `getMic` uses the iPhone's defaults (echo cancellation, noise suppression and auto-gain all **on**), and `startCapture`/`trimClip`/`recordInto` are the original code. The owner made many clean, quiet-speech takes that way. Turning the filters off let room noise in; noise suppression alone on (others off) made takes hard to pick up; a software gate, a 0.35 s chirp skip and lower thresholds didn't help. All reverted. The playback distortion was the limiter (lesson 12), not the recording settings. Don't change recording again without the owner asking.
 15. **Sound right after the mic stops is lost on iPhone** (0.45 s still clipped; the mic session in lesson 7 avoids stopping during an exercise, so a correct read no longer waits) while iOS switches back from recording to playback. `afterMicSettled()` waits until 450 ms after the last listen ended (was 900; halved at the owner's request, below it is unverified on iPhone) (`CAP_END`) and the AudioContext is running; use it before any line that can follow a listen directly (the word after a correct read, story narration after the child's word). The owner didn't hear the word when it played 250 ms after the listen.
 14. **Speech order:** a correct read in a round says the word, then the word's fun sound ("Meow meow!"), then the praise. In stories the child's word gets a ding and a burst, but no spoken praise or repeat. Skipping says "No problem! That word is X." while X is still on screen, then shows the next word with "Let's try another!". Tapping a letter plays its sound; the example ("like apple") only follows a second tap on the same letter in a row.

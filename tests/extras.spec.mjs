@@ -72,3 +72,20 @@ test('the recorder records and saves a take', async ({ browser }) => {
   await expect(page.locator('#v-status')).toHaveText('Recording… speak now.');
   await expect(row).toHaveClass(/has/, { timeout: 15_000 });
 });
+
+test('the old 2.4x voice boost is switched off once; a boost set later is kept', async ({ browser }) => {
+  const site = newSite('boost', { voice: false });
+  const { page } = await newDevice(browser);
+  await page.goto(site.url);
+  await dismissWelcome(page);
+  const settings = () => page.evaluate(() => JSON.parse(localStorage.getItem('ollie-word-adventure-v1')).settings);
+  expect((await settings()).boost).toBe(false);
+  // a device still on the old default
+  await page.evaluate(() => { const S = JSON.parse(localStorage.getItem('ollie-word-adventure-v1')); S.settings.boost = true; S.settings.boostLvl = 2.4; delete S.settings.boostV; localStorage.setItem('ollie-word-adventure-v1', JSON.stringify(S)); });
+  await page.reload();
+  expect(await settings()).toMatchObject({ boost: false, boostLvl: 1, boostV: 2 });
+  // a grown-up turns it up again: that sticks
+  await page.evaluate(() => { const S = JSON.parse(localStorage.getItem('ollie-word-adventure-v1')); S.settings.boost = true; S.settings.boostLvl = 1.5; localStorage.setItem('ollie-word-adventure-v1', JSON.stringify(S)); });
+  await page.reload();
+  expect(await settings()).toMatchObject({ boost: true, boostLvl: 1.5 });
+});
