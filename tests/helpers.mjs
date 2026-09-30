@@ -29,23 +29,34 @@ export async function installStubs(context) {
     window.__barSeen = false;
     new MutationObserver(() => { if (document.getElementById('vload')) window.__barSeen = true; })
       .observe(document, { childList: true, subtree: true });
+    // One-shot: hears window.__say once after 250 ms, then ends. Continuous: stays open and delivers
+    // window.__say as a new final result when it changes and again every second, until aborted. window.__recStarts counts start()s.
+    window.__recStarts = 0;
     class FakeRec {
-      constructor() { this.lang = 'en-US'; this.onresult = this.onerror = this.onend = this.onstart = null; this.t = 0; }
+      constructor() { this.lang = 'en-US'; this.continuous = false; this.onresult = this.onerror = this.onend = this.onstart = null; this.t = 0; }
+      heard() { return typeof window.__say === 'function' ? window.__say() : window.__say; }
+      deliver(said, i) {
+        const res = [{ transcript: said, confidence: 0.9 }]; res.isFinal = true;
+        const results = []; results[i] = res;
+        this.onresult && this.onresult({ resultIndex: i, results });
+      }
       start() {
+        window.__recStarts++;
         setTimeout(() => this.onstart && this.onstart(), 5);
+        if (this.continuous) {
+          let last = '', at = 0, n = 0;   // like a child, says it again after a second
+          this.t = setInterval(() => { const said = this.heard() || ''; if (said && (said !== last || Date.now() - at > 1000)) { this.deliver(said, n++); at = Date.now(); } last = said; }, 150);
+          return;
+        }
         this.t = setTimeout(() => {
-          const said = typeof window.__say === 'function' ? window.__say() : window.__say;
-          if (said) {
-            const alt = { transcript: said, confidence: 0.9 };
-            const res = [alt]; res.isFinal = true;
-            this.onresult && this.onresult({ resultIndex: 0, results: [res] });
-          }
+          const said = this.heard();
+          if (said) this.deliver(said, 0);
           window.__recEnd = Date.now();
           this.onend && this.onend();
         }, 250);
       }
       stop() { this.abort(); }
-      abort() { clearTimeout(this.t); setTimeout(() => this.onend && this.onend(), 0); }
+      abort() { clearTimeout(this.t); clearInterval(this.t); window.__recEnd = Date.now(); setTimeout(() => this.onend && this.onend(), 0); }
     }
     window.SpeechRecognition = FakeRec;
     window.webkitSpeechRecognition = FakeRec;
@@ -56,7 +67,7 @@ export async function installStubs(context) {
         window.__tts.push(u.text); synth.speaking = true;
         window.__ttsLog.push({ text: u.text, tiles: [...document.querySelectorAll('#act .tile')].map(t => t.textContent).join('').toLowerCase(), at: Date.now() });
         setTimeout(() => { u.onstart && u.onstart(); }, 5);
-        setTimeout(() => { synth.speaking = false; u.onend && u.onend(); }, 30);
+        setTimeout(() => { synth.speaking = false; u.onend && u.onend(); }, window.__ttsMs || 30);
       },
       cancel() { synth.speaking = false; }, resume() {}, pause() {},
     };

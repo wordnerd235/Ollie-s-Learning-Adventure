@@ -661,16 +661,19 @@ function pickVoice(){
   return vs[0];
 }
 let lastCancel=0,SPEAK_OK=null,LASTVOICE='';const BADV=new Set();
-let TTS_ACT=0,SEQ_ACT=0,HUSH_AT=0;
+let TTS_ACT=0,SEQ_ACT=0,HUSH_AT=0,AUDIO_END=0,LISTEN_CONT=false;
 function audioBusy(){return TTS_ACT>0||SEQ_ACT>0||PLAYING.size>0||(('speechSynthesis' in window)&&speechSynthesis.speaking);}
-function hushMic(){if(MIC_ON&&curRec){HUSH_AT=Date.now();stopListening();}}
-async function waitAudioIdle(cancel){let quiet=0,t=0;while(t<12000){if(cancel())return;if(audioBusy())quiet=0;else{quiet+=100;if(quiet>=400)return;}await sleep(100);t+=100;}}
+/* a one-shot listen stops while the game makes sound; a continuous listen stays open (no iOS mic chime)
+   and ignores what it hears instead (see listenFor) */
+function hushMic(){if(MIC_ON&&curRec&&!LISTEN_CONT){HUSH_AT=Date.now();stopListening();}}
+const ECHO_MS=1200;   // after game audio stops, what the mic hears is still treated as Ollie for this long
+const deafNow=()=>audioBusy()||Date.now()-AUDIO_END<ECHO_MS;
 function pauseSilent(){try{if(SILENT_EL&&!SILENT_EL.paused)SILENT_EL.pause();}catch(e){}}
 function resumeSilent(){try{if(SILENT_EL&&SILENT_EL.paused&&TTS_ACT<=0)SILENT_EL.play().catch(()=>{});}catch(e){}}
 function sayTTS(text,{rate=.9,pitch=1,vol=1}={}){
   if(SILENT)return Promise.resolve();
   TTS_ACT++;hushMic();pauseSilent();
-  let ended=false;const endAct=()=>{if(!ended){ended=true;TTS_ACT--;setTimeout(resumeSilent,150);}};
+  let ended=false;const endAct=()=>{if(!ended){ended=true;TTS_ACT--;AUDIO_END=Date.now();setTimeout(resumeSilent,150);}};
   return new Promise(res0=>{const res=()=>{endAct();res0();};
     if(!text||!S.settings.sound||!('speechSynthesis' in window)){setTimeout(res,Math.min(1500,(text||'').length*70));return;}
     const go=n=>{  // n: attempt number; attempts 0-1 use the best working voice, 2 uses the browser default
@@ -705,7 +708,7 @@ const vspd=()=>Math.min(1.1,Math.max(.6,+S.settings.vspd||.85));
 const effRate=r=>{const v=Math.max(.55,(r||1)*vspd());return Math.abs(v-1)<.02?1:Math.round(v*100)/100;};
 function playSeq(keys,rate){
   const my=SEQ;SEQ_ACT++;hushMic();
-  const run=CHAIN.then(async()=>{applyBoost();IN_SEQ=true;for(const x of keys){if(my!==SEQ)return;const it=typeof x==='string'?{k:x}:x;if(it.pause){await sleep(it.pause);continue;}const p=playClipAt(it.k,it.mine?1:effRate(rate));if(p)await p;}}).finally(()=>{IN_SEQ=false;SEQ_ACT--;});
+  const run=CHAIN.then(async()=>{applyBoost();IN_SEQ=true;for(const x of keys){if(my!==SEQ)return;const it=typeof x==='string'?{k:x}:x;if(it.pause){await sleep(it.pause);continue;}const p=playClipAt(it.k,it.mine?1:effRate(rate));if(p)await p;}}).finally(()=>{IN_SEQ=false;SEQ_ACT--;AUDIO_END=Date.now();});
   CHAIN=run.catch(()=>{});return run;
 }
 function noteMissing(parts){
@@ -794,7 +797,7 @@ function playBuf(b){
   const ctx=ac();hushMic();if(!IN_SEQ)applyBoost();
   return new Promise(res=>{
     const src=ctx.createBufferSource();src.buffer=b;src.connect(vbus||ctx.destination);
-    let done=false;const fin=()=>{if(done)return;done=true;PLAYING.delete(src);res();};
+    let done=false;const fin=()=>{if(done)return;done=true;PLAYING.delete(src);AUDIO_END=Date.now();res();};
     src.onended=fin;PLAYING.add(src);setTimeout(fin,b.duration*1000+500);
     try{src.start();}catch(e){fin();}
   });
@@ -1394,27 +1397,43 @@ function getSR(){
   if(!SRI){SRI=new SRc();SRI.lang='en-US';SRI.interimResults=true;SRI.maxAlternatives=5;SRI.continuous=false;}
   return SRI;
 }
-function listenFor(word,long){
+/* opts.cont: continuous listen for the whole word. It stays open while Ollie talks (every stop/start
+   makes iOS play its mic chime) and ignores anything heard during game audio and ECHO_MS after it;
+   text that began while deaf is cut off the front of later results. A wrong word calls opts.onMiss
+   and keeps listening. */
+function listenFor(word,long,opts={}){
+  const cont=!!opts.cont;
   return new Promise(async resolve=>{
-    const my=++srSess;let done=false,heard='',tm=0,rec;
-    const finish=r=>{if(done)return;done=true;CAP_END=Date.now();clearTimeout(tm);if(srBusy){try{rec.abort()}catch(e){}}if(curRec===rec)curRec=null;if(srBusy||heard)AFTER_CAP=true;sessionPlayback();bounceAC();r.heard=heard;resolve(r);};
-    try{rec=getSR();}catch(e){finish({ok:false,err:'start'});return;}
+    const my=++srSess;let done=false,heard='',tm=0,rec;const pre=[];
+    const finish=r=>{if(done)return;done=true;if(cont)LISTEN_CONT=false;CAP_END=Date.now();clearTimeout(tm);if(srBusy){try{rec.abort()}catch(e){}}if(curRec===rec)curRec=null;if(srBusy||heard)AFTER_CAP=true;sessionPlayback();bounceAC();r.heard=heard;resolve(r);};
+    try{rec=getSR();rec.continuous=cont;}catch(e){finish({ok:false,err:'start'});return;}
     for(let n=0;n<14&&srBusy;n++)await sleep(50);   // let a previous session end first
     if(my!==srSess){finish({ok:false,err:'aborted'});return;}
-    tm=setTimeout(()=>finish({ok:false,err:'timeout'}),long?15000:9000);
+    tm=setTimeout(()=>finish({ok:false,err:'timeout'}),cont?60000:long?15000:9000);
     rec.onstart=()=>{srBusy=true;};
     rec.onresult=e=>{
       if(my!==srSess)return;
+      const deaf=cont&&deafNow();
       for(let i=e.resultIndex;i<e.results.length;i++){
         const res=e.results[i];
-        for(let j=0;j<res.length;j++){const tx=res[j].transcript;if(j===0)heard=tx;if(matches(word,tx)){finish({ok:true});return;}}
+        if(deaf){pre[i]=res[0]?res[0].transcript:'';continue;}
+        for(let j=0;j<res.length;j++){
+          let tx=res[j].transcript;const p=pre[i]||'';if(p&&tx.startsWith(p))tx=tx.slice(p.length);
+          if(j===0)heard=tx.trim();
+          if(matches(word,tx)){finish({ok:true});return;}
+        }
       }
+      if(deaf)return;
       const last=e.results[e.results.length-1];
-      if(last&&last.isFinal)finish({ok:false,err:'nomatch'});
+      if(last&&last.isFinal){
+        if(!cont){finish({ok:false,err:'nomatch'});return;}
+        if(heard&&opts.onMiss){opts.onMiss({ok:false,err:'nomatch',heard});}
+        heard='';
+      }
     };
-    rec.onerror=e=>{if(my!==srSess||(e&&e.error==='aborted'))return;finish({ok:false,err:(e&&e.error)||'error'});};
+    rec.onerror=e=>{if(my!==srSess||(e&&e.error==='aborted'))return;if(cont&&e&&e.error==='no-speech')return;finish({ok:false,err:(e&&e.error)||'error'});};
     rec.onend=()=>{srBusy=false;if(my===srSess)finish({ok:false,err:'end'});};
-    curRec=rec;
+    curRec=rec;if(cont)LISTEN_CONT=true;
     sessionRecord();
     try{rec.start();srBusy=true;}
     catch(e){await sleep(300);try{rec.start();srBusy=true;}catch(e2){finish({ok:false,err:'start'});}}
@@ -1647,11 +1666,8 @@ function mountActivity(host,word,opts){
     const my=++a.loop;let fast=0;
     const gone=()=>a.dead||a.done||!MIC_ON||my!==a.loop;
     while(!gone()){
-      setMic('wait');
-      await waitAudioIdle(gone);
-      if(gone())break;
       setMic('listen');
-      const t0=Date.now(),r=await listenFor(word.w,true);
+      const t0=Date.now(),r=await listenFor(word.w,true,{cont:true,onMiss:r=>{if(!gone()){fast=0;miss(r);}}});
       if(gone())break;
       if(r.ok)return success();
       const hard=['not-allowed','service-not-allowed','audio-capture','network','start'].includes(r.err);

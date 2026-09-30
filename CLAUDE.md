@@ -50,7 +50,7 @@ One IIFE. Section banners (search for them):
   - `packTag` identifies the voice a pack was built with; changing voice asks for a second tap before replacing the pack.
   - `elPhonemes()` remakes letter sounds from CMU Arpabet phoneme tags (model `eleven_flash_v2`).
 - `SPEECH RECOGNITION`: a single reused recognizer (`getSR`); `listenFor(word, long)`; `matches()` is lenient (homophones, edit distance); `micHelp()` holds the error explanations.
-- `WORD ACTIVITY` (`mountActivity`): shared by rounds and stories. The mic is a **toggle** (`MIC_ON`): `micLoop` listens across words and pauses whenever the game makes sound (`hushMic`, `waitAudioIdle`) so it never hears Ollie say the answer. It turns off on any screen change.
+- `WORD ACTIVITY` (`mountActivity`): shared by rounds and stories. The mic is a **toggle** (`MIC_ON`): `micLoop` listens across words, one continuous listen per word that ignores whatever it hears while Ollie talks (lesson 7). It turns off on any screen change.
 - `SCREENS` / rounds / stickers / `STICKER SCENES` / stories / story player:
   - `readAlong()` plays slices of the whole-sentence clip using its word timings (`segBuf`).
   - It uses the owner's recorded pieces instead when they exist.
@@ -80,7 +80,8 @@ One IIFE. Section banners (search for them):
    - Calling `speak()` right after `cancel()` drops the utterance, so there is a ~120 ms gap (`lastCancel`).
    - Some listed voices never start, so a watchdog falls back to the next voice (`BADV`).
    - Safari offers web pages no Siri voices and no downloaded Premium voices.
-7. **iOS recognition** plays a system tone on start/stop; reusing one recognizer instance is believed to help. The first recognition right after the permission prompt may fail once, which gets a soft retry.
+7. **iOS recognition** plays a system tone on start/stop, and web pages can't turn it off; the only lever is starting and stopping less. So `micLoop` keeps one **continuous** listen per word (`listenFor(word,long,{cont:true,onMiss})`): it is not stopped when Ollie talks (`hushMic` skips it, `LISTEN_CONT`), results are ignored while game audio plays and `ECHO_MS` (1.2 s) after it (`deafNow`, `AUDIO_END`), and text that began while deaf is cut off the front of later results. A wrong word gives feedback without restarting. It stops on a correct read, so the celebration isn't ducked. Unverified on iPhone: how long iOS keeps a continuous listen open, and whether Ollie's voice leaks into it.
+   Also: reusing one recognizer instance is believed to help. The first recognition right after the permission prompt may fail once, which gets a soft retry.
 8. **Murf dropped trailing small words** in fragments ("I see a" came out without "a"). Hence whole-sentence story clips with word timings, sliced at playback.
 9. **Dark mode:** use theme tokens (`--card`, `--ink2`, …) for every color. The silent-letter tile was once invisible in dark mode.
 10. **Voice services:**
