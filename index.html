@@ -849,7 +849,6 @@ function sayLetter(t,hint){
   const ph=PHK[t.s];
   return say(hint&&ph?`${t.s}. like ${ph[2]}`:t.s,{rate:.7});
 }
-function sayWord(w){return (useMine()&&playClip('w:'+w))||say(w,{rate:.72,slow:.8});}
 
 /* ---- microphone capture for recordings ---- */
 let CAP=null;
@@ -1577,7 +1576,6 @@ function mountActivity(host,word,opts){
   host.innerHTML=`
     <div class="tiles ${compact?'sm':''}" data-max="${compact?96:140}">${tilesHtml(word.tiles,'button')}</div>
     <div class="helpers">
-      <button class="btn sm blue" data-a="hear">🔊 Hear it</button>
       <button class="btn sm yellow" data-a="sound">💡 Sound it out</button>
     </div>
     <div class="micwrap">
@@ -1692,8 +1690,7 @@ function mountActivity(host,word,opts){
     if(t&&host.contains(t))return tapTile(+t.dataset.i);
     const b=ev.target.closest('[data-a]');if(!b)return;
     const act=b.dataset.a;
-    if(act==='hear'){ac();a.helped=true;a.last=-1;a.tok++;stopSpeech();litOff();sayWord(word.w);}
-    else if(act==='sound')soundOut();
+    if(act==='sound')soundOut();
     else if(act==='mic')mic();
     else if(act==='grown')success();
     else if(act==='retrymic'){MICBLOCK=false;MICWHY='';MICPRE=false;a.dead=true;mountActivity(host,word,opts);setBubble('Tap the microphone and say the word!');}

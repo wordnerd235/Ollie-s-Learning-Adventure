@@ -6,7 +6,7 @@ Owner: technical (electrical/controls engineer), not a web developer. Prefers di
 
 ## What the game does
 - **Rounds** of 6 words, adaptive over 5 levels (2-letter words → sight words → 4–5-letter words). The child reads the word aloud into the mic; a correct read triggers a celebration with a word-specific animation and sound, plus praise.
-- **Letter tiles:** tapping a letter plays its sound. "Hear it" plays the word; "Sound it out" plays the letters in sequence. Silent letters are shown as dashed tiles.
+- **Letter tiles:** tapping a letter plays its sound. "Sound it out" plays the letters in sequence (there is deliberately no "Hear it" button that says the word). Silent letters are shown as dashed tiles.
 - **Skip** is always available. A grown-up ✓ button appears after misses, or replaces the mic entirely when the mic is unavailable.
 - **Stories:** 9 stories unlock as their words are learned. Ollie narrates the lead-in words, the child reads each target word, then the whole sentence is read back with word highlighting. A story counts as done once read through (this clears the Story Time badge).
 - **Stickers:** earned per round/story. There are 6 illustrated "sticker scenes" with Ollie where stickers can be placed, dragged, resized, flipped, and cleared.

@@ -19,7 +19,7 @@ test('one listen per word: Ollie talking and a wrong word do not restart the mic
   await ensureMic(page);
   await expect(page.locator('#act .mic')).toHaveClass(/listening/);
   const starts = await page.evaluate(() => window.__recStarts);
-  await page.click('[data-a="hear"]');                              // Ollie says the word
+  await page.click('[data-a="sound"]');                             // Ollie talks (sounds out the letters)
   await page.waitForTimeout(2500);
   await page.evaluate(() => { window.__say = 'banana'; });          // a wrong word: feedback, keep listening
   await expect(page.locator('.miclabel')).toContainText('banana');
@@ -31,13 +31,13 @@ test('one listen per word: Ollie talking and a wrong word do not restart the mic
   await page.locator('#celenext').waitFor();
 });
 
-test('the mic ignores Ollie saying the answer, and the moment after', async ({ browser }) => {
+test('the mic ignores Ollie talking, and the moment after', async ({ browser }) => {
   const page = await round(browser, 'mic-echo');
   const w = await word(page);
   await ensureMic(page);
   // the mic "hears" the word only while Ollie is speaking it, and just after
   await page.evaluate(w => { window.__say = () => (window.speechSynthesis.speaking ? w : ''); }, w);
-  await page.click('[data-a="hear"]');
+  await page.click('[data-a="sound"]');
   await page.waitForTimeout(1000);
   await page.evaluate(w => { window.__say = () => (window.speechSynthesis.speaking || Date.now() - window.__heardEnd < 900 ? w : ''); window.__heardEnd = Date.now() + 500; }, w);
   await page.waitForTimeout(2500);
