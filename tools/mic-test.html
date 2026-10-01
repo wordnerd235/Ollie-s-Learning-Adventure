@@ -66,7 +66,14 @@ button:disabled{opacity:.4}
     <div class="meter"><i data-m="holdraw"></i></div>
     <div class="st" data-s="holdraw"></div>
   </div>
-  <p>Then tell Claude, for 0, A, B, C, D and E: chime yes/no, Ollie normal/quiet. (A chime can come at the start and/or the end of a test.)</p>
+  <div class="card">
+    <h2>F · Like D, only echo cancellation off</h2>
+    <p>Same steps as D, with only echo cancellation off (noise suppression and auto volume stay on). Phone speaker, same volume as D. Note: <b>pops</b> (like D, or clean like E)? <b>Loudness</b> (like D, or quiet like E)?</p>
+    <button data-t="holdec">▶ Run test F</button>
+    <div class="meter"><i data-m="holdec"></i></div>
+    <div class="st" data-s="holdec"></div>
+  </div>
+  <p>Then tell Claude, for 0, A, B, C, D, E and F: chime yes/no, Ollie normal/quiet. (A chime can come at the start and/or the end of a test.)</p>
 </main>
 <script>
 (()=>{
@@ -128,6 +135,7 @@ const T={
   },
   hold(st){return holdTest(st,true,'hold');},
   holdraw(st){return holdTest(st,{echoCancellation:false,noiseSuppression:false,autoGainControl:false},'holdraw');},
+  holdec(st){return holdTest(st,{echoCancellation:false,noiseSuppression:true,autoGainControl:true},'holdec');},
   async raw(st){await micTest(st,false,'raw');},
   async ec(st){await micTest(st,true,'ec');},
 };
