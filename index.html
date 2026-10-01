@@ -291,6 +291,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:4px solid 
   box-shadow:0 10px 26px rgba(43,35,80,.22);touch-action:none;user-select:none;-webkit-user-select:none}
 .pscene.mini{width:100%;border-width:3px;border-radius:18px;box-shadow:none;pointer-events:none}
 .pscene .it{animation:none}
+.pscene .it.g{transform:translate(-50%,-88%)}   /* stands on the ground: y is its base */
 .pscene .it.ollie{filter:drop-shadow(0 4px 4px rgba(0,0,0,.18))}
 .pst{position:absolute;transform:translate(-50%,-50%);line-height:1;font-size:calc(var(--s)*14cqw);cursor:grab;padding:2cqw;border-radius:50%;touch-action:none}
 .pst span{display:inline-block;pointer-events:none;filter:drop-shadow(0 3px 3px rgba(0,0,0,.2))}
@@ -302,12 +303,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:4px solid 
 .tray button{flex:none;width:66px;height:66px;border-radius:20px;border:0;background:var(--card2);font-size:40px;box-shadow:0 4px 0 var(--line);cursor:pointer}
 .scgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
 .sccard{background:var(--card);border:0;border-radius:22px;padding:8px 8px 10px;box-shadow:0 5px 0 var(--line);cursor:pointer;color:var(--ink);font:inherit;font-weight:700;font-size:17px;display:flex;flex-direction:column;gap:6px}
-.pg-meadow{background:radial-gradient(130% 55% at 50% 100%,#6cc85c 0 44%,transparent 45%),linear-gradient(#78cdff,#d4f1ff 72%)}
-.pg-beach{background:linear-gradient(#8fd8ff 0 44%,#43b6f2 44% 60%,#f3dca0 60%)}
+.pg-meadow{background:radial-gradient(55% 13% at 16% 62%,#93dd80 0 98%,transparent 100%),radial-gradient(60% 11% at 88% 62%,#8ad877 0 98%,transparent 100%),linear-gradient(#78cdff,#d4f1ff 61%,#7ccf6b 61%,#56b649)}
+.pg-beach{background:linear-gradient(#8fd8ff 0 40%,#3fb0ee 40% 53%,#8ad6f2 53% 55%,#f3dca0 55%,#e8cc88)}
 .pg-space{background:radial-gradient(#fff 1px,transparent 1.6px) 0 0/34px 34px,radial-gradient(#fff .8px,transparent 1.4px) 17px 21px/47px 47px,linear-gradient(#0b0b3a,#35207a)}
-.pg-sea{background:radial-gradient(150% 30% at 50% 100%,#e9cf8f 0 42%,transparent 43%),linear-gradient(#5fd0ff,#1d7fe0 62%,#0b4fa6)}
-.pg-snow{background:radial-gradient(140% 50% at 50% 100%,#fff 0 44%,transparent 45%),linear-gradient(#9fc8ea,#e6f3ff 72%)}
-.pg-party{background:linear-gradient(transparent 72%,#d9a877 72%),linear-gradient(#ffe0ef,#ffc9df)}
+.pg-sea{background:radial-gradient(40% 4% at 25% 85%,#e9cf8f 0 98%,transparent 100%),radial-gradient(45% 3% at 78% 85%,#e9cf8f 0 98%,transparent 100%),linear-gradient(#5fd0ff,#1d7fe0 58%,#0b4fa6 85%,#e3c98a 85%,#d2b574)}
+.pg-snow{background:radial-gradient(55% 7% at 22% 64%,#fff 0 98%,transparent 100%),radial-gradient(50% 6% at 82% 64%,#fff 0 98%,transparent 100%),linear-gradient(#9fc8ea,#e6f3ff 64%,#fff 64%,#e8f0fa)}
+.pg-party{background:linear-gradient(#ffe0ef,#ffc9df 70%,#b9835a 70%,#b9835a 71%,#d9a877 71%,#c99463)}
 
 /* modal */
 .modal{position:fixed;inset:0;z-index:80;display:none;background:rgba(30,20,70,.55);padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -1905,16 +1906,27 @@ function screenStickers(){micOff();
 /* =====================================================================
    STICKER SCENES — decorate pictures of Ollie with earned stickers
    ===================================================================== */
+/* scene art: 'emoji,x%,y%,size[,flags]'. Flag g = stands on something: y is where its base touches
+   the ground (not its middle). f = facing the other way. Grounded things are drawn back to front, and
+   things further back sit higher and smaller. Ground lines are in the .pg-* backgrounds. */
 const SCENES=[
- {id:'meadow',title:'Sunny Meadow',d:['☀️,82,11,17','☁️,24,12,16','☁️,60,7,11','🌳,24,57,44','🦉,27,47,17','🌷,68,88,8','🌼,86,91,7','🌻,9,90,9','🦋,64,38,7']},
- {id:'beach',title:'Beach Day',d:['☀️,84,10,16','☁️,28,12,13','⛵,64,51,11','🌴,15,50,36','⛱️,78,70,28','🦉,46,72,21','🐚,88,92,7','🦀,24,90,9']},
- {id:'space',title:'Space Trip',d:['🌙,80,11,18','🪐,20,22,20','⭐,52,9,6','✨,88,40,7','🌍,16,86,18','🚀,78,72,26','🦉,40,56,23']},
- {id:'sea',title:'Under the Sea',d:['🫧,20,12,6','🫧,30,22,4','🫧,82,18,5','🐠,78,36,12','🫧,48,50,40','🦉,48,50,22','🌿,10,84,18','🪸,86,86,16']},
- {id:'snow',title:'Snow Day',d:['❄️,14,10,6','❄️,52,7,5','❄️,86,14,6','❄️,30,26,4','🌲,14,58,32','🌲,88,56,26','⛄,72,78,26','🦉,36,74,21']},
- {id:'party',title:'Party Time',d:['🎈,12,16,15','🎈,88,14,15','🎊,50,8,13','🦉,50,46,23','🎉,66,36,10','🎂,50,80,26','🎁,15,86,15','🎁,86,88,12']}
+ {id:'meadow',title:'Sunny Meadow',d:['☀️,82,11,15','☁️,22,13,14','☁️,58,8,10','🦋,68,58,7',
+   '🌳,24,67,40,g','🌷,78,79,8,g','🦉,52,86,20,g','🌼,90,92,9,g','🌻,11,95,11,g']},
+ {id:'beach',title:'Beach Day',d:['☀️,84,11,15','☁️,30,13,12','⛵,66,51,10,g',
+   '🌴,17,82,36,g','⛱️,79,81,26,g','🦉,48,92,20,g','🦀,25,96,9,g','🐚,90,95,7,g']},
+ {id:'space',title:'Space Trip',d:['⭐,52,9,6','🌙,80,13,18','🪐,22,22,18','✨,88,42,7','✨,30,66,6',
+   '🦉,40,48,20','🚀,75,62,24','🌍,14,95,32']},
+ {id:'sea',title:'Under the Sea',d:['🫧,52,38,4','🫧,56,48,5','🫧,52,58,6','🐠,76,38,12','🐟,24,60,9,f',
+   '🌿,13,93,20,g','🦉,50,95,20,g','🪸,86,93,16,g']},
+ {id:'snow',title:'Snow Day',d:['❄️,14,10,6','❄️,52,7,5','❄️,86,14,6','❄️,32,24,4','❄️,70,30,4',
+   '🌲,70,66,14,g','🌲,86,69,22,g','🌲,14,71,26,g','⛄,70,90,26,g','🦉,36,93,20,g']},
+ {id:'party',title:'Party Time',d:['🎊,50,10,13','🎈,14,22,14','🎈,86,18,14','🎈,74,30,10','🎉,20,56,9',
+   '🦉,36,90,22,g','🎂,66,90,24,g','🎁,12,97,14,g','🎁,90,98,12,g']}
 ];
 function sceneMarkup(sc,list,mini){
-  const deco=sc.d.map(x=>{const [e,l,t,z]=x.split(',');return `<div class="it ${e==='🦉'?'ollie':''}" style="left:${l}%;top:${t}%;--s:${z}">${e}</div>`;}).join('');
+  const items=sc.d.map(x=>{const [e,l,t,z,fl='']=x.split(',');return {e,l:+l,t:+t,z,g:fl.includes('g'),f:fl.includes('f')};});
+  items.sort((a,b)=>(a.g-b.g)||(a.g?a.t-b.t:0));                  // sky first, then ground items back to front
+  const deco=items.map(o=>`<div class="it${o.e==='🦉'?' ollie':''}${o.g?' g':''}" style="left:${o.l}%;top:${o.t}%;--s:${o.z}">${o.f?`<span style="display:inline-block;transform:scaleX(-1)">${o.e}</span>`:o.e}</div>`).join('');
   const st=(list||[]).map((p,i)=>`<div class="pst" data-i="${i}" style="left:${p.x}%;top:${p.y}%;--s:${p.s}"><span style="transform:rotate(${p.r||0}deg) scaleX(${p.f?-1:1})">${p.e}</span></div>`).join('');
   return `<div class="pscene pg-${sc.id} ${mini?'mini':''}" ${mini?'':'id="pscene"'}>${deco}${st}</div>`;
 }
