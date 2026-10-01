@@ -2546,31 +2546,35 @@ function greetOnReturn(){
    sets that volume with the buttons; iOS remembers it. Also asks for mic permission up front. */
 const needsSoundCheck=()=>IS_IOS&&S.settings.mic&&HAS_SR&&!MICBLOCK;
 function soundCheck(onDone){
+  // step 1: normal volume (mic off) · step 2: call volume (mic on). Ollie talks on a loop in both.
   const box=document.createElement('div');box.className='gwrap';box.id='scheck';
   let stream=null,run=0;
-  const stop=()=>{run++;stopSpeech();if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;sessionPlayback();bounceAC();syncACSoon();}};
+  const quiet=()=>{run++;stopSpeech();};
+  const stop=()=>{quiet();if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;sessionPlayback();bounceAC();syncACSoon();}};
   const finish=ok=>{stop();if(ok)S.soundChecked=true;persist();box.remove();onDone&&onDone();};
-  const show=started=>{box.innerHTML=`<div class="gcard" style="align-items:center;text-align:center">
+  const talk=async()=>{const my=++run;while(my===run&&box.isConnected){await say("Hi! I'm Ollie the owl. Let's read together!");if(my!==run)break;await sleep(1200);}};
+  const TXT={
+    intro:'Two quick steps to set how loud Ollie is. Step 1 sets the normal volume. In step 2 the microphone turns on, and iPhone and iPad switch to a <b>separate volume</b> (the one used for calls) with a short chime. It only needs doing once.',
+    vol:'<b>Step 1 of 2:</b> Ollie is talking. Press the <b>volume buttons</b> until Ollie sounds right, then tap Next.',
+    mic:'<b>Step 2 of 2:</b> the microphone is on now and Ollie is talking at the call volume. Press the <b>volume buttons</b> again until Ollie sounds right, then tap Sounds good.'};
+  const BTN={intro:['start','▶ Start'],vol:['next','Next ➜'],mic:['done','✓ Sounds good']};
+  const show=st=>{box.innerHTML=`<div class="gcard" style="align-items:center;text-align:center">
     <div style="font-size:64px;line-height:1" aria-hidden="true">🦉🔊</div>
     <div class="gtext" style="min-height:0;font-size:clamp(22px,6vw,30px)">Sound check</div>
-    <p class="gsub" style="margin:0">${started
-      ?'Ollie is talking with the microphone on. Press the <b>volume buttons</b> until Ollie sounds right, then tap Sounds good.'
-      :'While the microphone is on, iPhone and iPad play the game at a <b>separate volume</b> (the one used for calls) and make a short chime. Tap Start, allow the microphone, then set that volume with the buttons. It only needs doing once.'}</p>
+    <p class="gsub" style="margin:0" data-step="${st}">${TXT[st]}</p>
     <div class="gstat" id="sc-st"></div>
-    <div class="gnav">${started?'<button class="btn sm ghost" data-sc="skip">Skip</button><button class="btn sm green" data-sc="done">✓ Sounds good</button>'
-      :'<button class="btn sm ghost" data-sc="skip">Skip</button><button class="btn sm green" data-sc="start">▶ Start</button>'}</div></div>`;};
-  show(false);document.body.appendChild(box);
+    <div class="gnav"><button class="btn sm ghost" data-sc="skip">Skip</button><button class="btn sm green" data-sc="${BTN[st][0]}">${BTN[st][1]}</button></div></div>`;};
+  show('intro');document.body.appendChild(box);
   box.onclick=async e=>{
     const b=e.target.closest('[data-sc]');if(!b)return;const a=b.dataset.sc;
     if(a==='skip')return finish(false);
     if(a==='done')return finish(true);
-    if(a==='start'){
-      ac();b.disabled=true;
+    if(a==='start'){ac();sessionPlayback();show('vol');talk();return;}
+    if(a==='next'){
+      quiet();b.disabled=true;
       try{sessionRecord();stream=await navigator.mediaDevices.getUserMedia({audio:true});MICPRE=true;}
-      catch(err){sessionPlayback();const x=$('#sc-st',box);if(x)x.textContent=micHelp(err.name||'error');b.disabled=false;return;}
-      show(true);syncACSoon(600);
-      const my=++run;
-      while(my===run&&box.isConnected){await say("Hi! I'm Ollie the owl. Let's read together!");if(my!==run)break;await sleep(1200);}
+      catch(err){sessionPlayback();const x=$('#sc-st',box);if(x)x.textContent=micHelp(err.name||'error');b.disabled=false;talk();return;}
+      show('mic');syncACSoon(600);talk();
     }
   };
 }

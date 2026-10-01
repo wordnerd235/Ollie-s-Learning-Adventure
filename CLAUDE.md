@@ -14,7 +14,7 @@ Owner: technical (electrical/controls engineer), not a web developer. Prefers di
 - **Words I know:** the count on the home screen is a button to a list of known words (`screenKnown`); tapping one says it.
 - **Sticker scene art** (`SCENES`): entries `emoji,x,y,size[,flags]`; flag `g` = stands on the ground, and y is its **base** (class `.it.g`, translate −88%), `f` = mirrored. Grounded items are drawn back to front; further back = higher and smaller. Ground lines live in the `.pg-*` backgrounds (meadow 61%, beach sand 55%, sea floor 85%, snow 64%, party floor 70%). Check changes with screenshots of all six scenes.
 - **Sticker turning:** ↺/↻ turn the selected sticker 15° (`p.r`, stored with the scene).
-- **Sound check** (`soundCheck`, iPhone/iPad only): once after the welcome (and from Settings › 🔊 Sound check), the mic is turned on while Ollie talks so a grown-up can set iOS's call volume with the buttons; it also gets the mic permission up front. `S.soundChecked`.
+- **Sound check** (`soundCheck`, iPhone/iPad only): once after the welcome (and from Settings › 🔊 Sound check), in two steps while Ollie talks on a loop: step 1 sets the normal (media) volume with the mic off, step 2 turns the mic on so a grown-up can set iOS's call volume; it also gets the mic permission up front. `S.soundChecked`.
 - **Grown-up settings:** press and hold ⚙️ on the home screen for ~1 s.
 
 UI rules: the child is 5 and can't read instructions, so anything the child must act on needs to work without reading. Grown-up text is fine. Keep all wording gender-neutral. Ollie (🦉) animates only when showing a new message, never constantly.

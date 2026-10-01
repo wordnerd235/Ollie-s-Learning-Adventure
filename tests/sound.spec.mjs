@@ -3,13 +3,26 @@ import { newSite, newDevice, IPHONE_UA, installStubs } from './helpers.mjs';
 
 test('first run on an iPhone: sound check with the mic on, then the greeting; not shown again', async ({ browser }) => {
   const site = newSite('scheck', { voice: false });
-  const { page } = await newDevice(browser);
+  const { context, page } = await newDevice(browser);
+  await context.addInitScript(() => {   // count microphone opens
+    window.__mics = 0; const g = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = c => { window.__mics++; return g(c); };
+  });
   await page.goto(site.url);
   await page.fill('#w-name', 'Sam');
   await page.click('#w-go');
   await expect(page.locator('#scheck')).toBeVisible();
   await page.evaluate(() => { window.__tts.length = 0; });
+  // step 1: normal volume, mic off, Ollie talking
   await page.click('#scheck [data-sc="start"]');
+  await expect(page.locator('#scheck [data-step="vol"]')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__tts.filter(t => t.includes("I'm Ollie the owl")).length), { timeout: 10_000 }).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.__mics)).toBe(0);
+  // step 2: the mic turns on
+  await page.click('#scheck [data-sc="next"]');
+  await expect(page.locator('#scheck [data-step="mic"]')).toBeVisible();
+  expect(await page.evaluate(() => window.__mics)).toBe(1);
+  await page.evaluate(() => { window.__tts.length = 0; });
   await expect(page.locator('#scheck [data-sc="done"]')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__tts.filter(t => t.includes("I'm Ollie the owl")).length), { timeout: 10_000 }).toBeGreaterThan(1);   // keeps talking
   await page.click('#scheck [data-sc="done"]');

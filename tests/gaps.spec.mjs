@@ -32,6 +32,8 @@ test('every line Ollie says is in the recorder', async ({ browser }) => {
   await page.fill('#w-name', 'Ava');                               // a different child: still all recorded
   await page.click('#w-go');
   await page.click('#scheck [data-sc="start"]');
+  await page.waitForTimeout(1200);
+  await page.click('#scheck [data-sc="next"]');
   await page.waitForTimeout(1500);
   await page.click('#scheck [data-sc="done"]');
   await page.waitForTimeout(800);
