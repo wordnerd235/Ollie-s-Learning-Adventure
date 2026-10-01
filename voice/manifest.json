@@ -1,6 +1,6 @@
 {
  "format": 1,
- "made": "2026-09-30",
+ "made": "2026-10-01",
  "parts": {
   "ai": {
    "v": "0f529d46e271af81",
@@ -18,13 +18,12 @@
    "pack": "muo9t0q49sr3o"
   },
   "mine": {
-   "v": "004384bcc9b80acb",
+   "v": "4c21bf813811a3c2",
    "files": [
     "mine-1.bin"
    ],
-   "bytes": 7540044,
-   "n": 176,
-   "pack": "muo9t0q49sr3o"
+   "bytes": 18706464,
+   "n": 356
   }
  }
 }
