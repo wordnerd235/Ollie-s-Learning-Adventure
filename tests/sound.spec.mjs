@@ -14,7 +14,7 @@ test('first run on an iPhone: sound check with the mic on, then the greeting; no
   await expect.poll(() => page.evaluate(() => window.__tts.filter(t => t.includes("I'm Ollie the owl")).length), { timeout: 10_000 }).toBeGreaterThan(1);   // keeps talking
   await page.click('#scheck [data-sc="done"]');
   await expect(page.locator('#scheck')).toHaveCount(0);
-  await expect.poll(() => page.evaluate(() => window.__tts)).toContain("Hi Sam! I'm Ollie. Let's read!");
+  await expect.poll(() => page.evaluate(() => window.__tts)).toContain('Hi friend! Ready to read?');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ollie-word-adventure-v1')).soundChecked)).toBe(true);
   await page.reload();
   await expect(page.locator('.menu')).toBeVisible();
