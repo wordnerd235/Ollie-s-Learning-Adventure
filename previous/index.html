@@ -726,8 +726,12 @@ function clipsFor(part){
   return null;
 }
 const SENT_GAP=280;
+/* tests only: when window.__ollieLog is an array, each sentence said is logged with where its voice came from */
+function logSaid(text,src){const L=window.__ollieLog;if(!Array.isArray(L))return;
+  splitSent(text).forEach(x=>{const c=src||(((useMine()||S.settings.murf)&&clipsFor(x))||null);L.push({t:x,src:typeof c==='string'?c:!c?'device':c.every(i=>i.mine)?'mine':'ai'});});}
 function say(text,opts){
   if(SILENT)return Promise.resolve();
+  logSaid(text);
   if(text&&S.settings.sound&&(useMine()||S.settings.murf)){
     const parts=splitSent(text),seq=[],miss=[];
     // clips are trimmed tight, so leave a breath between sentences ("I'm Ollie. Let's read!")
@@ -1260,10 +1264,8 @@ const FIXED_LINES=['Nice! Tap each letter, then squish the sounds together.','No
 const STORYFULL=[];
 function murfTexts(){
   const nm=S.name||'',T=[];const add=t=>{if(t)T.push(t);};
-  const names=nm?[nm,'']:[''];
   [...PRAISE,...SHORT,...TRY1,...START_LINES].forEach(add);
   FIXED_LINES.forEach(add);
-  names.filter(Boolean).forEach(n=>{add(`Hi ${n}! Ready to read?`);add(`Hi ${n}!`);add(`Amazing reading, ${n}!`);add(`You read the whole story, ${n}!`);});
   WORDS.forEach(w=>{
     add(w.w);add(`${w.w}!`);add(`That word is ${w.w}.`);
     w.sfx.split('|').filter(x=>x[0]!=='~').forEach(add);
@@ -1708,7 +1710,10 @@ function mountActivity(host,word,opts){
 /* =====================================================================
    SCREENS
    ===================================================================== */
-const greet=()=>S.name?`Hi ${S.name}! Ready to read?`:'Hi friend! Ready to read?';
+// Ollie never says the child's name: a recording can't exist for every name, so it would fall back to
+// the AI/device voice. The name is still shown on screen.
+const greet=()=>'Hi friend! Ready to read?';
+const greetShown=()=>S.name?`Hi ${S.name}! Ready to read?`:greet();
 function top(title,left='<button class="rbtn" data-act="home" aria-label="Home">🏠</button>',mid){
   return `<div class="top">${left}${mid||`<div class="ttl">${title||''}</div>`}<div class="starbadge">⭐ <b id="starcount">${S.stars}</b></div></div>`;
 }
@@ -1716,7 +1721,7 @@ function screenHome(){micOff();
   stopAll();
   const n=knownCount(),ready=STORIES.filter(st=>storyUnlocked(st)&&!S.stories[st.id]).length;
   setView(`<div class="col home">
-    <div class="hero"><button class="owl" data-act="owl" aria-label="Ollie the owl">🦉</button><div class="bubble" id="bubble">${greet()}</div></div>
+    <div class="hero"><button class="owl" data-act="owl" aria-label="Ollie the owl">🦉</button><div class="bubble" id="bubble">${greetShown()}</div></div>
     <h1 class="title">Ollie's<br><span>Word Adventure</span></h1>
     <div class="menu">
       <button class="btn big green" data-act="play">▶&nbsp; Let's Read!</button>
@@ -1805,8 +1810,7 @@ function finishRound(){micOff();
     </div>
   </div>`);
   confetti(90);FX.tada();
-  const nm=S.name?`, ${S.name}`:'';
-  say(`Amazing reading${nm}! ${sticker?'You earned a new sticker!':''}`);
+  say(`Amazing reading! ${sticker?'You earned a new sticker!':''}`);
 }
 /* ---- words I know ---- */
 function screenKnown(){micOff();
@@ -1980,6 +1984,7 @@ async function readAlong(toks,W,a,b,rate0,my){
   const sc=storyClip(toks);
   const mineHere=useMine()&&splitSent(toks.slice(a,b).map(x=>x.disp).join(' ')).every(x=>{const c=clipsFor(x);return c&&c.length&&c.every(i=>i.mine);});
   if(sc&&!mineHere&&ac()){
+    logSaid(toks.slice(a,b).map(x=>x.disp).join(' '),'ai');
     const w=sc.c.w,end=sc.c.data.length/sc.c.sr;
     const t0=a===0?0:Math.max(w[a-1][1],w[a][0]-.05);
     const t1=b>=toks.length?end:Math.max(w[b-1][1]+.02,Math.min(w[b-1][1]+.09,w[b][0]));
@@ -2069,7 +2074,7 @@ function storyEnd(){micOff();
     </div>
   </div>`);
   confetti(90);FX.tada();
-  say(`The end! You read the whole story${S.name?`, ${S.name}`:''}! Great reading!`);
+  say('The end! You read the whole story! Great reading!');
 }
 
 
@@ -2090,7 +2095,6 @@ function recGroups(){
     G.push({id:'w'+l,title:`Words · level ${l}`,note:'Read each word clearly, the way you want your child to hear it.',items:ws.map(w=>item(w.w,'w:'+w.w,disp(w.w),w.emoji))});});
   grp('praise','Praise',[...PRAISE,...SHORT],'Said when a word is read right. The word itself comes from your word recordings.');
   grp('talk',"Ollie's prompts",[...START_LINES,...TRY1,'That word is',...FIXED_LINES,'Silent e!'],'“That word is” is recorded once; the word is added from your word recordings.');
-  if(nm)grp('name','Lines with your child’s name',[`Hi ${nm}! Ready to read?`,`Hi ${nm}!`,`Amazing reading, ${nm}!`,`You read the whole story, ${nm}!`,`Hi ${nm}! I'm Ollie. Let's read!`,`Hi ${nm}! I'm Ollie the owl. Let's read together!`]);
   grp('hints','Letter hints',PHON.map(x=>`like ${x[2]}`).concat([...new Set(WORDS.flatMap(w=>w.tiles.filter(t=>t.s==='-').map(t=>`silent ${t.t}`)))]),'Played after a letter sound when a letter is tapped.');
   grp('sfx','Fun sounds',WORDS.flatMap(w=>w.sfx.split('|').filter(x=>x[0]!=='~')),'Played in the celebration for some words. Have fun with these.');
   STORIES.forEach(st=>{const T=[];st.sents.forEach(se=>{
@@ -2280,7 +2284,7 @@ function openSettings(){micOff();
     if(!S.settings.sound){s.textContent='Sounds are turned off above.';return;}
     if(!('speechSynthesis' in window)){s.textContent='This browser has no device voice. Recorded sounds still work.';return;}
     s.textContent='Speaking…';SPEAK_OK=null;
-    await say(`Hi${S.name?' '+S.name:''}! I'm Ollie the owl. Let's read together!`);
+    await say("Hi! I'm Ollie the owl. Let's read together!");
     s.textContent=SPEAK_OK?`Voice used: ${LASTVOICE}. If you heard nothing, turn up the volume with the side buttons.`
       :`The device voice didn't start (${enVoices().length} English voices listed). Close Safari fully and reopen the page, then try again. Recorded sounds still work either way.`;
   };
@@ -2506,7 +2510,7 @@ function welcome(){
   $('#w-silent').onclick=()=>{SILENT=true;gateUpdate();};
   gateUpdate();
   $('#w-go').onclick=()=>{if($('#w-go').disabled)return;ac();S.name=$('#w-name').value.trim();S.seen=true;persist();modal.classList.remove('on');modal.innerHTML='';screenHome();
-    const hi=()=>say(S.name?`Hi ${S.name}! I'm Ollie. Let's read!`:"Hi! I'm Ollie. Let's read!");
+    const hi=()=>say(greet());
     if(needsSoundCheck()&&!S.soundChecked&&!SILENT)soundCheck(hi);else hi();};
 }
 

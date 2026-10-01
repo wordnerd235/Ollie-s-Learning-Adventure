@@ -37,7 +37,7 @@ test('a correct read says the word, then its fun sound, then the praise', async 
   expect(entry.at - heardAt).toBeLessThan(300);
   expect(ip).toBe(said.length - 1);                                             // the praise comes last
   for (const t of said.slice(iw + 1, ip)) expect(PRAISE).not.toContain(t);      // anything between is the fun sound
-  expect(said[ip].includes(word)).toBe(false);                                   // the word isn't said again with the praise
+  expect(new RegExp(`\\b${word}\\b`, 'i').test(said[ip])).toBe(false);          // the word isn't said again with the praise (whole word: "in" is inside "Brilliant")
 });
 
 test('skipping: the skipped word stays on screen until it has been said', async ({ browser }) => {

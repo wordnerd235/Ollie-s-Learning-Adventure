@@ -27,7 +27,8 @@ export async function installStubs(context) {
     window.__tts = [];
     window.__ttsLog = [];   // what the device voice said, and which word was on the tiles at the time
     window.__barSeen = false;
-    new MutationObserver(() => { if (document.getElementById('vload')) window.__barSeen = true; })
+    // the welcome's / voice card's download bar
+    new MutationObserver(() => { if (document.querySelector('[data-vgate-bar]')) window.__barSeen = true; })
       .observe(document, { childList: true, subtree: true });
     // One-shot: hears window.__say once after 250 ms, then ends. Continuous: stays open and delivers
     // window.__say as a new final result when it changes and again every second, until aborted. window.__recStarts counts start()s.
