@@ -100,3 +100,29 @@ test('?audiodebug shows the audio log; without it nothing is shown', async ({ br
   await page.waitForTimeout(800);
   await expect(page.locator('#adbg')).toHaveCount(0);
 });
+
+test('clips fade in, fade out when cut short, and an inaudible keep-alive runs (no clicks or speaker wake-up pops)', async ({ browser }) => {
+  const site = newSite('fades');
+  const { context, page } = await newDevice(browser);
+  await context.addInitScript(() => {
+    window.__ramps = []; window.__loops = [];
+    const r = AudioParam.prototype.linearRampToValueAtTime;
+    AudioParam.prototype.linearRampToValueAtTime = function (v, t) { window.__ramps.push(v); return r.call(this, v, t); };
+    const st = AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start = function (...a) { if (this.loop) { const d = this.buffer.getChannelData(0); window.__loops.push(Math.max(...d.map(Math.abs))); } return st.apply(this, a); };
+  });
+  await page.goto(site.url);
+  await dismissWelcome(page);
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => { window.__ramps.length = 0; });
+  await page.click('[data-act="owl"]');                 // Ollie starts talking: fade in
+  await page.waitForTimeout(300);
+  await page.click('[data-act="owl"]');                 // tapped again mid-line: the first line is cut, with a fade out
+  await page.waitForTimeout(500);
+  const ramps = await page.evaluate(() => window.__ramps);
+  expect(ramps).toContain(1);
+  expect(ramps).toContain(0);
+  const loops = await page.evaluate(() => window.__loops);
+  expect(loops.length).toBeGreaterThan(0);
+  expect(Math.max(...loops)).toBeLessThan(0.001);        // about -80 dB
+});

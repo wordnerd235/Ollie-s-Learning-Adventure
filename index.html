@@ -562,7 +562,15 @@ function adbg(msg){
   el.textContent+=`${((Date.now()-T0)/1000).toFixed(1)}s [engine ${ctx}] ${msg}\n`;el.scrollTop=el.scrollHeight;
 }
 function wireAC(c){AC=c;try{c.onstatechange=()=>adbg('engine state → '+c.state);}catch(e){}adbg('engine created at '+c.sampleRate+' Hz');noiseBuf=null;master=AC.createGain();master.gain.value=S.settings.fx;master.connect(AC.destination);
-  vbus=AC.createGain();vbus.connect(AC.destination);}   // Ollie's voice has its own bus
+  vbus=AC.createGain();vbus.connect(AC.destination);   // Ollie's voice has its own bus
+  keepAlive(AC);}
+/* An inaudible signal (noise at about -80 dB) runs as long as the engine does, so the iPhone never idles
+   its speaker between lines; the first sound after an idle speaker can pop as the amplifier wakes. */
+function keepAlive(c){
+  try{const n=2000,b=c.createBuffer(1,n,c.sampleRate),d=b.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*1e-4;
+    const s=c.createBufferSource();s.buffer=b;s.loop=true;s.connect(c.destination);s.start();}catch(e){}
+}
 function ac(){
   if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;wireAC(new C());}
   if(AC.state!=='running'){try{AC.resume().catch(()=>{});}catch(e){}}
@@ -829,7 +837,10 @@ function playBuf(b){
   if(SILENT)return Promise.resolve();
   const ctx=ac();hushMic();
   return new Promise(res=>{
-    const src=ctx.createBufferSource();src.buffer=b;src.connect(vbus||ctx.destination);
+    // a 5 ms fade-in (and a fade-out when stopped early, see stopClips): a hard start or cut clicks
+    const src=ctx.createBufferSource(),g=ctx.createGain(),t=ctx.currentTime;src.buffer=b;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(1,t+.005);src._g=g;
+    src.connect(g);g.connect(vbus||ctx.destination);
     let done=false;const fin=()=>{if(done)return;done=true;PLAYING.delete(src);AUDIO_END=Date.now();res();};
     src.onended=fin;PLAYING.add(src);setTimeout(fin,b.duration*1000+500);
     try{src.start();}catch(e){fin();}
@@ -874,7 +885,14 @@ function speechDur(text,rate){
     for(const it of c){const cl=CLIPS[it.k];t+=cl.data.length/cl.sr/(it.mine?1:effRate(rate));}}
   return t||null;
 }
-function stopClips(){[...PLAYING].forEach(x=>{try{x.stop()}catch(e){}});PLAYING.clear();}
+function stopClips(){
+  [...PLAYING].forEach(x=>{try{
+    const g=x._g,c=x.context,t=c.currentTime;
+    if(g){g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(g.gain.value,t);g.gain.linearRampToValueAtTime(0,t+.005);x.stop(t+.008);}
+    else x.stop();
+  }catch(e){}});
+  PLAYING.clear();
+}
 /* letter sound: recording if there is one, otherwise the device voice */
 function sayLetter(t,hint){
   if(t.s==='-')return say(`silent ${t.t}`,{rate:.85});
