@@ -110,7 +110,12 @@ export async function mockElevenLabs(page) {
 
 export async function dismissWelcome(page) {
   const go = page.locator('#w-go');
-  if (await go.isVisible().catch(() => false)) { await page.fill('#w-name', 'Sam'); await go.click(); }
+  if (await go.isVisible().catch(() => false)) {
+    await page.fill('#w-name', 'Sam'); await go.click();
+    // first run on an iPhone shows the sound check: skip it (sound.spec covers it)
+    const sk = page.locator('#scheck [data-sc="skip"]');
+    if (await sk.waitFor({ timeout: 1500 }).then(() => true, () => false)) await sk.click();
+  }
 }
 
 /* Grown-up settings open on a press-and-hold of the gear. */

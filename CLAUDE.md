@@ -13,6 +13,7 @@ Owner: technical (electrical/controls engineer), not a web developer. Prefers di
 - **Greeting:** a returning player (page reopened or refreshed) hears "Hello, again! Ready to read?" (not personalised, owner's choice) once the voice is ready (`greetOnReturn`). iOS allows no sound before the first tap, so there it plays on the first tap, unless that tap is a menu button.
 - **Words I know:** the count on the home screen is a button to a list of known words (`screenKnown`); tapping one says it.
 - **Sticker turning:** ↺/↻ turn the selected sticker 15° (`p.r`, stored with the scene).
+- **Sound check** (`soundCheck`, iPhone/iPad only): once after the welcome (and from Settings › 🔊 Sound check), the mic is turned on while Ollie talks so a grown-up can set iOS's call volume with the buttons; it also gets the mic permission up front. `S.soundChecked`.
 - **Grown-up settings:** press and hold ⚙️ on the home screen for ~1 s.
 
 UI rules: the child is 5 and can't read instructions, so anything the child must act on needs to work without reading. Grown-up text is fine. Keep all wording gender-neutral. Ollie (🦉) animates only when showing a new message, never constantly.
@@ -72,7 +73,7 @@ One IIFE. Section banners (search for them):
 2. **iOS silent switch** mutes Web Audio and `speechSynthesis`.
    - Workaround: set `navigator.audioSession.type='playback'` and loop a silent `<audio>` element.
    - The silent loop is paused while the device voice speaks, because it is suspected of silencing the iPhone device voice (unconfirmed).
-3. **iOS plays at the separate *call volume* while the mic is in use.** That was the "Ollie is quiet with the mic on" problem, and the owner fixed it by pressing volume-up during a round (a grown-up tip under Settings › Use the microphone says so). **There is no voice boost, on purpose:** the clips already peak at 90% of full scale, so every digital boost tried either clipped (crackles; plain gain, then the browser's compressor/limiter with overshoot to 1.5) or was held back by a clean look-ahead limiter to about +3 dB (the slider "did nothing"). Don't add one again.
+3. **iOS plays at the separate *call volume* while the mic is in use.** That was the "Ollie is quiet with the mic on" problem, and the owner fixed it by pressing volume-up during a round (now a guided **Sound check** at first run and in settings). A test page (`tools/mic-test.html`) showed that on iPhone Safari **any** open mic (speech recognition, or getUserMedia with or without echo cancellation) chimes and switches to call volume, so no web workaround exists; only a native app ($99/yr Apple account) could avoid it. **There is no voice boost, on purpose:** the clips already peak at 90% of full scale, so every digital boost tried either clipped (crackles; plain gain, then the browser's compressor/limiter with overshoot to 1.5) or was held back by a clean look-ahead limiter to about +3 dB (the slider "did nothing"). Don't add one again.
    - After each listen: `bounceAC()` (suspend/resume) and `sessionPlayback()`.
    - The permission probe uses getUserMedia with echo cancellation, noise suppression and auto-gain turned off.
 4. **iOS blocks media-element `play()` outside a user gesture.** All game audio goes through Web Audio buffers. Don't reintroduce `<audio>` playback, which is why slowed audio uses WSOLA, not `playbackRate`.
