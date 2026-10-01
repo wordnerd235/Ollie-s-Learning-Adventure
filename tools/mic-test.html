@@ -59,7 +59,14 @@ button:disabled{opacity:.4}
     <div class="meter"><i data-m="hold"></i></div>
     <div class="st" data-s="hold"></div>
   </div>
-  <p>Then tell Claude, for 0, A, B, C and D: chime yes/no, Ollie normal/quiet. (A chime can come at the start and/or the end of a test.)</p>
+  <div class="card">
+    <h2>E · Like D, echo cancellation off</h2>
+    <p>Same steps as D, but the held mic has the phone's call processing (echo cancellation, noise suppression, auto volume) turned off. Use the <b>phone's speaker</b> (no AirPods). Note whether the <b>pops/distortion</b> are gone compared with D, plus chimes and volume changes as before.</p>
+    <button data-t="holdraw">▶ Run test E</button>
+    <div class="meter"><i data-m="holdraw"></i></div>
+    <div class="st" data-s="holdraw"></div>
+  </div>
+  <p>Then tell Claude, for 0, A, B, C, D and E: chime yes/no, Ollie normal/quiet. (A chime can come at the start and/or the end of a test.)</p>
 </main>
 <script>
 (()=>{
@@ -119,13 +126,18 @@ const T={
     rec.abort();session('playback');await sleep(600);
     st('Done.'+(heard?' Heard: “'+heard+'”':''));
   },
-  async hold(st){
+  hold(st){return holdTest(st,true,'hold');},
+  holdraw(st){return holdTest(st,{echoCancellation:false,noiseSuppression:false,autoGainControl:false},'holdraw');},
+  async raw(st){await micTest(st,false,'raw');},
+  async ec(st){await micTest(st,true,'ec');},
+};
+async function holdTest(st,audio,id){
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     ac();session('play-and-record');
     let s;
-    try{s=await navigator.mediaDevices.getUserMedia({audio:true});}
+    try{s=await navigator.mediaDevices.getUserMedia({audio});}
     catch(e){st('The microphone didn’t start: '+(e.name||e));session('playback');return;}
-    const stop=meter(s,document.querySelector('[data-m="hold"]')),log=[];
+    const stop=meter(s,document.querySelector(`[data-m="${id}"]`)),log=[];
     const step=t=>{log.push(t);st(log.join('\n'));};
     step('Step 1: mic opened and held.');await sleep(1200);
     for(let i=0;i<3;i++){step(`Step 1: Ollie talks, mic held (${i+1} of 3)`);await play();await sleep(700);}
@@ -141,10 +153,7 @@ const T={
     step('Step 6: mic closed');stop();s.getTracks().forEach(t=>t.stop());session('playback');await sleep(1200);
     step('Step 6: Ollie talks, mic off');await play();
     step('Done.');
-  },
-  async raw(st){await micTest(st,false,'raw');},
-  async ec(st){await micTest(st,true,'ec');},
-};
+}
 async function micTest(st,ec,id){
   ac();session('play-and-record');
   let s;
