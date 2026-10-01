@@ -2,7 +2,7 @@
 
 A phonics reading game for the owner's 5-year-old child. It is a **single self-contained `index.html`** (CSS + one script, no build step, no dependencies except Google Fonts) served by **GitHub Pages** from this repo. Previously hosted on Netlify. A copy also exists as a claude.ai artifact, but that viewer blocks the microphone and external APIs, so GitHub Pages is the real home.
 
-Owner: technical (electrical/controls engineer), not a web developer. Prefers direct, economical communication. Tests on an **iPhone in Safari** (main device), also an iPad and a Windows PC. Nobody but the owner can test on real iOS: say so plainly instead of claiming something works on iPhone.
+Owner: technical (electrical/controls engineer), not a web developer. Prefers direct, economical communication. Tests on an **iPhone in Safari** (main device), also an iPad and a Windows PC. Nobody but the owner can test on real iOS: say so plainly instead of claiming something works on iPhone. The owner tests fresh first runs in a **Safari private tab** (so the normal page keeps the child's progress): every private visit is a brand-new device that downloads the whole voice (~50 MB) into temporary, smaller storage.
 
 ## What the game does
 - **Rounds** of 6 words, adaptive over 5 levels (2-letter words → sight words → 4–5-letter words). The child reads the word aloud into the mic; a correct read triggers a celebration with a word-specific animation and sound, plus praise.
