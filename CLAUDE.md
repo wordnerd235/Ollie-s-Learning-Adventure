@@ -110,7 +110,7 @@ One IIFE. Section banners (search for them):
 ## Current state (Oct 1, 2026)
 - `voice/` holds the owner's voice: the ElevenLabs lines in `ai-*.bin` and the owner's recordings (356) in `mine-1.bin`, uploaded by the owner via "Make voice files".
 - Quality check (Oct 1): unused recorder lines removed (short praises, "Tap the microphone again…", "I'm Ollie. Let's read!"); letter examples only where the spelling matches.
-- Held mic (lesson 20) is new: unverified in a real session whether iOS keeps it open, and whether recognition is as reliable.
+- Held mic with echo cancellation off (lesson 20): confirmed by the owner on iPhone: no pops on the speaker, words recognized.
 - Unverified on real iOS: the device voice fix, the voice download/export, the sound check, `syncAC`, `desnap`.
 
 ## Testing
