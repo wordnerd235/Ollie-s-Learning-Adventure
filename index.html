@@ -590,7 +590,17 @@ async function syncAC(){
    microphone is on iOS switches to "call" audio that ignores both the switch and the media volume.
    So: play as media (follows the volume buttons) and switch back to media as soon as the mic stops. */
 const ASN=navigator.audioSession;
-function bounceAC(){if(!IS_IOS||!AC||AC.state!=='running')return;adbg('bounce (suspend/resume)');try{AC.suspend().then(()=>AC.resume()).catch(()=>{});}catch(e){}}
+/* the bounce pauses the engine for an instant: never while Ollie is talking, or the line stops dead mid-sound
+   (a pop). It waits until the game has been quiet for a moment. */
+let BOUNCE=0;
+function bounceAC(){
+  if(!IS_IOS||!AC)return;const my=++BOUNCE;
+  (async()=>{
+    for(let t=0;t<80;t++){if(my!==BOUNCE)return;if(!audioBusy()){await sleep(250);if(!audioBusy())break;}else await sleep(100);}
+    if(my!==BOUNCE||audioBusy()||!AC||AC.state!=='running')return;
+    adbg('bounce (suspend/resume)');const c=AC;try{await c.suspend();await c.resume();}catch(e){}
+  })();
+}
 function sessionPlayback(){try{if(ASN&&ASN.type!=='playback')ASN.type='playback';}catch(e){}}
 function sessionRecord(){try{if(ASN&&ASN.type!=='play-and-record')ASN.type='play-and-record';}catch(e){}}
 let SILENT_EL=null,SPEECH_PRIMED=false;

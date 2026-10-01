@@ -106,3 +106,33 @@ test('when the mic changes the hardware sample rate, the audio engine follows it
   expect(after.length).toBeGreaterThan(0);
   expect(new Set(after)).toEqual(new Set([48000]));
 });
+
+test('the audio engine is never paused (bounced or rebuilt) while Ollie is playing: a full round with the mic, to the end', async ({ browser }) => {
+  const site = newSite('mic-nopop'), man = site.manifest();
+  const { context, page } = await newDevice(browser);
+  await context.addInitScript(() => {
+    window.__active = 0; window.__cuts = [];
+    const st = AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start = function (...a) {
+      if (this.buffer && this.buffer.length > 2000) { window.__active++; let done = false; const end = () => { if (!done) { done = true; window.__active--; } }; this.addEventListener('ended', end); setTimeout(end, this.buffer.duration * 1000 + 200); }
+      return st.apply(this, a);
+    };
+    const sus = AudioContext.prototype.suspend, cl = AudioContext.prototype.close;
+    AudioContext.prototype.suspend = function () { if (window.__active > 0) window.__cuts.push('suspend while playing'); return sus.call(this); };
+    AudioContext.prototype.close = function () { if (window.__active > 0) window.__cuts.push('close while playing'); return cl.call(this); };
+  });
+  await page.goto(site.url);
+  await dismissWelcome(page);
+  await page.waitForFunction(m => Object.keys(m.parts).every(p => localStorage.getItem('ollie-voice-v:' + p) === m.parts[p].v), man);
+  await page.click('[data-act="play"]');
+  await page.locator('#act .tile').first().waitFor();
+  await page.evaluate(f => { window.__say = new Function('return (' + f + ')()'); }, SAY_TILES.toString());
+  await ensureMic(page);
+  for (let i = 0; i < 6; i++) { await page.locator('#celenext').waitFor({ timeout: 20000 }); await page.waitForTimeout(1500); await page.click('#celenext'); }
+  await expect(page.locator('.bigtitle')).toContainText('Round complete!');   // the mic turns off as "Amazing reading!" starts
+  await page.waitForTimeout(5000);
+  await page.click('[data-act="home"]');
+  await page.click('[data-act="owl"]');
+  await page.waitForTimeout(3000);
+  expect(await page.evaluate(() => window.__cuts)).toEqual([]);
+});
