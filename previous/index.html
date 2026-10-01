@@ -604,17 +604,35 @@ const ASN=navigator.audioSession;
    (a pop). It waits until the game has been quiet for a moment. */
 let BOUNCE=0;
 function bounceAC(){
-  if(!IS_IOS||!AC)return;const my=++BOUNCE;
+  if(!IS_IOS||!AC||HELD)return;const my=++BOUNCE;
   (async()=>{
     for(let t=0;t<80;t++){if(my!==BOUNCE)return;if(!audioBusy()){await sleep(250);if(!audioBusy())break;}else await sleep(100);}
     if(my!==BOUNCE||audioBusy()||!AC||AC.state!=='running')return;
     adbg('bounce (suspend/resume)');const c=AC;try{await c.suspend();await c.resume();}catch(e){}
   })();
 }
-function sessionPlayback(){try{if(ASN&&ASN.type!=='playback')ASN.type='playback';}catch(e){}}
+function sessionPlayback(){if(HELD)return;try{if(ASN&&ASN.type!=='playback')ASN.type='playback';}catch(e){}}
 function sessionRecord(){try{if(ASN&&ASN.type!=='play-and-record')ASN.type='play-and-record';}catch(e){}}
+/* HELD MIC (iPhone/iPad): once the mic is allowed, it is opened and kept open for the visit. With it held,
+   iOS stays at the one (call) volume, and speech recognition starts and stops without its chime or a volume
+   change (owner's test D on tools/mic-test.html). The mic button only says when to listen. iOS closes it when
+   the phone locks or the app is left (one chime); the next tap opens it again. The recorder lets go of it. */
+let HELD=null,HOLDING=false;
+const holdWanted=()=>IS_IOS&&S.settings.mic&&HAS_SR&&!MICBLOCK&&!SILENT&&!GUIDE&&!document.querySelector('.vrow');
+const heldOK=()=>{try{return localStorage.getItem('ollie-mic-held')==='1'}catch(e){return false}};
+async function holdMic(){
+  if(HELD||HOLDING||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
+  HOLDING=true;
+  try{sessionRecord();const st=await navigator.mediaDevices.getUserMedia({audio:true});
+    if(!holdWanted()){st.getTracks().forEach(t=>t.stop());return;}
+    HELD=st;adbg('mic held');try{localStorage.setItem('ollie-mic-held','1')}catch(e){}
+    st.getTracks().forEach(t=>t.addEventListener('ended',()=>{if(HELD===st){HELD=null;adbg('held mic ended by the system');sessionPlayback();}}));}
+  finally{HOLDING=false;}
+}
+function releaseMic(){if(!HELD)return;const st=HELD;HELD=null;st.getTracks().forEach(t=>t.stop());adbg('mic released');sessionPlayback();}
 let SILENT_EL=null,SPEECH_PRIMED=false;
 function unlockAudio(){
+  if(!HELD&&heldOK()&&holdWanted())holdMic().catch(()=>{});
   sessionPlayback();
   if(!SILENT_EL){try{SILENT_EL=new Audio('data:audio/wav;base64,UklGRvQHAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YdAHAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==');SILENT_EL.loop=true;SILENT_EL.setAttribute('playsinline','');SILENT_EL.play().catch(()=>{});}catch(e){}}
   const c=ac();
@@ -622,7 +640,7 @@ function unlockAudio(){
   if(!SPEECH_PRIMED&&'speechSynthesis' in window){SPEECH_PRIMED=true;try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;keep.push(u);u.onend=u.onerror=()=>{const i=keep.indexOf(u);if(i>=0)keep.splice(i,1);};speechSynthesis.speak(u);}catch(e){}}
 }
 ['touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,unlockAudio,{capture:true,passive:true}));
-document.addEventListener('visibilitychange',()=>{if(document.hidden)micOff();if(!document.hidden&&AC){sessionPlayback();try{AC.resume().catch(()=>{});}catch(e){}}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){micOff();releaseMic();}if(!document.hidden&&AC){sessionPlayback();try{AC.resume().catch(()=>{});}catch(e){}}});
 function osc({t=0,dur=.3,type='sine',f=[[0,440]],vol=.3,att=.01,filt=null,vib=0,vibHz=6}){
   const a=ac();if(!a||!S.settings.sound||SILENT)return;
   const t0=a.currentTime+t;
@@ -930,7 +948,7 @@ function sayLetter(t,hint){
 let CAP=null;
 function getMic(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){const e=new Error('no getUserMedia');e.name=window.isSecureContext===false?'insecure':'NotSupportedError';return Promise.reject(e);}
-  sessionRecord();
+  releaseMic();sessionRecord();
   return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).catch(e=>{sessionPlayback();throw e;});
 }
 function startCapture(stream,{maxSec=3,onLevel,quietSec=.6}={}){
@@ -1420,7 +1438,7 @@ let MICBLOCK=false,curRec=null,MICWHY='',MICPRE=false,MIC_ON=false,CAP_END=0;
 /* iPhone: sound played while iOS switches back from recording to playback is lost,
    so a line right after the mic stops (e.g. the word after a correct read) waits for it to settle */
 async function afterMicSettled(ms=450){
-  const w=CAP_END+ms-Date.now();if(w>0)await sleep(w);
+  const w=CAP_END+ms-Date.now();if(w>0&&!HELD)await sleep(w);   // with the mic held, iOS doesn't switch
   if(AC&&AC.state!=='running'){try{await AC.resume();}catch(e){}}
 }
 function micOff(){const was=MIC_ON||!!curRec;if(was)adbg('mic off');MIC_ON=false;MIC.target=null;MIC.run++;MIC.live=false;stopListening();if(was)syncACSoon();}
@@ -1534,6 +1552,7 @@ async function micSession(){
   if(my===MIC.run)MIC.live=false;
 }
 async function probeMic(){
+  if(holdWanted()){await holdMic();if(HELD)return;}
   sessionRecord();
   try{const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,autoGainControl:false,noiseSuppression:false}});st.getTracks().forEach(t=>t.stop());}
   finally{sessionPlayback();}
@@ -2238,7 +2257,7 @@ function guided(items,title,onDone){
     }
   };
 }
-function screenVoice(){micOff();
+function screenVoice(){micOff();releaseMic();
   stopAll();
   const G=recGroups(),all=G.flatMap(g=>g.items);
   const row=it=>`<div class="vrow ${hasClip(it.key)?'has':''}" data-k="${escH(it.key)}"><div class="vl">${it.key[0]==='p'||it.key[0]==='w'?`<b>${escH(it.big||it.t)}</b><span>${escH(it.sub||'')}</span>`:`<span class="vt">${escH(it.t)}</span>`}</div>
@@ -2296,7 +2315,7 @@ function openSettings(){micOff();
     <h2>Grown-up settings</h2>
     <div><h3>Child's name</h3><input type="text" id="s-name" value="${(S.name||'').replace(/"/g,'&quot;')}" placeholder="Name" maxlength="20" autocomplete="off"></div>
     <div class="row"><span>Sounds and voice<small>Turn everything off for quiet play</small></span><label class="sw"><input type="checkbox" id="s-sound" ${S.settings.sound?'checked':''}></label></div>
-    <div class="row"><span>Use the microphone<small>Off means a grown-up taps the green ✓ instead. iPhone/iPad: with the mic on, iOS uses a separate (call) volume. Use Sound check below to set it.</small></span><label class="sw"><input type="checkbox" id="s-mic" ${S.settings.mic?'checked':''}></label></div>
+    <div class="row"><span>Use the microphone<small>Off means a grown-up taps the green ✓ instead. iPhone/iPad: the mic stays on while the game is open, so iOS uses its call volume. Use Sound check below to set it.</small></span><label class="sw"><input type="checkbox" id="s-mic" ${S.settings.mic?'checked':''}></label></div>
     <button class="btn sm blue" id="s-scheck">🔊 Sound check</button>
     <div class="row"><span>CAPITAL letters<small>Show letters in uppercase</small></span><label class="sw"><input type="checkbox" id="s-upper" ${S.settings.upper?'checked':''}></label></div>
     <div class="row"><span>Unlock all stories<small>Skip the word requirements</small></span><label class="sw"><input type="checkbox" id="s-unlock" ${S.settings.unlockAll?'checked':''}></label></div>
@@ -2355,7 +2374,7 @@ function openSettings(){micOff();
   const st=(k,v)=>{S.settings[k]=v;persist();};
   $('#s-name').oninput=e=>{S.name=e.target.value.trim();persist();};
   $('#s-sound').onchange=e=>st('sound',e.target.checked);
-  $('#s-mic').onchange=e=>{st('mic',e.target.checked);MICBLOCK=false;};
+  $('#s-mic').onchange=e=>{st('mic',e.target.checked);MICBLOCK=false;if(!e.target.checked)releaseMic();};
   $('#s-scheck').onclick=()=>{closeSettings();soundCheck();};
   $('#s-upper').onchange=e=>st('upper',e.target.checked);
   $('#s-unlock').onchange=e=>st('unlockAll',e.target.checked);
@@ -2546,18 +2565,16 @@ function greetOnReturn(){
    sets that volume with the buttons; iOS remembers it. Also asks for mic permission up front. */
 const needsSoundCheck=()=>IS_IOS&&S.settings.mic&&HAS_SR&&!MICBLOCK;
 function soundCheck(onDone){
-  // step 1: normal volume (mic off) · step 2: call volume (mic on). Ollie talks on a loop in both.
+  // the mic is opened (and then kept open, see HELD MIC) while Ollie talks on a loop; iOS uses the call volume
   const box=document.createElement('div');box.className='gwrap';box.id='scheck';
-  let stream=null,run=0;
+  let run=0;
   const quiet=()=>{run++;stopSpeech();};
-  const stop=()=>{quiet();if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;sessionPlayback();bounceAC();syncACSoon();}};
-  const finish=ok=>{stop();if(ok)S.soundChecked=true;persist();box.remove();onDone&&onDone();};
+  const finish=ok=>{quiet();if(ok)S.soundChecked=true;persist();box.remove();onDone&&onDone();};
   const talk=async()=>{const my=++run;while(my===run&&box.isConnected){await say("Hi! I'm Ollie the owl. Let's read together!");if(my!==run)break;await sleep(1200);}};
   const TXT={
-    intro:'Two quick steps to set how loud Ollie is. Step 1 sets the normal volume. In step 2 the microphone turns on, and iPhone and iPad switch to a <b>separate volume</b> (the one used for calls) with a short chime. It only needs doing once.',
-    vol:'<b>Step 1 of 2:</b> Ollie is talking. Press the <b>volume buttons</b> until Ollie sounds right, then tap Next.',
-    mic:'<b>Step 2 of 2:</b> the microphone is on now and Ollie is talking at the call volume. Press the <b>volume buttons</b> again until Ollie sounds right, then tap Sounds good.'};
-  const BTN={intro:['start','▶ Start'],vol:['next','Next ➜'],mic:['done','✓ Sounds good']};
+    intro:'Let\'s set how loud Ollie is. The microphone turns on now and stays on while the game is open (iPhone and iPad then use one volume, the one for calls). Tap <b>Allow</b> if asked. It only needs doing once.',
+    mic:'Ollie is talking. Press the <b>volume buttons</b> until Ollie sounds right, then tap Sounds good.'};
+  const BTN={intro:['start','▶ Start'],mic:['done','✓ Sounds good']};
   const show=st=>{box.innerHTML=`<div class="gcard" style="align-items:center;text-align:center">
     <div style="font-size:64px;line-height:1" aria-hidden="true">🦉🔊</div>
     <div class="gtext" style="min-height:0;font-size:clamp(22px,6vw,30px)">Sound check</div>
@@ -2569,12 +2586,11 @@ function soundCheck(onDone){
     const b=e.target.closest('[data-sc]');if(!b)return;const a=b.dataset.sc;
     if(a==='skip')return finish(false);
     if(a==='done')return finish(true);
-    if(a==='start'){ac();sessionPlayback();show('vol');talk();return;}
-    if(a==='next'){
-      quiet();b.disabled=true;
-      try{sessionRecord();stream=await navigator.mediaDevices.getUserMedia({audio:true});MICPRE=true;}
-      catch(err){sessionPlayback();const x=$('#sc-st',box);if(x)x.textContent=micHelp(err.name||'error');b.disabled=false;talk();return;}
-      show('mic');syncACSoon(600);talk();
+    if(a==='start'){
+      ac();b.disabled=true;let err='';
+      try{await holdMic();if(HELD)MICPRE=true;else err='error';}catch(x){err=x.name||'error';}
+      show('mic');if(err){const st=$('#sc-st',box);if(st)st.textContent=micHelp(err);}
+      syncACSoon(600);talk();
     }
   };
 }
