@@ -550,7 +550,18 @@ const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||/iPad|iPhone|iPod/.te
 /* iOS plays at the separate call volume while the microphone is in use (volume buttons during a round set it) */
 let IN_SEQ=false;
 const keep=[];
-function wireAC(c){AC=c;noiseBuf=null;master=AC.createGain();master.gain.value=S.settings.fx;master.connect(AC.destination);
+/* ?audiodebug in the address: a panel logging the audio engine (rates, mic, rebuilds), for diagnosing on iPhone */
+const ADBG=/[?&]audiodebug/.test(location.search),T0=Date.now();
+function adbg(msg){
+  if(!ADBG)return;
+  let el=document.getElementById('adbg');
+  if(!el){el=document.createElement('div');el.id='adbg';
+    el.style.cssText='position:fixed;left:4px;right:4px;top:calc(4px + env(safe-area-inset-top,0px));z-index:500;max-height:34vh;overflow:auto;background:rgba(0,0,0,.78);color:#9f9;font:11px/1.35 ui-monospace,Menlo,monospace;padding:6px 8px;border-radius:8px;white-space:pre-wrap';
+    document.body.appendChild(el);}
+  let ctx='';try{ctx=(AC?`${AC.sampleRate} ${AC.state}`:'none')+(MIC_ON?' · mic on':'')+(ASN?' · '+ASN.type:'');}catch(e){}
+  el.textContent+=`${((Date.now()-T0)/1000).toFixed(1)}s [engine ${ctx}] ${msg}\n`;el.scrollTop=el.scrollHeight;
+}
+function wireAC(c){AC=c;try{c.onstatechange=()=>adbg('engine state → '+c.state);}catch(e){}adbg('engine created at '+c.sampleRate+' Hz');noiseBuf=null;master=AC.createGain();master.gain.value=S.settings.fx;master.connect(AC.destination);
   vbus=AC.createGain();vbus.connect(AC.destination);}   // Ollie's voice has its own bus
 function ac(){
   if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;wireAC(new C());}
@@ -567,17 +578,19 @@ async function syncAC(){
   if(!AC||!IS_IOS)return;
   const C=window.AudioContext||window.webkitAudioContext;let n;
   try{n=new C();}catch(e){return;}
+  adbg(`rate check: engine ${AC.sampleRate}, hardware ${n.sampleRate}`);
   if(n.sampleRate===AC.sampleRate){n.close().catch(()=>{});return;}
   try{await n.resume();}catch(e){}
   for(let t=0;t<40&&(audioBusy()||CAP);t++)await sleep(100);       // let a line (or a recording) finish
-  if(n.state!=='running'||audioBusy()||CAP){n.close().catch(()=>{});syncACSoon(1500);return;}
+  if(n.state!=='running'||audioBusy()||CAP){adbg('rebuild postponed ('+n.state+(audioBusy()?', Ollie talking':'')+')');n.close().catch(()=>{});syncACSoon(1500);return;}
+  adbg('rebuilding engine at '+n.sampleRate+' Hz');
   const old=AC;wireAC(n);old.close().catch(()=>{});
 }
 /* iPhone/iPad: by default web audio and speech are muted by the silent switch, and while the
    microphone is on iOS switches to "call" audio that ignores both the switch and the media volume.
    So: play as media (follows the volume buttons) and switch back to media as soon as the mic stops. */
 const ASN=navigator.audioSession;
-function bounceAC(){if(!IS_IOS||!AC||AC.state!=='running')return;try{AC.suspend().then(()=>AC.resume()).catch(()=>{});}catch(e){}}
+function bounceAC(){if(!IS_IOS||!AC||AC.state!=='running')return;adbg('bounce (suspend/resume)');try{AC.suspend().then(()=>AC.resume()).catch(()=>{});}catch(e){}}
 function sessionPlayback(){try{if(ASN&&ASN.type!=='playback')ASN.type='playback';}catch(e){}}
 function sessionRecord(){try{if(ASN&&ASN.type!=='play-and-record')ASN.type='play-and-record';}catch(e){}}
 let SILENT_EL=null,SPEECH_PRIMED=false;
@@ -1357,7 +1370,7 @@ async function afterMicSettled(ms=450){
   const w=CAP_END+ms-Date.now();if(w>0)await sleep(w);
   if(AC&&AC.state!=='running'){try{await AC.resume();}catch(e){}}
 }
-function micOff(){const was=MIC_ON||!!curRec;MIC_ON=false;MIC.target=null;MIC.run++;MIC.live=false;stopListening();if(was)syncACSoon();}
+function micOff(){const was=MIC_ON||!!curRec;if(was)adbg('mic off');MIC_ON=false;MIC.target=null;MIC.run++;MIC.live=false;stopListening();if(was)syncACSoon();}
 const IN_FRAME=(()=>{try{return window.self!==window.top}catch(e){return true}})();
 try{const fp=document.permissionsPolicy||document.featurePolicy;
   if(IN_FRAME&&fp&&fp.allowsFeature&&!fp.allowsFeature('microphone')){MICBLOCK=true;MICWHY='frame';}}catch(e){}
@@ -1411,7 +1424,7 @@ function listenFor(word,long,opts={}){
     for(let n=0;n<14&&srBusy;n++)await sleep(50);   // let a previous session end first
     if(my!==srSess){finish({ok:false,err:'aborted'});return;}
     tm=setTimeout(()=>finish({ok:false,err:'timeout'}),cont?60000:long?15000:9000);
-    rec.onstart=()=>{srBusy=true;};
+    rec.onstart=()=>{srBusy=true;adbg('recognition started');};
     rec.onresult=e=>{
       if(my!==srSess)return;
       const w=W(),deaf=cont&&(deafNow()||!w);
@@ -1436,7 +1449,7 @@ function listenFor(word,long,opts={}){
       }
     };
     rec.onerror=e=>{if(my!==srSess||(e&&e.error==='aborted'))return;if(cont&&e&&e.error==='no-speech')return;finish({ok:false,err:(e&&e.error)||'error'});};
-    rec.onend=()=>{srBusy=false;if(my===srSess)finish({ok:false,err:'end'});};
+    rec.onend=()=>{srBusy=false;adbg('recognition ended');if(my===srSess)finish({ok:false,err:'end'});};
     curRec=rec;if(cont)LISTEN_CONT=true;if(sess)LISTEN_SESSION=true;
     sessionRecord();
     try{rec.start();srBusy=true;}
@@ -1680,7 +1693,7 @@ function mountActivity(host,word,opts){
     miss:r=>{if(!a.dead&&!a.done)miss(r);},
     blocked:code=>{if(!a.dead&&!a.done)blocked(code);},
     idle:()=>{if(!a.dead&&!a.done)setMic('idle');}};
-  function listen(){if(a.dead||a.done)return;MIC.target=target;setMic('listen');micSession();syncACSoon();}
+  function listen(){if(a.dead||a.done)return;if(!MIC.live)adbg('mic on');MIC.target=target;setMic('listen');micSession();syncACSoon();}
   async function mic(){
     if(a.done)return;
     ac();

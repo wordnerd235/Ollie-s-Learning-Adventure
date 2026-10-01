@@ -364,11 +364,6 @@ details.vlev summary{font-weight:700;font-size:17px;padding:8px 2px;cursor:point
 .vmeter{height:8px;border-radius:4px;background:var(--line);overflow:hidden;position:sticky;top:0;z-index:2}
 .vmeter i{display:block;height:100%;width:0;background:var(--green);transition:width .06s}
 .tip{font-size:14px!important}
-/* voice download progress */
-.vload{position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:90;display:flex;align-items:center;gap:10px;
-  background:var(--card2);border-radius:999px;padding:8px 16px;box-shadow:0 5px 0 var(--line),0 10px 20px rgba(43,35,80,.18);pointer-events:none;font-size:22px}
-.vload b{display:block;width:clamp(90px,34vw,180px);height:12px;border-radius:6px;background:var(--line);overflow:hidden}
-.vload i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
 
 @media (prefers-reduced-motion:reduce){
   .cloud,.owl.talk,.mic,.vb.rec.on{animation:none}
@@ -555,13 +550,28 @@ const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||/iPad|iPhone|iPod/.te
 /* iOS plays at the separate call volume while the microphone is in use (volume buttons during a round set it) */
 let IN_SEQ=false;
 const keep=[];
+function wireAC(c){AC=c;noiseBuf=null;master=AC.createGain();master.gain.value=S.settings.fx;master.connect(AC.destination);
+  vbus=AC.createGain();vbus.connect(AC.destination);}   // Ollie's voice has its own bus
 function ac(){
-  if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
-    AC=new C();master=AC.createGain();master.gain.value=S.settings.fx;master.connect(AC.destination);
-    // Ollie's voice (AI + recordings) goes through its own bus, so it can be made louder while the mic is on
-    vbus=AC.createGain();vbus.connect(AC.destination);}
+  if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;wireAC(new C());}
   if(AC.state!=='running'){try{AC.resume().catch(()=>{});}catch(e){}}
   return AC;
+}
+/* iPhone: turning the mic on (or off) switches the audio hardware to another sample rate (call mode).
+   The audio engine keeps the rate it started with, and Safari's conversion between the two crackles,
+   so a second after the mic changes, if the hardware rate differs, the engine is rebuilt at the new rate
+   (once Ollie is quiet). Nothing happens if the rates match. */
+let SYNC_T=0;
+function syncACSoon(ms=900){clearTimeout(SYNC_T);SYNC_T=setTimeout(syncAC,ms);}
+async function syncAC(){
+  if(!AC||!IS_IOS)return;
+  const C=window.AudioContext||window.webkitAudioContext;let n;
+  try{n=new C();}catch(e){return;}
+  if(n.sampleRate===AC.sampleRate){n.close().catch(()=>{});return;}
+  try{await n.resume();}catch(e){}
+  for(let t=0;t<40&&(audioBusy()||CAP);t++)await sleep(100);       // let a line (or a recording) finish
+  if(n.state!=='running'||audioBusy()||CAP){n.close().catch(()=>{});syncACSoon(1500);return;}
+  const old=AC;wireAC(n);old.close().catch(()=>{});
 }
 /* iPhone/iPad: by default web audio and speech are muted by the silent switch, and while the
    microphone is on iOS switches to "call" audio that ignores both the switch and the media volume.
@@ -1033,14 +1043,8 @@ async function importPart(part,info,bufs){
   if(part==='ai'){const m=info.murf||{};S.settings.murf=true;
     if(m.built){S.settings.murfVoice=m.voice||'';S.settings.murfStyle=m.style||'';S.settings.murfBuilt=m.built;}S.missing=[];persist();}
 }
-function voiceBar(frac){
-  let el=$('#vload');
-  if(frac==null){if(el)el.remove();return;}
-  if(!el){el=document.createElement('div');el.id='vload';el.className='vload';el.setAttribute('role','progressbar');
-    el.innerHTML='<span aria-hidden="true">🦉🔊</span><b><i></i></b>';document.body.appendChild(el);}
-  VOICE.frac=frac;gateUpdate();
-  const p=Math.round(Math.min(1,frac)*100);$('i',el).style.width=p+'%';el.setAttribute('aria-valuenow',p);el.title=`Getting Ollie's voice… ${p}%`;
-}
+/* download progress, shown by the welcome's bar and the returning player's voice card */
+function voiceBar(frac){if(frac==null)return;VOICE.frac=frac;gateUpdate();}
 /* Until the voice is on this device, the welcome's "Let's go" waits (and a returning player sees a
    small card instead of the menu), so Ollie's first words are in the downloaded voice.
    "Continue without sound" skips the wait with everything muted for this visit. */
@@ -1353,7 +1357,7 @@ async function afterMicSettled(ms=450){
   const w=CAP_END+ms-Date.now();if(w>0)await sleep(w);
   if(AC&&AC.state!=='running'){try{await AC.resume();}catch(e){}}
 }
-function micOff(){MIC_ON=false;MIC.target=null;MIC.run++;MIC.live=false;stopListening();}
+function micOff(){const was=MIC_ON||!!curRec;MIC_ON=false;MIC.target=null;MIC.run++;MIC.live=false;stopListening();if(was)syncACSoon();}
 const IN_FRAME=(()=>{try{return window.self!==window.top}catch(e){return true}})();
 try{const fp=document.permissionsPolicy||document.featurePolicy;
   if(IN_FRAME&&fp&&fp.allowsFeature&&!fp.allowsFeature('microphone')){MICBLOCK=true;MICWHY='frame';}}catch(e){}
@@ -1676,7 +1680,7 @@ function mountActivity(host,word,opts){
     miss:r=>{if(!a.dead&&!a.done)miss(r);},
     blocked:code=>{if(!a.dead&&!a.done)blocked(code);},
     idle:()=>{if(!a.dead&&!a.done)setMic('idle');}};
-  function listen(){if(a.dead||a.done)return;MIC.target=target;setMic('listen');micSession();}
+  function listen(){if(a.dead||a.done)return;MIC.target=target;setMic('listen');micSession();syncACSoon();}
   async function mic(){
     if(a.done)return;
     ac();
@@ -2466,7 +2470,7 @@ const needsSoundCheck=()=>IS_IOS&&S.settings.mic&&HAS_SR&&!MICBLOCK;
 function soundCheck(onDone){
   const box=document.createElement('div');box.className='gwrap';box.id='scheck';
   let stream=null,run=0;
-  const stop=()=>{run++;stopSpeech();if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;sessionPlayback();bounceAC();}};
+  const stop=()=>{run++;stopSpeech();if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;sessionPlayback();bounceAC();syncACSoon();}};
   const finish=ok=>{stop();if(ok)S.soundChecked=true;persist();box.remove();onDone&&onDone();};
   const show=started=>{box.innerHTML=`<div class="gcard" style="align-items:center;text-align:center">
     <div style="font-size:64px;line-height:1" aria-hidden="true">🦉🔊</div>
@@ -2486,7 +2490,7 @@ function soundCheck(onDone){
       ac();b.disabled=true;
       try{sessionRecord();stream=await navigator.mediaDevices.getUserMedia({audio:true});MICPRE=true;}
       catch(err){sessionPlayback();const x=$('#sc-st',box);if(x)x.textContent=micHelp(err.name||'error');b.disabled=false;return;}
-      show(true);
+      show(true);syncACSoon(600);
       const my=++run;
       while(my===run&&box.isConnected){await say("Hi! I'm Ollie the owl. Let's read together!");if(my!==run)break;await sleep(1200);}
     }

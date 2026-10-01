@@ -85,3 +85,18 @@ test('the mic test page loads an Ollie line and runs every test', async ({ brows
     await expect(page.locator(`[data-s="${t}"]`)).toContainText(done, { timeout: 30_000 });
   }
 });
+
+test('?audiodebug shows the audio log; without it nothing is shown', async ({ browser }) => {
+  const site = newSite('adbg', { voice: false });
+  const { page } = await newDevice(browser);
+  await page.goto(site.url + '?audiodebug');
+  await dismissWelcome(page);
+  await page.click('[data-act="play"]');
+  await page.locator('#act .mic').evaluate(m => m.click());
+  await expect(page.locator('#adbg')).toContainText('engine created at');
+  await expect(page.locator('#adbg')).toContainText('mic on');
+  await expect(page.locator('#adbg')).toContainText('rate check: engine');
+  await page.goto(site.url);
+  await page.waitForTimeout(800);
+  await expect(page.locator('#adbg')).toHaveCount(0);
+});
