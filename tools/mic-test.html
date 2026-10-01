@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ollie mic test</title>
+<style>
+:root{--bg:#f6f4ff;--card:#fff;--ink:#2b2350;--ink2:#6b6198;--line:rgba(43,35,80,.14);--go:#159f72;--a:#4da3ff;--b:#7c5cff}
+@media (prefers-color-scheme:dark){:root{--bg:#1a1550;--card:#2a2566;--ink:#f5f1ff;--ink2:#c4bbf0;--line:rgba(255,255,255,.16);--go:#34d399}}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.45 system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:14px}
+h1{margin:0;font-size:26px}
+h2{margin:0 0 4px;font-size:19px}
+p{margin:0;color:var(--ink2)}
+.card{background:var(--card);border-radius:16px;padding:14px 16px;border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:12px 16px;background:var(--go);color:#fff;cursor:pointer;align-self:flex-start}
+button:disabled{opacity:.4}
+.st{font-weight:600;min-height:1.4em;white-space:pre-line}
+.meter{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--go)}
+</style>
+</head>
+<body>
+<main>
+  <h1>🦉 Mic test</h1>
+  <p>Four quick tests to find out what makes the iPhone chime and turn Ollie down. Do them in order, with the phone's ring/silent switch on ring and the volume where you normally have it. For each, note: <b>did you hear the chime?</b> and <b>was Ollie normal volume or quiet?</b></p>
+  <div class="card" id="voicecard"><p class="st" id="vst">Loading one of Ollie's lines…</p></div>
+
+  <div class="card">
+    <h2>0 · Baseline: no mic</h2>
+    <p>Ollie at normal volume, to compare against.</p>
+    <button data-t="base">▶ Play</button>
+    <div class="st" data-s="base"></div>
+  </div>
+  <div class="card">
+    <h2>A · What the game does now</h2>
+    <p>Apple speech recognition (the browser's built-in one), then Ollie talks while it listens. Say a word if you like.</p>
+    <button data-t="sr">▶ Run test A</button>
+    <div class="st" data-s="sr"></div>
+  </div>
+  <div class="card">
+    <h2>B · Plain mic, echo cancellation off</h2>
+    <p>The candidate fix: the mic is opened directly with the phone's call processing turned off. Ollie talks while it listens; the bar shows the mic is live.</p>
+    <button data-t="raw">▶ Run test B</button>
+    <div class="meter"><i data-m="raw"></i></div>
+    <div class="st" data-s="raw"></div>
+  </div>
+  <div class="card">
+    <h2>C · Plain mic, echo cancellation on</h2>
+    <p>Same as B but with the phone's call processing on, to check whether that is what turns Ollie down.</p>
+    <button data-t="ec">▶ Run test C</button>
+    <div class="meter"><i data-m="ec"></i></div>
+    <div class="st" data-s="ec"></div>
+  </div>
+  <p>Then tell Claude, for 0, A, B and C: chime yes/no, Ollie normal/quiet. (A chime can come at the start and/or the end of a test.)</p>
+</main>
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const ASN=navigator.audioSession;
+const session=t=>{try{if(ASN)ASN.type=t;}catch(e){}};
+let AC=null,CLIP=null;
+function ac(){if(!AC){const C=window.AudioContext||window.webkitAudioContext;AC=new C();}if(AC.state!=='running')AC.resume().catch(()=>{});return AC;}
+
+/* one of Ollie's lines from the voice files (format as in the game's VOICE FILES section) */
+async function loadLine(){
+  try{
+    const man=await (await fetch('../voice/manifest.json',{cache:'no-store'})).json();
+    const order=[['mine',['r:great job','r:you did it','r:amazing reading']],['ai',['m:great job','m:you did it']]];
+    for(const [part,want] of order){
+      const p=man.parts&&man.parts[part];if(!p)continue;
+      for(const f of p.files){
+        const buf=await (await fetch('../voice/'+f+'?v='+p.v)).arrayBuffer(),dv=new DataView(buf);
+        const hl=dv.getUint32(8,true),head=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,12,hl)));
+        let off=12+hl;
+        for(const [k,sr,len] of head.clips){
+          if(want.includes(k)){CLIP={k,sr,data:new Int16Array(buf.slice(off,off+len*2))};$('#vst').textContent='Ready. Test line: “'+k.slice(2)+'” ('+(part==='mine'?'your recording':'AI voice')+')';return;}
+          off+=len*2;
+        }
+      }
+    }
+  }catch(e){}
+  $('#vst').textContent='Couldn’t load Ollie’s voice files; a beep will be used instead.';
+}
+function play(){
+  const c=ac();let b;
+  if(CLIP){b=c.createBuffer(1,CLIP.data.length,CLIP.sr);const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=CLIP.data[i]/32768;}
+  else{const sr=c.sampleRate,n=sr;b=c.createBuffer(1,n,sr);const d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=.6*Math.sin(2*Math.PI*440*i/sr)*Math.min(1,(n-i)/2000);}
+  return new Promise(res=>{const s=c.createBufferSource();s.buffer=b;s.connect(c.destination);s.onended=res;s.start();});
+}
+async function twice(st,label){for(let i=0;i<2;i++){st(label+` (${i+1} of 2)…`);await play();await sleep(500);}}
+
+function meter(stream,el){
+  const c=ac(),src=c.createMediaStreamSource(stream),an=c.createAnalyser();an.fftSize=1024;src.connect(an);
+  const buf=new Float32Array(an.fftSize);let on=true;
+  (function loop(){if(!on){el.style.width='0';return;}an.getFloatTimeDomainData(buf);let q=0;for(const v of buf)q+=v*v;el.style.width=Math.min(100,Math.sqrt(q/buf.length)*600)+'%';requestAnimationFrame(loop);})();
+  return ()=>{on=false;try{src.disconnect();}catch(e){}};
+}
+
+const T={
+  async base(st){session('playback');ac();await twice(st,'Playing Ollie');st('Done. That is normal volume.');},
+  async sr(st){
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){st('This browser has no speech recognition.');return;}
+    ac();session('play-and-record');
+    const rec=new SR();rec.lang='en-US';rec.continuous=true;rec.interimResults=true;let heard='';
+    rec.onresult=e=>{heard=[...e.results].map(r=>r[0].transcript).join(' ');};
+    rec.onerror=e=>st('Recognition error: '+e.error);
+    st('Starting speech recognition…');rec.start();await sleep(1500);
+    await twice(st,'Listening; Ollie talks');
+    rec.abort();session('playback');await sleep(600);
+    st('Done.'+(heard?' Heard: “'+heard+'”':''));
+  },
+  async raw(st){await micTest(st,false,'raw');},
+  async ec(st){await micTest(st,true,'ec');},
+};
+async function micTest(st,ec,id){
+  ac();session('play-and-record');
+  let s;
+  try{s=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:ec,noiseSuppression:ec,autoGainControl:ec}});}
+  catch(e){st('The microphone didn’t start: '+(e.name||e));session('playback');return;}
+  const stop=meter(s,document.querySelector(`[data-m="${id}"]`));
+  st('Mic on.');await sleep(1200);
+  await twice(st,'Mic on; Ollie talks');
+  stop();s.getTracks().forEach(t=>t.stop());session('playback');await sleep(600);
+  st('Done: mic off.');
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-t]');if(!b)return;
+  const id=b.dataset.t,el=document.querySelector(`[data-s="${id}"]`),st=t=>{el.textContent=t;};
+  document.querySelectorAll('[data-t]').forEach(x=>x.disabled=true);
+  try{await T[id](st);}catch(err){st('Error: '+(err.message||err));}
+  document.querySelectorAll('[data-t]').forEach(x=>x.disabled=false);
+});
+loadLine();
+})();
+</script>
+</body>
+</html>

@@ -75,3 +75,13 @@ test('the recorder records and saves a take', async ({ browser }) => {
   await expect(row).toHaveClass(/has/, { timeout: 15_000 });
 });
 
+
+test('the mic test page loads an Ollie line and runs every test', async ({ browser }) => {
+  const { page } = await newDevice(browser);
+  await page.goto('/tools/mic-test.html');
+  await expect(page.locator('#vst')).toContainText('Ready. Test line:');
+  for (const [t, done] of [['base', 'normal volume'], ['sr', 'Done.'], ['raw', 'Done: mic off.'], ['ec', 'Done: mic off.']]) {
+    await page.click(`[data-t="${t}"]`);
+    await expect(page.locator(`[data-s="${t}"]`)).toContainText(done, { timeout: 30_000 });
+  }
+});

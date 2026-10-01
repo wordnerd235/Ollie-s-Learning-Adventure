@@ -4,7 +4,8 @@
 //   /game/<site>/old.html    -> .work/old.html (an old all-in-one game file with the voice inside)
 //   /game/<site>/voice/<f>   -> .work/sites/<site>/voice/<f>
 //   /gen/old.html            -> .work/old-src.html (old game code, used to make the fixture)
-//   /tools/extract.html      -> the repo's voice extractor page
+//   /tools/<page>.html       -> the repo's tools pages (extractor, mic test)
+//   /voice/<f>               -> the test voice files, for tools pages
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,7 +19,8 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.json': 'application/json'
 function resolve(url) {
   const p = decodeURIComponent(new URL(url, 'http://x').pathname);
   if (p === '/gen/old.html') return path.join(WORK, 'old-src.html');
-  if (p === '/tools/extract.html') return path.join(REPO, 'tools', 'extract.html');
+  if (/^\/tools\/[\w-]+\.html$/.test(p)) return path.join(REPO, p);
+  if (/^\/voice\/[\w.-]+$/.test(p)) return path.join(WORK, 'base-voice', p.slice(7));   // for pages in tools/ (../voice/)
   const m = /^\/game\/([\w-]+)\/(.*)$/.exec(p);
   if (!m) return null;
   const [, site, rest] = m;
