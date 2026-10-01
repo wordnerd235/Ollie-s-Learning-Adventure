@@ -23,7 +23,7 @@ button:disabled{opacity:.4}
 <body>
 <main>
   <h1>🦉 Mic test</h1>
-  <p>Four quick tests to find out what makes the iPhone chime and turn Ollie down. Do them in order, with the phone's ring/silent switch on ring and the volume where you normally have it. For each, note: <b>did you hear the chime?</b> and <b>was Ollie normal volume or quiet?</b></p>
+  <p>A few quick tests to find out what makes the iPhone chime and turn Ollie down. Do them in order, with the phone's ring/silent switch on ring and the volume where you normally have it. For each, note: <b>did you hear the chime?</b> and <b>was Ollie normal volume or quiet?</b></p>
   <div class="card" id="voicecard"><p class="st" id="vst">Loading one of Ollie's lines…</p></div>
 
   <div class="card">
@@ -52,7 +52,14 @@ button:disabled{opacity:.4}
     <div class="meter"><i data-m="ec"></i></div>
     <div class="st" data-s="ec"></div>
   </div>
-  <p>Then tell Claude, for 0, A, B and C: chime yes/no, Ollie normal/quiet. (A chime can come at the start and/or the end of a test.)</p>
+  <div class="card">
+    <h2>D · Mic held open, recognition on top</h2>
+    <p>The "mic always on" idea. The mic opens and stays open for the whole test, while speech recognition starts and stops twice on top of it, with Ollie talking in between. Watch the steps below and note <b>at which step</b> you hear a chime, whether <b>Ollie's volume changes</b> at any point, and whether Ollie <b>sounds worse</b> than in test 0. You can press the volume buttons during the first step.</p>
+    <button data-t="hold">▶ Run test D</button>
+    <div class="meter"><i data-m="hold"></i></div>
+    <div class="st" data-s="hold"></div>
+  </div>
+  <p>Then tell Claude, for 0, A, B, C and D: chime yes/no, Ollie normal/quiet. (A chime can come at the start and/or the end of a test.)</p>
 </main>
 <script>
 (()=>{
@@ -111,6 +118,29 @@ const T={
     await twice(st,'Listening; Ollie talks');
     rec.abort();session('playback');await sleep(600);
     st('Done.'+(heard?' Heard: “'+heard+'”':''));
+  },
+  async hold(st){
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    ac();session('play-and-record');
+    let s;
+    try{s=await navigator.mediaDevices.getUserMedia({audio:true});}
+    catch(e){st('The microphone didn’t start: '+(e.name||e));session('playback');return;}
+    const stop=meter(s,document.querySelector('[data-m="hold"]')),log=[];
+    const step=t=>{log.push(t);st(log.join('\n'));};
+    step('Step 1: mic opened and held.');await sleep(1200);
+    for(let i=0;i<3;i++){step(`Step 1: Ollie talks, mic held (${i+1} of 3)`);await play();await sleep(700);}
+    for(let n=1;n<=2&&SR;n++){
+      const rec=new SR();rec.lang='en-US';rec.continuous=true;rec.interimResults=true;
+      rec.onerror=e=>step('  (recognition error: '+e.error+')');
+      step(`Step ${n*2}: recognition START #${n}`);rec.start();await sleep(1500);
+      step(`Step ${n*2}: Ollie talks while it listens`);await play();await sleep(700);
+      step(`Step ${n*2+1}: recognition STOP #${n}, mic still held`);rec.abort();await sleep(1200);
+      step(`Step ${n*2+1}: Ollie talks, mic held`);await play();await sleep(700);
+    }
+    if(!SR)step('(no speech recognition in this browser; steps 2–5 skipped)');
+    step('Step 6: mic closed');stop();s.getTracks().forEach(t=>t.stop());session('playback');await sleep(1200);
+    step('Step 6: Ollie talks, mic off');await play();
+    step('Done.');
   },
   async raw(st){await micTest(st,false,'raw');},
   async ec(st){await micTest(st,true,'ec');},

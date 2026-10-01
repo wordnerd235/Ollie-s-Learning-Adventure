@@ -60,18 +60,26 @@ test('skipping: the skipped word stays on screen until it has been said', async 
 
 test('the letter example ("like apple") only plays when the same letter is tapped twice in a row', async ({ browser }) => {
   const { page } = await device(browser, 'q-letters');
-  await page.click('[data-act="play"]');
-  await page.locator('#act .tile').first().waitFor();
+  // a tile spelled like its example word ("t" like top); the s in "is" gets no example, by design
+  const PLAIN = ['m', 't', 'p', 'n', 'd', 'b', 'h', 'f', 'l', 'r', 'j', 'v'];
+  let k = -1;
+  for (let tries = 0; k < 0 && tries < 20; tries++) {
+    if (tries) { await page.click('[data-act="home"]'); }
+    await page.click('[data-act="play"]');
+    await page.locator('#act .tile').first().waitFor();
+    k = (await page.locator('#act .tile').allTextContents()).findIndex((t, i) => i > 0 && PLAIN.includes(t.trim().toLowerCase()));
+  }
+  expect(k).toBeGreaterThan(0);
   await page.waitForTimeout(800);
   const tap = async i => { await clearLog(page); await page.locator('#act .tile').nth(i).click(); await page.waitForTimeout(500); return (await log(page)).map(x => x.text); };
   const n = await page.locator('#act .tile').count();
   const hasLike = s => s.some(t => t.startsWith('like '));
   expect(hasLike(await tap(0))).toBe(false);
-  expect(hasLike(await tap(1))).toBe(false);   // a different letter
-  const second = await tap(1);                  // same letter again
+  expect(hasLike(await tap(k))).toBe(false);   // a different letter
+  const second = await tap(k);                  // same letter again
   expect(hasLike(second)).toBe(true);
   expect(second[0]).not.toMatch(/^like /);      // the sound comes first
-  expect(hasLike(await tap(1))).toBe(false);   // a third tap starts over
+  expect(hasLike(await tap(k))).toBe(false);   // a third tap starts over
   expect(hasLike(await tap(0))).toBe(false);
   expect(n).toBeGreaterThan(1);
 });
