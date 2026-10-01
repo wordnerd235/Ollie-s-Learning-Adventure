@@ -801,7 +801,7 @@ async function playSfx(str,my){
    ===================================================================== */
 const PHON=[ // [sound key, letters, example word, note]
  ['aa','a','apple'],['eh','e','egg'],['ih','i','igloo'],['ah','o','octopus'],['uh','u','up'],
- ['muh','m','moon'],['suh','s','sun'],['tuh','t','top'],['puh','p','pig'],['nuh','n','nest'],['kuh','c  k','cat'],['duh','d','dog'],
+ ['muh','m','moon'],['suh','s','sun'],['tuh','t','top'],['puh','p','pig'],['nuh','n','nest'],['kuh','c k','cat'],['duh','d','dog'],
  ['guh','g','goat'],['buh','b','bat'],['huh','h','hat'],['fuh','f','fish'],['luh','l','leg'],['ruh','r','red'],['wuh','w','web'],
  ['juh','j','jet'],['vuh','v','van'],['yuh','y','yes'],['zuh','z','zoo'],['ksuh','x','fox'],['kwuh','qu','queen'],
  ['shuh','sh','ship'],['thuh','th','this'],['ing','ing','ring'],
@@ -1328,13 +1328,13 @@ const STORY_A={a:{type:'IPA',pronunciation:'ʌ'},A:{type:'IPA',pronunciation:'ʌ
 const FIXED_LINES=['Nice! Tap each letter, then squish the sounds together.','Now squish the sounds together and say the word!',
    "I didn't hear you. Tap the mic and try again!","I didn't hear that. Tap the mic and try again!","Let's sound it out together!",
    "You're doing great! Try once more, or tap Skip.","I can't hear you on this device. A grown-up can tap the green button when you read it!",
-   'Tap the microphone again and say the word!','Tap the microphone and say the word!','Tap the mic and say the word!',
+   'Tap the microphone and say the word!','Tap the mic and say the word!',
    "No problem! Let's try another!",'You earned a new sticker!','Great reading!','The end!',"Tap Let's Read to start!",
-   'Hi friend! Ready to read?','Hello, again! Ready to read?',"I'm Ollie the owl. Let's read together!","I'm Ollie. Let's read!",'Hi!','Amazing reading!','You read the whole story!'];
+   'Hi friend! Ready to read?','Hello, again! Ready to read?',"I'm Ollie the owl. Let's read together!",'Hi!','Amazing reading!','You read the whole story!'];
 const STORYFULL=[];
 function murfTexts(){
   const nm=S.name||'',T=[];const add=t=>{if(t)T.push(t);};
-  [...PRAISE,...SHORT,...TRY1,...START_LINES].forEach(add);
+  [...PRAISE,...TRY1,...START_LINES].forEach(add);
   FIXED_LINES.forEach(add);
   WORDS.forEach(w=>{
     add(w.w);add(`${w.w}!`);add(`That word is ${w.w}.`);
@@ -1394,7 +1394,7 @@ async function murfBuild(key,voice,style,onProg,cancelled){
 }
 async function murfDelete(){for(const k of Object.keys(CLIPS))if(k.startsWith('m:'))await delClip(k);S.settings.murf=false;S.settings.murfBuilt='';persist();}
 function murfErr(e){
-  if(e instanceof TypeError)return "Couldn't reach "+PROV[prov()]+" from this page. This only works on your own copy of the game (e.g. Netlify), not the claude.ai link. If it still fails there, the service may be blocking requests made directly from web pages.";
+  if(e instanceof TypeError)return "Couldn't reach "+PROV[prov()]+" from this page. Use the game's own site (GitHub Pages), not the claude.ai link. If it still fails there, the service may be blocking requests made directly from web pages.";
   const b=String(e.body||'');
   let em='';try{const j=JSON.parse(b);em=(j.detail&&(j.detail.message||j.detail.status))||j.message||'';}catch(_){}
   const perm=/missing the permission\s+(\w+)/i.exec(em);
@@ -1581,7 +1581,6 @@ function setBubble(text,speak){
   return speak?say(text):Promise.resolve();
 }
 const PRAISE=['Great job!','You did it!','Awesome reading!','Wow, super!','Yay! Amazing!',"You're a reading star!",'Fantastic!','Nailed it!','Brilliant!'];
-const SHORT=['Yes!','Great!','You got it!','Nice reading!','Super!','Yay!'];
 const TRY1=["Almost! Let's try again.","Good try! Say it one more time."];
 const START_LINES=["You can do it!","Let's read a new word!","What sound does each letter make?","Tap a letter if you need help!","Here comes a fun one!"];
 
@@ -1699,7 +1698,8 @@ function mountActivity(host,word,opts){
     const my=a.tok,ph=PHK[t.s];
     await sayLetter(t,false);
     // tapped the same letter twice in a row: add the example ("like apple")
-    if(twice&&ph&&my===a.tok&&!a.dead)await say(`like ${ph[2]}`,{rate:.7});
+    // only when the tile is spelled like the example (no "like zoo" for the s in "was")
+    if(twice&&ph&&ph[1].split(' ').includes(t.t.toLowerCase())&&my===a.tok&&!a.dead)await say(`like ${ph[2]}`,{rate:.7});
   }
   async function soundOut(){
     ac();if(a.busy)return;a.helped=true;a.last=-1;const my=++a.tok;stopSpeech();litOff();
@@ -2175,7 +2175,7 @@ function recGroups(){
     items:PHON.map(x=>item(x[1],'p:'+x[0],disp(x[1]),`${x[3]?x[3]+' · ':''}as in “${x[2]}”`))});
   [1,2,3,4,5].forEach(l=>{const ws=WORDS.filter(w=>w.lvl===l);ws.forEach(w=>seen.add(w.w));
     G.push({id:'w'+l,title:`Words · level ${l}`,note:'Read each word clearly, the way you want your child to hear it.',items:ws.map(w=>item(w.w,'w:'+w.w,disp(w.w),w.emoji))});});
-  grp('praise','Praise',[...PRAISE,...SHORT],'Said when a word is read right. The word itself comes from your word recordings.');
+  grp('praise','Praise',PRAISE,'Said when a word is read right. The word itself comes from your word recordings.');
   grp('talk',"Ollie's prompts",[...START_LINES,...TRY1,'That word is',...FIXED_LINES,'Silent e!'],'“That word is” is recorded once; the word is added from your word recordings.');
   grp('hints','Letter hints',PHON.map(x=>`like ${x[2]}`).concat([...new Set(WORDS.flatMap(w=>w.tiles.filter(t=>t.s==='-').map(t=>`silent ${t.t}`)))]),'Played after a letter sound when a letter is tapped.');
   grp('sfx','Fun sounds',WORDS.flatMap(w=>w.sfx.split('|').filter(x=>x[0]!=='~')),'Played in the celebration for some words. Have fun with these.');
