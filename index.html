@@ -825,12 +825,35 @@ const hasClip=k=>!!CLIPS[k];
 const clipCount=pre=>Object.keys(CLIPS).filter(k=>k.startsWith(pre)).length;
 async function saveClip(k,c){CLIPS[k]=c;dropBufs(k);try{await VDB.put(k,c);return true;}catch(e){return false;}}
 async function delClip(k){delete CLIPS[k];dropBufs(k);try{await VDB.del(k);}catch(e){}}
+/* A clip as floats, with snapped-open starts softened. iPhone noise suppression holds the mic at silence
+   and opens instantly when the voice starts, so a take can jump from silence to loud within 2 ms, which
+   clicks ("I'm Ollie the owl" at 0.04 s). Wherever that happens the start is faded in over 6 ms, about how
+   long a natural voice takes to start. Everything else is untouched. Worked out once per clip. */
+const FLT=new WeakMap();
+function clipFloat(c){
+  let f=FLT.get(c);if(f)return f;
+  const n=c.data.length;f=new Float32Array(n);for(let i=0;i<n;i++)f[i]=c.data[i]/32768;
+  desnap(f,c.sr);FLT.set(c,f);return f;
+}
+function desnap(f,sr){
+  const w=Math.max(1,Math.round(sr*.002)),m=Math.floor(f.length/w),L=Math.max(2,Math.round(sr*.006)),pk=new Float32Array(m);
+  for(let i=0;i<m;i++){let p=0;for(let j=i*w;j<(i+1)*w;j++){const a=Math.abs(f[j]);if(a>p)p=a;}pk[i]=p;}
+  let n=0;
+  for(let i=3;i<m;i++){
+    const before=Math.max(pk[i-1],pk[i-2],pk[i-3]);
+    if(!(before<.02&&pk[i]>.12&&pk[i]>8*Math.max(before,1e-3)))continue;
+    let s0=(i-1)*w;while(s0<(i+1)*w&&Math.abs(f[s0])<.01)s0++;     // where the sound actually starts
+    for(let j=0;j<L&&s0+j<f.length;j++)f[s0+j]*=.5-.5*Math.cos(Math.PI*j/L);
+    n++;
+  }
+  return n;
+}
 function playClip(k){
   const c=CLIPS[k];if(!c||!S.settings.sound)return null;
   hushMic();
   const ctx=ac();if(!ctx)return null;
   let b=BUFS[k];
-  if(!b){b=ctx.createBuffer(1,c.data.length,c.sr);const ch=b.getChannelData(0);for(let i=0;i<c.data.length;i++)ch[i]=c.data[i]/32768;BUFS[k]=b;}
+  if(!b){b=ctx.createBuffer(1,c.data.length,c.sr);b.getChannelData(0).set(clipFloat(c));BUFS[k]=b;}
   return playBuf(b);
 }
 function playBuf(b){
@@ -873,7 +896,7 @@ function playClipAt(k,rate){
   const c=CLIPS[k];if(!c||!S.settings.sound)return null;
   const ctx=ac();if(!ctx)return null;
   const bk='~'+rate+':'+k;let b=BUFS[bk];
-  if(!b){const f=new Float32Array(c.data.length);for(let i=0;i<f.length;i++)f[i]=c.data[i]/32768;
+  if(!b){const f=clipFloat(c);
     const y=stretchPCM(f,c.sr,rate);b=ctx.createBuffer(1,y.length,c.sr);b.getChannelData(0).set(y);BUFS[bk]=b;}
   return playBuf(b);
 }
@@ -2020,7 +2043,8 @@ function segBuf(k,c,t0,t1,rate){
   const bk=`~seg${rate}:${t0.toFixed(3)}:${t1.toFixed(3)}:${k}`;if(BUFS[bk])return BUFS[bk];
   const i0=Math.max(0,Math.floor(t0*c.sr)),i1=Math.min(c.data.length,Math.ceil(t1*c.sr)),n=Math.max(1,i1-i0),fade=Math.round(c.sr*.012);
   const f=new Float32Array(n);
-  for(let i=0;i<n;i++){let v=c.data[i0+i]/32768;if(i<fade)v*=i/fade;if(n-1-i<fade)v*=(n-1-i)/fade;f[i]=v;}
+  const src=clipFloat(c);
+  for(let i=0;i<n;i++){let v=src[i0+i];if(i<fade)v*=i/fade;if(n-1-i<fade)v*=(n-1-i)/fade;f[i]=v;}
   const y=rate&&rate!==1?stretchPCM(f,c.sr,rate):f,b=ac().createBuffer(1,y.length,c.sr);b.getChannelData(0).set(y);
   return BUFS[bk]=b;
 }

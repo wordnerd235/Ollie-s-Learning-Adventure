@@ -126,3 +126,21 @@ test('clips fade in, fade out when cut short, and an inaudible keep-alive runs (
   expect(loops.length).toBeGreaterThan(0);
   expect(Math.max(...loops)).toBeLessThan(0.001);        // about -80 dB
 });
+
+test('snapped-open starts are softened; clean audio is untouched (the game\'s own code)', async () => {
+  const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+  const i = html.indexOf('function desnap('), desnap = new Function(html.slice(i, html.indexOf('\n}\n', i) + 2) + '\nreturn desnap;')();
+  const sr = 24000, x = new Float32Array(sr);
+  for (let j = 0; j < sr; j++) { const t = j / sr; x[j] = t < 0.04 ? 0.001 * Math.sin(j) : 0.6 * Math.sin(2 * Math.PI * 180 * t) * Math.min(1, (1 - t) * 4); }  // silence, then a voice that starts instantly
+  const y = Float32Array.from(x);
+  expect(desnap(y, sr)).toBe(1);
+  const s0 = Math.round(0.04 * sr), jump = a => Math.max(...Array.from({ length: 48 }, (_, k) => Math.abs(a[s0 + k])));
+  expect(jump(x)).toBeGreaterThan(0.3);
+  expect(Math.max(...Array.from({ length: 24 }, (_, k) => Math.abs(y[s0 + k])))).toBeLessThan(0.2);   // first ms is gentle now
+  let diff = 0; for (let j = 0; j < sr; j++) if (y[j] !== x[j]) diff++;
+  expect(diff).toBeLessThan(sr * 0.01);                                                              // only the onset changed
+  const clean = new Float32Array(sr); for (let j = 0; j < sr; j++) clean[j] = 0.5 * Math.sin(2 * Math.PI * 200 * j / sr) * Math.sin(Math.PI * j / sr);
+  const c2 = Float32Array.from(clean);
+  expect(desnap(c2, sr)).toBe(0);
+  expect(c2).toEqual(clean);
+});
