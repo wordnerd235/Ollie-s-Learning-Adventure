@@ -51,7 +51,7 @@ test('every line Ollie says is in the recorder', async ({ browser }) => {
   await page.evaluate(() => { window.__say = ''; });
   await page.click('[data-a="skip"]'); await page.waitForTimeout(2500);
   await page.evaluate(f => { window.__say = new Function('return (' + f + ')()'); }, SAY_TILES.toString());
-  for (let i = 1; i < 6; i++) { await ensureMic(page); await page.locator('#celenext').waitFor({ timeout: 20000 }); await page.waitForTimeout(2500); await page.click('#celenext'); await page.locator('#act .tile, .bigtitle').first().waitFor(); await page.waitForTimeout(300); }
+  for (let i = 0; i < 6; i++) { await ensureMic(page); await page.locator('#celenext').waitFor({ timeout: 20000 }); await page.waitForTimeout(2500); await page.click('#celenext'); await page.locator('#act .tile, .bigtitle').first().waitFor(); await page.waitForTimeout(300); }
   await page.locator('.bigtitle', { hasText: 'Round complete' }).waitFor(); await page.waitForTimeout(1500);
 
   // a story with one skip, to the end

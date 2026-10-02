@@ -1708,6 +1708,7 @@ function mountActivity(host,word,opts){
   const setMic=s=>{if(!micEl)return;micEl.classList.toggle('listening',s==='listen');micEl.classList.toggle('on',s==='wait');
     if(labelEl)labelEl.textContent=s==='listen'?'Listening… say the word!':s==='wait'?'Mic on · tap to turn off':'Tap the mic to start listening';};
   const showGrown=()=>{const g=$('[data-grown]',host);if(g)g.hidden=false;};
+  if(opts.grown)showGrown();   // a word that was skipped before
 
   async function tapTile(i){
     ac();a.helped=true;a.tok++;stopSpeech();litOff();
@@ -1837,21 +1838,23 @@ function screenHome(){micOff();
 /* ---- rounds ---- */
 function startRound(list){micOff();
   stopAll();
-  RS={words:list||buildRound(),i:0,stars:0,ok:[],levelUp:false,startUnlocked:unlockedIds()};
+  RS={words:list||buildRound(),i:0,stars:0,skipped:new Set(),levelUp:false,startUnlocked:unlockedIds()};
   showWord(true);
 }
-function showWord(first){
+/* A skipped word goes to the back of the round and comes back later, so a round (and its sticker) needs
+   every word read; each dot is a word read. A word that comes back shows the grown-up ✓ straight away. */
+function showWord(first,again){
   const w=RS.words[RS.i];
   setView(`<div class="col">
-    ${top('',undefined,`<div class="dots">${RS.words.map((_,k)=>`<i class="${k<RS.i?(RS.ok[k]?'d':''):k===RS.i?'c':''}"></i>`).join('')}</div>`)}
+    ${top('',undefined,`<div class="dots">${RS.words.map((_,k)=>`<i class="${k<RS.i?'d':k===RS.i?'c':''}"></i>`).join('')}</div>`)}
     <div class="mascot"><button class="owl sm" data-act="owlsay" aria-label="Ollie">🦉</button><div class="bubble" id="bubble"></div></div>
     <div id="act" class="act"></div>
   </div>`);
-  mountActivity($('#act'),w,{onCorrect:k=>onRoundCorrect(w,k),onSkip:()=>onRoundSkip(w)});
-  if(first)setBubble('Tap the mic and say the word!',true);else setBubble(rand(START_LINES));
+  mountActivity($('#act'),w,{onCorrect:k=>onRoundCorrect(w,k),onSkip:()=>onRoundSkip(w),grown:RS.skipped.has(w.w)});
+  if(first)setBubble('Tap the mic and say the word!',true);else if(!again)setBubble(rand(START_LINES));
 }
 function onRoundCorrect(w,kind){
-  const msg=record(w,kind);RS.stars++;RS.ok[RS.i]=true;if(msg==='up')RS.levelUp=true;
+  const msg=record(w,kind);RS.stars++;if(msg==='up')RS.levelUp=true;
   const sc=$('#starcount');if(sc)sc.textContent=S.stars;
   celebrate(w,kind);
 }
@@ -1887,8 +1890,11 @@ async function onRoundSkip(w){
   const line=`No problem! That word is ${w.w}.`,b=$('#bubble');if(b){b.textContent=line;owlTalk();}
   await say(line,{rate:.8,slow:.87});
   if(my!==TOK)return;
-  stopAll();RS.i++;
-  if(RS.i>=RS.words.length)finishRound();else{showWord(false);say("Let's try another!",{rate:.8,slow:.87});}
+  stopAll();RS.skipped.add(w.w);
+  RS.words.splice(RS.i,1);RS.words.push(w);   // back of the line
+  const same=RS.words[RS.i]===w;              // it was the last one left: it comes straight back
+  showWord(false,true);
+  if(same)setBubble('Tap the mic and say the word!',true);else{setBubble("Let's try another!");say("Let's try another!",{rate:.8,slow:.87});}
 }
 function finishRound(){micOff();
   S.rounds++;const sticker=earnSticker();persist();
@@ -2143,14 +2149,21 @@ async function storyPage(){
     if(j<s.toks.length){
       const tk=s.toks[j],w=BYW[tk.w],el=W(j);
       el.classList.add('active');
-      const res=await new Promise(resolve=>{mountActivity($('#act'),w,{compact:true,onCorrect:kind=>resolve(kind),onSkip:()=>resolve('skip')});});
-      if(my!==TOK)return;
-      record(w,res);
+      // a skipped word is said by Ollie, then asked again: the story (and its sticker) needs every word read
+      let res,skips=0;
+      for(;;){
+        res=await new Promise(resolve=>{mountActivity($('#act'),w,{compact:true,grown:skips>0,onCorrect:kind=>resolve(kind),onSkip:()=>resolve('skip')});});
+        if(my!==TOK)return;
+        record(w,res);
+        if(res!=='skip')break;
+        skips++;$('#act').style.pointerEvents='none';
+        await say(`That word is ${w.w}.`,{rate:.75,slow:.85});if(my!==TOK)return;
+        $('#act').style.pointerEvents='';
+      }
       const sc=$('#starcount');if(sc)sc.textContent=S.stars;
       $('#act').innerHTML='';A=null;
       el.classList.remove('active');el.classList.add('ok');
-      if(res==='skip'){await say(`That word is ${w.w}.`,{rate:.75,slow:.85});}
-      else{FX.ding();burst(w.emoji,6);await sleep(225);await afterMicSettled();}
+      FX.ding();burst(w.emoji,6);await sleep(225);await afterMicSettled();
       if(my!==TOK)return;
     }
     k=j+1;

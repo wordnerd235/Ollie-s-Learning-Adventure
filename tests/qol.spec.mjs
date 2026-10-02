@@ -47,7 +47,8 @@ test('skipping: the skipped word stays on screen until it has been said', async 
   const word = await tiles(page);
   await page.waitForTimeout(500); await clearLog(page);
   await page.click('[data-a="skip"]');
-  await expect(page.locator('.dots i').nth(1)).toHaveClass(/c/);
+  await expect.poll(() => tiles(page), { timeout: 15_000 }).not.toBe(word);
+  await expect(page.locator('.dots i').nth(0)).toHaveClass(/c/);                // no dot for a skip
   const next = await tiles(page);
   await expect.poll(async () => (await log(page)).some(x => x.text === "Let's try another!")).toBe(true);
   const L = await log(page);
@@ -97,4 +98,47 @@ test('stories: no praise or repeat after the child reads a word', async ({ brows
   const said = (await log(page)).map(x => x.text);
   expect(said).toContain('I see a cat.');   // read back at the end
   expect(said.filter(t => SHORT.some(s => t.startsWith(s)) || /^cat!?$/i.test(t))).toEqual([]);
+});
+
+test('stories: a skipped word is said by Ollie, then asked again (with the grown-up ✓)', async ({ browser }) => {
+  const { page } = await device(browser, 'q-story-skip');
+  await openSettings(page);
+  await page.check('#s-unlock', { force: true });
+  await page.click('#s-close');
+  await page.click('[data-act="stories"]');
+  await page.click('[data-act="story"][data-id="cat"]');
+  await page.locator('#act [data-a="skip"]').waitFor({ timeout: 20_000 });
+  const word = await tiles(page);
+  await clearLog(page);
+  await page.click('#act [data-a="skip"]');
+  await expect.poll(async () => (await log(page)).map(x => x.text)).toContain(`That word is ${word}.`);
+  await expect(page.locator('#act [data-grown]')).toBeVisible();
+  expect(await tiles(page)).toBe(word);                                    // the same word again
+  await expect(page.locator('#sent .w.ok')).toHaveCount(0);                 // not marked read
+  await page.evaluate(w => { window.__say = w; }, word);
+  await ensureMic(page);
+  await expect(page.locator('#sent .w.ok')).toHaveCount(1);
+});
+
+test('rounds: skipping the last word left brings it straight back', async ({ browser }) => {
+  const { page } = await device(browser, 'q-last-skip');
+  await page.click('[data-act="play"]');
+  await page.evaluate(f => { window.__say = new Function('return (' + f + ')()'); }, SAY_TILES.toString());
+  for (let i = 0; i < 5; i++) {
+    await page.locator('#act .tile').first().waitFor(); await page.waitForTimeout(300);
+    await ensureMic(page);
+    await page.locator('#celenext').waitFor({ timeout: 20_000 });
+    await page.click('#celenext');
+  }
+  await page.locator('#act .tile').first().waitFor(); await page.waitForTimeout(300);
+  const word = await tiles(page);
+  await page.evaluate(() => { window.__say = ''; });
+  await page.click('[data-a="skip"]');
+  await expect(page.locator('#act [data-grown]')).toBeVisible({ timeout: 15_000 });
+  expect(await tiles(page)).toBe(word);
+  await expect(page.locator('.bigtitle')).toHaveCount(0);                   // no "Round complete" without it
+  await page.click('#act [data-grown]');                                   // the grown-up ✓
+  await page.locator('#celenext').waitFor({ timeout: 20_000 });
+  await page.click('#celenext');
+  await expect(page.locator('.bigtitle')).toContainText('Round complete!');
 });

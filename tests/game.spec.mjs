@@ -11,29 +11,38 @@ async function readyDevice(browser, name) {
   return d;
 }
 
-test('a round: read with the mic, skip one, finish with a sticker, all in the downloaded voice', async ({ browser }) => {
+test('a round: read with the mic, skip one (it comes back at the end), finish with a sticker, all in the downloaded voice', async ({ browser }) => {
   const { page } = await readyDevice(browser, 'round');
   await page.click('[data-act="play"]');
-  for (let i = 0; i < 6; i++) {
+  let skipped = '', seen = [];
+  for (let i = 0; i < 7; i++) {
     await page.locator('#act .tile').first().waitFor();
-    await expect(page.locator('.dots i').nth(i)).toHaveClass(/c/);
+    await page.waitForTimeout(300);
+    const w = await page.evaluate(f => new Function('return (' + f + ')()')(), SAY_TILES.toString());
+    seen.push(w);
+    await expect(page.locator('.dots i').nth(i - (i > 1 ? 1 : 0))).toHaveClass(/c/);   // a skip fills no dot
     if (i === 1) {
+      skipped = w;
       await page.evaluate(() => { window.__say = 'zzz'; });
       await page.click('[data-a="skip"]');
+      await expect.poll(() => page.evaluate(f => new Function('return (' + f + ')()')(), SAY_TILES.toString()), { timeout: 15_000 }).not.toBe(w);
       continue;
+    }
+    if (i === 6) {
+      expect(w).toBe(skipped);                                                   // the skipped word, last
+      await expect(page.locator('[data-grown]')).toBeVisible();                  // with the grown-up ✓ straight away
     }
     await page.evaluate(f => { window.__say = new Function('return (' + f + ')()'); }, SAY_TILES.toString());
     await ensureMic(page);
     await page.locator('#celenext').waitFor({ timeout: 20_000 });
     await page.waitForTimeout(300);
-    if (i === 5) { const dots = await page.locator('.dots i').evaluateAll(d => d.map(x => x.className)); expect(dots.slice(0, 5)).toEqual(['d', '', 'd', 'd', 'd']); }   // the skipped word's dot stays empty
     await page.click('#celenext');
   }
   await expect(page.locator('.statline').first()).toContainText('You earned a new sticker!');
   await expect(page.locator('.bigtitle')).toContainText('Round complete!');
   const S = await page.evaluate(() => JSON.parse(localStorage.getItem('ollie-word-adventure-v1')));
   expect(S.stickers.length).toBe(1);
-  expect(S.stars).toBe(5);
+  expect(S.stars).toBe(6);
   expect(await page.evaluate(() => window.__tts)).toEqual([]);   // nothing fell back to the device voice
 });
 

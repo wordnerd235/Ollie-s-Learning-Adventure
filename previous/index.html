@@ -1837,13 +1837,13 @@ function screenHome(){micOff();
 /* ---- rounds ---- */
 function startRound(list){micOff();
   stopAll();
-  RS={words:list||buildRound(),i:0,stars:0,levelUp:false,startUnlocked:unlockedIds()};
+  RS={words:list||buildRound(),i:0,stars:0,ok:[],levelUp:false,startUnlocked:unlockedIds()};
   showWord(true);
 }
 function showWord(first){
   const w=RS.words[RS.i];
   setView(`<div class="col">
-    ${top('',undefined,`<div class="dots">${RS.words.map((_,k)=>`<i class="${k<RS.i?'d':k===RS.i?'c':''}"></i>`).join('')}</div>`)}
+    ${top('',undefined,`<div class="dots">${RS.words.map((_,k)=>`<i class="${k<RS.i?(RS.ok[k]?'d':''):k===RS.i?'c':''}"></i>`).join('')}</div>`)}
     <div class="mascot"><button class="owl sm" data-act="owlsay" aria-label="Ollie">🦉</button><div class="bubble" id="bubble"></div></div>
     <div id="act" class="act"></div>
   </div>`);
@@ -1851,7 +1851,7 @@ function showWord(first){
   if(first)setBubble('Tap the mic and say the word!',true);else setBubble(rand(START_LINES));
 }
 function onRoundCorrect(w,kind){
-  const msg=record(w,kind);RS.stars++;if(msg==='up')RS.levelUp=true;
+  const msg=record(w,kind);RS.stars++;RS.ok[RS.i]=true;if(msg==='up')RS.levelUp=true;
   const sc=$('#starcount');if(sc)sc.textContent=S.stars;
   celebrate(w,kind);
 }

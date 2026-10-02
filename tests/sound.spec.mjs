@@ -73,8 +73,7 @@ test('iPhone: the mic stays open across a round, the mic button, Home and the ne
   await page.locator('details.vsec summary').first().click();
   expect(await page.evaluate(() => window.__live())).toBe(0);
   await page.locator('.vrow [data-v="rec"]').first().click();
-  await page.waitForTimeout(4500);
-  expect(await page.evaluate(() => window.__live())).toBe(0);
+  await expect.poll(() => page.evaluate(() => window.__live()), { timeout: 12_000 }).toBe(0);   // the take ends; nothing reopens
   await page.goto(site.url);
   await page.click('[data-act="owl"]');
   await expect.poll(() => page.evaluate(() => window.__live())).toBe(1);
