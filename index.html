@@ -586,6 +586,7 @@ let SYNC_T=0;
 function syncACSoon(ms=900){clearTimeout(SYNC_T);SYNC_T=setTimeout(syncAC,ms);}
 async function syncAC(){
   if(!AC||!IS_IOS)return;
+  if(audioBusy()||CAP){syncACSoon(700);return;}   // check (and rebuild) only while the game is quiet
   const C=window.AudioContext||window.webkitAudioContext;let n;
   try{n=new C();}catch(e){return;}
   adbg(`rate check: engine ${AC.sampleRate}, hardware ${n.sampleRate}`);
@@ -625,11 +626,11 @@ async function holdMic(){
   HOLDING=true;
   try{sessionRecord();const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false}});   // with it on, iOS's call processing pops on the speaker (owner's tests E/F)
     if(!holdWanted()){st.getTracks().forEach(t=>t.stop());return;}
-    HELD=st;adbg('mic held');try{localStorage.setItem('ollie-mic-held','1')}catch(e){}
+    HELD=st;adbg('mic held');syncACSoon(600);try{localStorage.setItem('ollie-mic-held','1')}catch(e){}
     st.getTracks().forEach(t=>t.addEventListener('ended',()=>{if(HELD===st){HELD=null;adbg('held mic ended by the system');sessionPlayback();}}));}
   finally{HOLDING=false;}
 }
-function releaseMic(){if(!HELD)return;const st=HELD;HELD=null;st.getTracks().forEach(t=>t.stop());adbg('mic released');sessionPlayback();}
+function releaseMic(){if(!HELD)return;const st=HELD;HELD=null;st.getTracks().forEach(t=>t.stop());adbg('mic released');sessionPlayback();syncACSoon();}
 let SILENT_EL=null,SPEECH_PRIMED=false;
 function unlockAudio(){
   if(!HELD&&heldOK()&&holdWanted())holdMic().catch(()=>{});
@@ -724,7 +725,8 @@ function audioBusy(){return TTS_ACT>0||SEQ_ACT>0||PLAYING.size>0||(('speechSynth
    and ignores what it hears instead (see listenFor) */
 function hushMic(){if(MIC_ON&&curRec&&!LISTEN_CONT){HUSH_AT=Date.now();stopListening();}}
 const ECHO_MS=1200;   // after game audio stops, what the mic hears is still treated as Ollie for this long
-const deafNow=()=>audioBusy()||Date.now()-AUDIO_END<ECHO_MS;
+// audio that was cut off by the mic tap itself leaves no echo worth ignoring: the child may start right away
+const deafNow=()=>audioBusy()||(Date.now()-AUDIO_END<ECHO_MS&&AUDIO_END>MIC.armAt+300);
 function pauseSilent(){try{if(SILENT_EL&&!SILENT_EL.paused)SILENT_EL.pause();}catch(e){}}
 function resumeSilent(){try{if(SILENT_EL&&SILENT_EL.paused&&TTS_ACT<=0)SILENT_EL.play().catch(()=>{});}catch(e){}}
 function sayTTS(text,{rate=.9,pitch=1,vol=1}={}){
@@ -1441,7 +1443,7 @@ async function afterMicSettled(ms=450){
   const w=CAP_END+ms-Date.now();if(w>0&&!HELD)await sleep(w);   // with the mic held, iOS doesn't switch
   if(AC&&AC.state!=='running'){try{await AC.resume();}catch(e){}}
 }
-function micOff(){const was=MIC_ON||!!curRec;if(was)adbg('mic off');MIC_ON=false;MIC.target=null;MIC.run++;MIC.live=false;stopListening();if(was)syncACSoon();}
+function micOff(){const was=MIC_ON||!!curRec;if(was)adbg('mic off');MIC_ON=false;MIC.target=null;MIC.run++;MIC.live=false;stopListening();if(was&&!HELD)syncACSoon();}   // with the mic held, the hardware doesn't switch
 const IN_FRAME=(()=>{try{return window.self!==window.top}catch(e){return true}})();
 try{const fp=document.permissionsPolicy||document.featurePolicy;
   if(IN_FRAME&&fp&&fp.allowsFeature&&!fp.allowsFeature('microphone')){MICBLOCK=true;MICWHY='frame';}}catch(e){}
@@ -1531,7 +1533,7 @@ function listenFor(word,long,opts={}){
    stop/start makes iOS chime, and sound right after a stop is lost). Each word activity sets
    MIC.target {word, hit, miss, blocked}; between words, and while Ollie talks, what is heard is ignored.
    It ends when the mic is turned off, the exercise ends (micOff), or iOS ends it and it can't restart. */
-const MIC={target:null,run:0,live:false,fresh:false};
+const MIC={target:null,run:0,live:false,fresh:false,armAt:0};
 async function micSession(){
   if(MIC.live)return;MIC.live=true;const my=++MIC.run;let fast=0;
   const T=()=>MIC.target;
@@ -1735,20 +1737,20 @@ function mountActivity(host,word,opts){
     setBubble('Now squish the sounds together and say the word!');
   }
   function success(){
-    if(a.done)return;a.done=true;if(MIC.target===target)MIC.target=null;stopListening();
+    if(a.done)return;a.done=true;clearTimeout(a.ltm);if(MIC.target===target)MIC.target=null;
+    if(MIC_ON)micOff();else stopListening();setMic('idle');
     opts.onCorrect((a.helped||a.misses>0)?'helped':'clean');
   }
   async function miss(r){
-    a.misses++;
+    a.misses++;clearTimeout(a.ltm);if(MIC_ON)micOff();setMic('idle');   // push to talk: one try per tap
     if(micEl){micEl.classList.remove('shake');void micEl.offsetWidth;micEl.classList.add('shake');}
     const noHear=(r.err==='no-speech'||r.err==='timeout'||!r.heard);
     if(a.misses>=2)showGrown();
     if(noHear){
-      if(MIC_ON)return;
       if(labelEl)labelEl.textContent="I didn't hear that. Tap the mic and try again!";
       setBubble("I didn't hear you. Tap the mic and try again!",true);return;
     }
-    if(labelEl)labelEl.textContent=`I heard “${r.heard}”. Try again!`;
+    if(labelEl)labelEl.textContent=`I heard “${r.heard}”. Tap the mic and try again!`;
     if(a.misses===1){setBubble(rand(TRY1),true);}
     else if(a.misses===2){await setBubble("Let's sound it out together!",true);if(!a.dead&&!a.done)soundOut();}
     else{setBubble("You're doing great! Try once more, or tap Skip.",true);}
@@ -1758,18 +1760,24 @@ function mountActivity(host,word,opts){
     mountActivity(host,word,opts);
     setBubble("I can't hear you on this device. A grown-up can tap the green button when you read it!",true);
   }
-  // Mic is a toggle: once on it keeps listening for the rest of the round or story (see MIC SESSION),
-  // ignoring whatever it hears while Ollie talks.
+  // Push to talk: a tap listens for one try at this word (see MIC SESSION; the held mic stays open, so
+  // starting and stopping recognition makes no chime). A read, a wrong word, or ~8 s of hearing nothing
+  // turns it off again; the child taps it for the next try. What it hears while Ollie talks is ignored.
   const target={word:word.w,
     hit:()=>{if(!a.dead&&!a.done)success();},
     miss:r=>{if(!a.dead&&!a.done)miss(r);},
     blocked:code=>{if(!a.dead&&!a.done)blocked(code);},
     idle:()=>{if(!a.dead&&!a.done)setMic('idle');}};
-  function listen(){if(a.dead||a.done)return;if(!MIC.live)adbg('mic on');MIC.target=target;setMic('listen');micSession();syncACSoon();}
+  function listen(){if(a.dead||a.done)return;if(!MIC.live)adbg('mic on');MIC.target=target;MIC.armAt=Date.now();setMic('listen');micSession();if(!HELD)syncACSoon();
+    // nothing heard for 8 s (not counting while Ollie talks): stop and ask for another tap
+    let quiet=0;clearTimeout(a.ltm);
+    const tick=()=>{if(a.dead||a.done||!MIC_ON||MIC.target!==target)return;if(!deafNow())quiet+=500;
+      if(quiet>=8000){miss({ok:false,err:'timeout'});return;}a.ltm=setTimeout(tick,500);};
+    a.ltm=setTimeout(tick,500);}
   async function mic(){
     if(a.done)return;
     ac();
-    if(MIC_ON){micOff();setMic('idle');return;}
+    if(MIC_ON){clearTimeout(a.ltm);micOff();setMic('idle');return;}
     stopSpeech();litOff();
     if(!MICPRE&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
       // ask for microphone permission first: this is what makes the browser show its "Allow" prompt
@@ -1781,7 +1789,6 @@ function mountActivity(host,word,opts){
     }
     MIC_ON=true;listen();
   }
-  if(!fb&&MIC_ON)listen();
   host.onclick=ev=>{
     if(a.dead)return;
     const t=ev.target.closest('.tile');
@@ -1792,7 +1799,7 @@ function mountActivity(host,word,opts){
     else if(act==='mic')mic();
     else if(act==='grown')success();
     else if(act==='retrymic'){MICBLOCK=false;MICWHY='';MICPRE=false;a.dead=true;mountActivity(host,word,opts);setBubble('Tap the microphone and say the word!');}
-    else if(act==='skip'){if(a.done)return;a.done=true;if(MIC.target===target)MIC.target=null;stopListening();stopSpeech();opts.onSkip();}
+    else if(act==='skip'){if(a.done)return;a.done=true;clearTimeout(a.ltm);if(MIC.target===target)MIC.target=null;if(MIC_ON)micOff();setMic('idle');stopListening();stopSpeech();opts.onSkip();}
   };
 }
 

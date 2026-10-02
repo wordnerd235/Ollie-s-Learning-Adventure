@@ -14,21 +14,49 @@ async function round(browser, name) {
 }
 const word = page => page.evaluate(SAY_TILES);
 
-test('one listen per word: Ollie talking and a wrong word do not restart the mic', async ({ browser }) => {
+test('push to talk: one try per tap; Ollie talking does not end it, a wrong word does', async ({ browser }) => {
   const page = await round(browser, 'mic-one');
   await ensureMic(page);
   await expect(page.locator('#act .mic')).toHaveClass(/listening/);
   const starts = await page.evaluate(() => window.__recStarts);
   await page.click('[data-a="sound"]');                             // Ollie talks (sounds out the letters)
   await page.waitForTimeout(2500);
-  await page.evaluate(() => { window.__say = 'banana'; });          // a wrong word: feedback, keep listening
-  await expect(page.locator('.miclabel')).toContainText('banana');
-  await page.waitForTimeout(2500);
   expect(await page.evaluate(() => window.__recStarts)).toBe(starts);
-  await expect(page.locator('#act .mic')).toHaveClass(/listening/);
+  await expect(page.locator('#act .mic')).toHaveClass(/listening/);   // still listening
+  await page.evaluate(() => { window.__say = 'banana'; });          // a wrong word: feedback, and the mic turns off
+  await expect(page.locator('.miclabel')).toContainText('banana');
+  await expect(page.locator('#act .mic')).not.toHaveClass(/listening/);
   const w = await word(page);
   await page.evaluate(w => { window.__say = w; }, w);
+  await page.waitForTimeout(2500);
+  await expect(page.locator('#celenext')).toHaveCount(0);            // not heard until the mic is tapped again
+  await ensureMic(page);
   await page.locator('#celenext').waitFor();
+});
+
+test('push to talk: the child can speak right after tapping, even if Ollie was just talking', async ({ browser }) => {
+  const site = newSite('mic-quick'), man = site.manifest();          // Ollie's voice clips, cut off at once by the tap
+  const { page } = await newDevice(browser);
+  await page.goto(site.url);
+  await dismissWelcome(page);
+  await page.waitForFunction(m => Object.keys(m.parts).every(p => localStorage.getItem('ollie-voice-v:' + p) === m.parts[p].v), man);
+  await page.click('[data-act="play"]');
+  await page.locator('#act .tile').first().waitFor();
+  const w = await word(page);
+  await page.click('[data-a="sound"]');                             // Ollie is sounding it out
+  await page.waitForTimeout(600);
+  await page.evaluate(w => { window.__say = w; }, w);
+  await ensureMic(page);                                            // the tap cuts Ollie off; the child reads at once
+  await page.locator('#celenext').waitFor({ timeout: 2500 });
+});
+
+test('push to talk: nothing heard for a while turns the mic off', async ({ browser }) => {
+  const page = await round(browser, 'mic-quiet');
+  await page.evaluate(() => { window.__ttsMs = 30; });
+  await ensureMic(page);
+  await expect(page.locator('#act .mic')).toHaveClass(/listening/);
+  await expect(page.locator('#act .mic')).not.toHaveClass(/listening/, { timeout: 12_000 });
+  await expect(page.locator('.miclabel')).toContainText("didn't hear");
 });
 
 test('the mic ignores Ollie talking, and the moment after', async ({ browser }) => {
@@ -46,19 +74,21 @@ test('the mic ignores Ollie talking, and the moment after', async ({ browser }) 
   await page.locator('#celenext').waitFor();
 });
 
-test('the mic stays on for the whole round: one start for all six words', async ({ browser }) => {
+test('after each word the mic is off until it is tapped: one listen per tap across the round', async ({ browser }) => {
   const page = await round(browser, 'mic-round');
   await page.evaluate(() => { window.__ttsMs = 30; });
   await page.evaluate(f => { window.__say = new Function('return (' + f + ')()'); }, SAY_TILES.toString());
-  await ensureMic(page);
-  await expect.poll(() => page.evaluate(() => window.__recStarts)).toBe(1);
   for (let i = 0; i < 6; i++) {
+    await page.locator('#act .tile').first().waitFor();
+    await page.waitForTimeout(300);
+    await expect(page.locator('#act .mic')).not.toHaveClass(/listening/);
+    await ensureMic(page);
     await page.locator('#celenext').waitFor({ timeout: 20_000 });
     await page.waitForTimeout(300);
     await page.click('#celenext');
   }
   await expect(page.locator('.bigtitle')).toContainText('Round complete!');
-  expect(await page.evaluate(() => window.__recStarts)).toBe(1);
+  expect(await page.evaluate(() => window.__recStarts)).toBe(6);
 });
 
 test('when the mic changes the hardware sample rate, the audio engine follows it and Ollie keeps playing', async ({ browser }) => {
@@ -94,17 +124,18 @@ test('when the mic changes the hardware sample rate, the audio engine follows it
   expect(first).toBe(48000);
   expect(during.length).toBeGreaterThan(0);                               // Ollie kept playing
   expect(new Set(during)).toEqual(new Set([24000]));                      // on an engine at the hardware rate
-  // mic off (Home): back to 48 kHz
+  // the mic is let go (app hidden): back to 48 kHz
   await page.evaluate(() => { window.__hwRate = 48000; });
   await page.click('#celenext');
   await page.click('[data-act="home"]');
+  await page.evaluate(() => { Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); delete document.hidden; });
   await page.waitForTimeout(2500);
   const t1 = Date.now();
   await page.click('[data-act="owl"]');
   await page.waitForTimeout(1500);
   const after = await page.evaluate(t => window.__plays.filter(p => p.t >= t && p.len > 2000).map(p => p.rate), t1);
   expect(after.length).toBeGreaterThan(0);
-  expect(new Set(after)).toEqual(new Set([48000]));
+  expect(new Set(after.slice(0, 1))).toEqual(new Set([48000]));
 });
 
 test('the audio engine is never paused (bounced or rebuilt) while Ollie is playing: a full round with the mic, to the end', async ({ browser }) => {
@@ -127,8 +158,7 @@ test('the audio engine is never paused (bounced or rebuilt) while Ollie is playi
   await page.click('[data-act="play"]');
   await page.locator('#act .tile').first().waitFor();
   await page.evaluate(f => { window.__say = new Function('return (' + f + ')()'); }, SAY_TILES.toString());
-  await ensureMic(page);
-  for (let i = 0; i < 6; i++) { await page.locator('#celenext').waitFor({ timeout: 20000 }); await page.waitForTimeout(1500); await page.click('#celenext'); }
+  for (let i = 0; i < 6; i++) { await page.locator('#act .tile').first().waitFor(); await page.waitForTimeout(300); await ensureMic(page); await page.locator('#celenext').waitFor({ timeout: 20000 }); await page.waitForTimeout(1500); await page.click('#celenext'); }
   await expect(page.locator('.bigtitle')).toContainText('Round complete!');   // the mic turns off as "Amazing reading!" starts
   await page.waitForTimeout(5000);
   await page.click('[data-act="home"]');

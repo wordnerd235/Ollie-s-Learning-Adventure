@@ -46,12 +46,12 @@ test('every line Ollie says is in the recorder', async ({ browser }) => {
   await page.click('#act .tile >> nth=0'); await page.click('#act .tile >> nth=0'); await page.waitForTimeout(600);
   await page.click('[data-a="sound"]'); await page.waitForTimeout(2500);
   await page.evaluate(() => { window.__ttsMs = 30; });
-  await ensureMic(page);
-  for (let m = 0; m < 3; m++) { await page.evaluate(m => { window.__say = 'zebra' + 'x'.repeat(m); }, m); await page.waitForTimeout(3500); }
+  for (let m = 0; m < 3; m++) { await page.evaluate(m => { window.__say = 'zebra' + 'x'.repeat(m); }, m); await ensureMic(page); await page.waitForTimeout(3500); }
+  await page.evaluate(() => { window.__say = ''; }); await ensureMic(page); await page.waitForTimeout(10000);   // nothing heard: the mic turns off
   await page.evaluate(() => { window.__say = ''; });
   await page.click('[data-a="skip"]'); await page.waitForTimeout(2500);
   await page.evaluate(f => { window.__say = new Function('return (' + f + ')()'); }, SAY_TILES.toString());
-  for (let i = 1; i < 6; i++) { await page.locator('#celenext').waitFor({ timeout: 20000 }); await page.waitForTimeout(2500); await page.click('#celenext'); }
+  for (let i = 1; i < 6; i++) { await ensureMic(page); await page.locator('#celenext').waitFor({ timeout: 20000 }); await page.waitForTimeout(2500); await page.click('#celenext'); await page.locator('#act .tile, .bigtitle').first().waitFor(); await page.waitForTimeout(300); }
   await page.locator('.bigtitle', { hasText: 'Round complete' }).waitFor(); await page.waitForTimeout(1500);
 
   // a story with one skip, to the end

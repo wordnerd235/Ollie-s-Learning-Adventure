@@ -56,7 +56,7 @@ One IIFE. Section banners (search for them):
   - `packTag` identifies the voice a pack was built with; changing voice asks for a second tap before replacing the pack.
   - `elPhonemes()` remakes letter sounds from CMU Arpabet phoneme tags (model `eleven_flash_v2`).
 - `SPEECH RECOGNITION`: a single reused recognizer (`getSR`); `listenFor(word, long)`; `matches()` is lenient (homophones, edit distance); `micHelp()` holds the error explanations.
-- `WORD ACTIVITY` (`mountActivity`): shared by rounds and stories. The mic is a **toggle** (`MIC_ON`): one continuous mic session covers the round or story and ignores whatever it hears while Ollie talks (lesson 7). It turns off on any screen change.
+- `WORD ACTIVITY` (`mountActivity`): shared by rounds and stories. The mic button is **push to talk** (Oct 2026, owner's request: first tries were often missed): a tap listens for one try at the current word; a correct read, a wrong word, or 8 s of hearing nothing (not counting Ollie talking) turns it off (`a.ltm`), and the child taps again. The held mic stays open throughout, so no chime/volume change (lesson 20). Audio cut off by the tap itself doesn't make the mic deaf (`MIC.armAt` in `deafNow`). It turns off on any screen change.
 - `SCREENS` / rounds / stickers / `STICKER SCENES` / stories / story player:
   - `readAlong()` plays slices of the whole-sentence clip using its word timings (`segBuf`).
   - It uses the owner's recorded pieces instead when they exist.
@@ -111,6 +111,8 @@ One IIFE. Section banners (search for them):
 - `voice/` holds the owner's voice: the ElevenLabs lines in `ai-*.bin` and the owner's recordings (356) in `mine-1.bin`, uploaded by the owner via "Make voice files".
 - Quality check (Oct 1): unused recorder lines removed (short praises, "Tap the microphone again…", "I'm Ollie. Let's read!"); letter examples only where the spelling matches.
 - Held mic with echo cancellation off (lesson 20): confirmed by the owner on iPhone: no pops on the speaker, words recognized.
+- Push-to-talk mic button (Oct 2): unverified on iPhone. `syncAC` now only probes while the game is quiet, and isn't called per word while the mic is held.
+- `rev-1` branch on GitHub = the stable version before push to talk (the owner's saved copy; don't change it).
 - Unverified on real iOS: the device voice fix, the voice download/export, the sound check, `syncAC`, `desnap`.
 
 ## Testing

@@ -623,7 +623,7 @@ const heldOK=()=>{try{return localStorage.getItem('ollie-mic-held')==='1'}catch(
 async function holdMic(){
   if(HELD||HOLDING||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
   HOLDING=true;
-  try{sessionRecord();const st=await navigator.mediaDevices.getUserMedia({audio:true});
+  try{sessionRecord();const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false}});   // with it on, iOS's call processing pops on the speaker (owner's tests E/F)
     if(!holdWanted()){st.getTracks().forEach(t=>t.stop());return;}
     HELD=st;adbg('mic held');try{localStorage.setItem('ollie-mic-held','1')}catch(e){}
     st.getTracks().forEach(t=>t.addEventListener('ended',()=>{if(HELD===st){HELD=null;adbg('held mic ended by the system');sessionPlayback();}}));}
@@ -2572,7 +2572,7 @@ function soundCheck(onDone){
   const finish=ok=>{quiet();if(ok)S.soundChecked=true;persist();box.remove();onDone&&onDone();};
   const talk=async()=>{const my=++run;while(my===run&&box.isConnected){await say("Hi! I'm Ollie the owl. Let's read together!");if(my!==run)break;await sleep(1200);}};
   const TXT={
-    intro:'Let\'s set how loud Ollie is. The microphone turns on now and stays on while the game is open (iPhone and iPad then use one volume, the one for calls). Tap <b>Allow</b> if asked. It only needs doing once.',
+    intro:'Let\'s set how loud Ollie is. The microphone turns on now and stays on while the game is open (iPhone and iPad then use one volume, the one for calls; it may need to be near the top). Tap <b>Allow</b> if asked. It only needs doing once.',
     mic:'Ollie is talking. Press the <b>volume buttons</b> until Ollie sounds right, then tap Sounds good.'};
   const BTN={intro:['start','▶ Start'],mic:['done','✓ Sounds good']};
   const show=st=>{box.innerHTML=`<div class="gcard" style="align-items:center;text-align:center">
