@@ -22,7 +22,7 @@ UI rules: the child is 5 and can't read instructions, so anything the child must
 
 ## Code map (`index.html`)
 One IIFE. Section banners (search for them):
-- `WORD DATA`: `WORD_RAW` lines `word;tiles;emoji;animation;sound`. Tiles are space-separated `letters[:sound]`; a sound of `-` means silent. Sounds are keys such as `kuh`, `aa` (see `PHON` for all 38).
+- `WORD DATA`: `WORD_RAW` lines `word;tiles;emoji;animation;sound`. Tiles are space-separated `letters[:sound]`; a sound of `-` means silent. Sounds are keys such as `kuh`, `aa` (see `PHON` for all 39; `oo` is long as in moon, `uu` short as in book).
 - `STORIES`: `STORY_RAW` sentences with `[target]` words and a small scene DSL.
 - `SAVE`: `S` is the state object, persisted to localStorage `ollie-word-adventure-v1`. `defaults()` holds all settings.
 - `AUDIO`: `ac()` creates the AudioContext; `FX` holds synthesized effects; `vbus` is the voice bus (plain gain, lesson 12); the iOS audio session; the silent loop; `unlockAudio()`.
