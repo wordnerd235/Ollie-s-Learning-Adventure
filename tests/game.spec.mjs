@@ -26,10 +26,11 @@ test('a round: read with the mic, skip one, finish with a sticker, all in the do
     await ensureMic(page);
     await page.locator('#celenext').waitFor({ timeout: 20_000 });
     await page.waitForTimeout(300);
+    if (i === 5) { const dots = await page.locator('.dots i').evaluateAll(d => d.map(x => x.className)); expect(dots.slice(0, 5)).toEqual(['d', '', 'd', 'd', 'd']); }   // the skipped word's dot stays empty
     await page.click('#celenext');
   }
-  await expect(page.locator('.bigtitle')).toContainText('Round complete!');
   await expect(page.locator('.statline').first()).toContainText('You earned a new sticker!');
+  await expect(page.locator('.bigtitle')).toContainText('Round complete!');
   const S = await page.evaluate(() => JSON.parse(localStorage.getItem('ollie-word-adventure-v1')));
   expect(S.stickers.length).toBe(1);
   expect(S.stars).toBe(5);
