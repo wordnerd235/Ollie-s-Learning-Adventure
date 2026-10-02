@@ -137,7 +137,19 @@ test('rounds: skipping the last word left brings it straight back', async ({ bro
   await expect(page.locator('#act [data-grown]')).toBeVisible({ timeout: 15_000 });
   expect(await tiles(page)).toBe(word);
   await expect(page.locator('.bigtitle')).toHaveCount(0);                   // no "Round complete" without it
-  await page.click('#act [data-grown]');                                   // the grown-up ✓
+  await page.click('#act [data-grown]');                                   // a tap does nothing
+  await page.waitForTimeout(1500);
+  await expect(page.locator('#celenext')).toHaveCount(0);
+  const g = page.locator('#act [data-grown]');
+  await g.dispatchEvent('pointerdown');                                    // let go too early: nothing
+  await page.waitForTimeout(3000); await g.dispatchEvent('pointerup');
+  await page.waitForTimeout(2500);
+  await expect(page.locator('#celenext')).toHaveCount(0);
+  await g.dispatchEvent('pointerdown');                                    // held for 5 s: counts
+  await page.waitForTimeout(4500);
+  await expect(page.locator('#celenext')).toHaveCount(0);
+  await page.locator('#celenext').waitFor({ timeout: 3000 });
+  await g.dispatchEvent('pointerup').catch(() => {});
   await page.locator('#celenext').waitFor({ timeout: 20_000 });
   await page.click('#celenext');
   await expect(page.locator('.bigtitle')).toContainText('Round complete!');

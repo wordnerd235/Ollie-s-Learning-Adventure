@@ -91,6 +91,11 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:4px solid 
 .btn.sm.green{box-shadow:0 6px 0 var(--green-d)}
 .btn.sm.pink{box-shadow:0 6px 0 var(--pink-d)}
 .btn.ghost{background:var(--card);color:var(--ink);box-shadow:0 6px 0 var(--line)}
+.hold{position:relative;overflow:hidden;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:none}
+.hold::before{content:'';position:absolute;inset:0;width:0;background:var(--green);opacity:.35;pointer-events:none}
+.btn.hold::before{background:#fff}
+.hold.holding::before{width:100%;transition:width 5s linear}
+.hold>span{position:relative}
 .link{background:none;border:0;font-weight:600;font-size:clamp(16px,4vw,20px);color:var(--ink2);padding:10px 14px;border-radius:16px;text-decoration:underline;text-underline-offset:4px}
 .rbtn{width:54px;height:54px;border-radius:50%;border:0;font-size:26px;background:var(--card2);box-shadow:0 5px 0 var(--line),0 8px 16px rgba(43,35,80,.12);display:grid;place-items:center}
 .rbtn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--line)}
@@ -539,7 +544,9 @@ const knownCount=()=>WORDS.filter(w=>isKnown(w.w)).length;
 const storyUnlocked=st=>S.settings.unlockAll||st.targets.every(isKnown);
 const unlockedIds=()=>STORIES.filter(storyUnlocked).map(s=>s.id);
 const disp=t=>S.settings.upper?t.toUpperCase():t;
-const STICKERS=shuffleFixed(['🦄','🐙','🦖','🐳','🦋','🐞','🌈','🍭','🚀','🎨','🐼','🦁','🐬','🍩','🎈','🐢','🦊','🐝','🍓','🌻','🎠','🧸','🐧','🦉','🐸','🍦','🚒','🛸','👑','🐨','🦒','🍉','🎸','🐰','🎂','🏆']);
+// new ones go after the first 36, so the collection a child already has keeps its place
+const STICKERS=[...shuffleFixed(['🦄','🐙','🦖','🐳','🦋','🐞','🌈','🍭','🚀','🎨','🐼','🦁','🐬','🍩','🎈','🐢','🦊','🐝','🍓','🌻','🎠','🧸','🐧','🦉','🐸','🍦','🚒','🛸','👑','🐨','🦒','🍉','🎸','🐰','🎂','🏆']),
+  ...shuffleFixed(['🐶','🐱','🐭','🐹','🐻','🐯','🐮','🐷','🐵','🐔','🐤','🦆','🐴','🐌','🦀','🐠','🐡','🦈','🦭','🐊','🦓','🐘','🦛','🦏','🐪','🦘','🦥','🦦','🦔','🦩','🦚','🦜','🐉','🦕','🌵','🌴','🍄','🌸','🌺','🌙','⭐','⛄','🍎','🍌','🍒','🍕','🧁','🍪','🍿','🥨','🚂','🚁','⛵','🚜','🚲','🎡','🎪','🪁','⚽','🏀','🎃','🎁','🤖','🧚'])];
 function shuffleFixed(a){let s=7;return a.map(v=>[v,(s=(s*9301+49297)%233280)]).sort((x,y)=>x[1]-y[1]).map(x=>x[0])}
 
 /* =====================================================================
@@ -1682,6 +1689,7 @@ function buildRound(){
 /* =====================================================================
    WORD ACTIVITY (shared by rounds and stories)
    ===================================================================== */
+const GROWN_HOLD=5000;
 function mountActivity(host,word,opts){
   const compact=!!opts.compact;
   const a={word,last:-1,misses:0,helped:false,busy:false,dead:false,done:false,tok:0,tip:false,loop:0,fresh:false};
@@ -1695,12 +1703,12 @@ function mountActivity(host,word,opts){
       <button class="btn sm yellow" data-a="sound">💡 Sound it out</button>
     </div>
     <div class="micwrap">
-      ${fb?`<div class="say">🗣️ Say the word out loud!</div><button class="btn green ${compact?'':'big'}" data-a="grown">✓ Grown-up: got it!</button>${note}`
+      ${fb?`<div class="say">🗣️ Say the word out loud!</div><button class="btn green ${compact?'':'big'}" data-a="grown"><span>✓ Grown-up: hold to confirm</span></button>${note}`
           :`<button class="mic" data-a="mic" aria-label="Microphone on or off">🎤</button><div class="miclabel">Tap the mic to start listening</div>`}
     </div>
     <div class="bottomrow">
       <button class="link" data-a="skip">Skip ➜</button>
-      ${fb?'':`<button class="link" data-a="grown" data-grown hidden>👪 Grown-up: ✓ got it</button>`}
+      ${fb?'':`<button class="link hold" data-a="grown" data-grown hidden><span>👪 Grown-up: hold ✓ 5 s</span></button>`}
     </div>`;
   const tilesEl=$('.tiles',host);layoutTiles(tilesEl);
   const micEl=$('.mic',host),labelEl=$('.miclabel',host);
@@ -1709,6 +1717,15 @@ function mountActivity(host,word,opts){
     if(labelEl)labelEl.textContent=s==='listen'?'Listening… say the word!':s==='wait'?'Mic on · tap to turn off':'Tap the mic to start listening';};
   const showGrown=()=>{const g=$('[data-grown]',host);if(g)g.hidden=false;};
   if(opts.grown)showGrown();   // a word that was skipped before
+  // the grown-up ✓ only counts after being held for 5 s (so a child can't just tap it); the button fills up meanwhile
+  $$('[data-a="grown"]',host).forEach(b=>{
+    let t=0;b.classList.add('hold');
+    const stop=()=>{clearTimeout(t);b.classList.remove('holding');};
+    b.addEventListener('pointerdown',e=>{if(a.done||a.dead)return;e.preventDefault();stop();void b.offsetWidth;b.classList.add('holding');
+      t=setTimeout(()=>{b.classList.remove('holding');if(!a.done&&!a.dead)success();},GROWN_HOLD);});
+    ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,stop));
+    b.addEventListener('contextmenu',e=>e.preventDefault());
+  });
 
   async function tapTile(i){
     ac();a.helped=true;a.tok++;stopSpeech();litOff();
@@ -1798,7 +1815,6 @@ function mountActivity(host,word,opts){
     const act=b.dataset.a;
     if(act==='sound')soundOut();
     else if(act==='mic')mic();
-    else if(act==='grown')success();
     else if(act==='retrymic'){MICBLOCK=false;MICWHY='';MICPRE=false;a.dead=true;mountActivity(host,word,opts);setBubble('Tap the microphone and say the word!');}
     else if(act==='skip'){if(a.done)return;a.done=true;clearTimeout(a.ltm);if(MIC.target===target)MIC.target=null;if(MIC_ON)micOff();setMic('idle');stopListening();stopSpeech();opts.onSkip();}
   };
