@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -160,9 +160,15 @@ export function idbPut(page, clips) {
   }), clips);
 }
 
-/* A new "device": fresh storage, stubs installed, .bin downloads counted. */
+/* A new "device": fresh storage, stubs installed, .bin downloads counted.
+   Devices left over from earlier tests are closed first: on the iPhone path each page that used the mic
+   keeps a mic stream open, and Chromium refuses the 17th open stream (NotReadableError). */
+const DEVICES = [];
 export async function newDevice(browser) {
+  const id = test.info().testId;
+  for (const d of DEVICES.splice(0)) { if (d.id === id) DEVICES.push(d); else await d.context.close().catch(() => {}); }
   const context = await browser.newContext();
+  DEVICES.push({ id, context });
   await installStubs(context);
   const page = await context.newPage();
   const bins = [];

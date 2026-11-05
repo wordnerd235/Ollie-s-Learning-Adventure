@@ -133,6 +133,7 @@ One IIFE. Section banners (search for them):
   - Mock Murf/ElevenLabs with `page.route` (include CORS headers and handle OPTIONS).
   - Use `force=True` or DOM `.click()` because the mic button animates constantly.
   - Set an iPhone user agent to exercise `IS_IOS` code paths.
+- `newDevice` closes the devices (browser contexts) of earlier tests: on the iPhone path a page that used the mic keeps a mic stream open, and Chromium refuses the 17th open stream (`NotReadableError`), after which the game shows the grown-up ✓ instead of the mic and mic tests hang.
 - `games.spec.mjs`: unlocking, the round-end "New game" banner, every game played to the end (`playGame` in helpers), wrong taps and hints. `gaps.spec` also plays every game.
 - Cloud container: the pinned `@playwright/test` 1.56.1 finds no browser of its own. Without changing the repo, point it at the preinstalled one: make a folder with `chromium_headless_shell-1194/chrome-linux/headless_shell` → `/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell` (symlink, plus an empty `INSTALLATION_COMPLETE` file) and run with `PLAYWRIGHT_BROWSERS_PATH=<that folder>`.
 - Cover these flows: a round with a correct read and a skip; the mic toggle continuing across words; mic denied → green grown-up button; a story played end to end; building and restoring the voice pack; sticker scenes; the recorder and guided mode.
