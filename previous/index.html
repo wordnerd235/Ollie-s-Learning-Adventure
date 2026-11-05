@@ -424,14 +424,14 @@ const RAW={
 'boy;b oy;👦;hop;~cheer','toy;t oy;🧸;hop;~boing','bee;b ee;🐝;fly;~buzz|Bzzzz!','car;c ar;🚗;drive;~beep|Beep beep!','yes;y e s;👍;pop;~cheer'],
 4:[
 'frog;f r o g;🐸;hop;~pop|Ribbit ribbit!','jump;j u m p;🦘;hop;~boing','ship;sh i p;🚢;swim;~horn|Toot toot!','fish;f i sh;🐟;swim;~splash|Blub blub!',
-'milk;m i l k;🥛;pop;~pop|Yum!','duck;d u ck;🦆;swim;~pop|Quack quack!','moon;m oo n;🌙;glow;~sparkle','book;b oo k;📖;pop;~ding','tree;t r ee;🌳;sway;~rustle',
+'milk;m i l k;🥛;pop;~pop|Yum!','duck;d u ck;🦆;swim;~pop|Quack quack!','moon;m oo n;🌙;glow;~sparkle','book;b oo:uu k;📖;pop;~ding','tree;t r ee;🌳;sway;~rustle',
 'cake;c a:ay k e:-;🎂;grow;~tada|Yum!','bike;b i:eye k e:-;🚲;drive;~ring','rain;r ai n;🌧️;fall;~rain','boat;b oa t;⛵;swim;~horn|Toot toot!',
 'star;s t ar;⭐;twinkle;~twinkle','bird;b ir d;🐦;fly;~pop|Tweet tweet!','snow;s n ow:oh;❄️;fall;~sparkle','drum;d r u m;🥁;shake;~drum',
 'lamp;l a m p;💡;glow;~ding','hand;h a n d;✋;wave;~clap','sand;s a n d;🏖️;pop;~pop','tent;t e n t;⛺;pop;~pop','bell;b e ll;🔔;shake;~ring|Ding dong!',
 'king;k ing;👑;grow;~tada','ring;r ing;💍;twinkle;~ring','sock;s o ck;🧦;wiggle;~pop','clap;c l a p;👏;grow;~clap','swim;s w i m;🏊;swim;~splash',
 'gift;g i f t;🎁;pop;~tada','leaf;l ea f;🍃;float;~rustle','rock;r o ck;🪨;shake;~pop','wind;w i n d;💨;fly;~whoosh','corn;c or n;🌽;pop;~pop',
 'goat;g oa t;🐐;hop;~pop|Baa baa!','flag;f l a g;🚩;wave;~pop',
-'have;h a v e:-','come;c o:uh m e:-','like;l i:eye k e:-;👍;pop;~cheer','they;th ey','look;l oo k;👀;grow;~ding','play;p l ay;⚽;hop;~boing',
+'have;h a v e:-','come;c o:uh m e:-','like;l i:eye k e:-;👍;pop;~cheer','they;th ey','look;l oo:uu k;👀;grow;~ding','play;p l ay;⚽;hop;~boing',
 'went;w e n t','with;w i th','that;th a t','this;th i s','what;wh a:uh t','want;w a:ah n t','from;f r o:uh m'],
 5:[
 'happy;h a pp y:ee;😊;hop;~cheer','plant;p l a n t;🌱;grow;~pop','green;g r ee n;🟢;pop;~ding','smile;s m i:eye l e:-;😀;grow;~tada',
@@ -832,7 +832,7 @@ const PHON=[ // [sound key, letters, example word, note]
  ['guh','g','goat'],['buh','b','bat'],['huh','h','hat'],['fuh','f','fish'],['luh','l','leg'],['ruh','r','red'],['wuh','w','web'],
  ['juh','j','jet'],['vuh','v','van'],['yuh','y','yes'],['zuh','z','zoo'],['ksuh','x','fox'],['kwuh','qu','queen'],
  ['shuh','sh','ship'],['thuh','th','this'],['ing','ing','ring'],
- ['ee','ee','bee'],['ay','ai','rain','long a'],['eye','i','kite','long i'],['oh','o','go','long o'],['oo','oo','moon'],
+ ['ee','ee','bee'],['ay','ai','rain','long a'],['eye','i','kite','long i'],['oh','o','go','long o'],['oo','oo','moon'],['uu','oo','book','short oo'],
  ['ow','ow','cow'],['oy','oy','boy'],['ar','ar','car'],['or','or','corn'],['er','er','her']
 ];
 const PHK={};PHON.forEach(p=>PHK[p[0]]=p);
@@ -1270,7 +1270,7 @@ async function elTTS(key,voice,text){
 /* ---- phonetic letter sounds (ElevenLabs Flash v2 reads exact phonemes from CMU Arpabet tags) ---- */
 const PH_CMU={aa:'AE1',eh:'EH1',ih:'IH1',ah:'AA1',uh:'AH1',muh:'M',suh:'S',tuh:'T AH0',puh:'P AH0',nuh:'N',kuh:'K AH0',duh:'D AH0',
   guh:'G AH0',buh:'B AH0',huh:'HH AH0',fuh:'F',luh:'L',ruh:'R',wuh:'W AH0',juh:'JH AH0',vuh:'V',yuh:'Y AH0',zuh:'Z',ksuh:'K S',
-  kwuh:'K W AH0',shuh:'SH',thuh:'DH',ing:'IH1 NG',ee:'IY1',ay:'EY1',eye:'AY1',oh:'OW1',oo:'UW1',ow:'AW1',oy:'OY1',ar:'AA1 R',or:'AO1 R',er:'ER1'};
+  kwuh:'K W AH0',shuh:'SH',thuh:'DH',ing:'IH1 NG',ee:'IY1',ay:'EY1',eye:'AY1',oh:'OW1',oo:'UW1',uu:'UH1',ow:'AW1',oy:'OY1',ar:'AA1 R',or:'AO1 R',er:'ER1'};
 const PH_STOP=new Set(['tuh','puh','kuh','duh','guh','buh','huh','wuh','juh','yuh','kwuh']);   // can't be held: keep the burst, clip the "uh"
 const PH_HOLD=new Set(['muh','suh','nuh','fuh','luh','ruh','vuh','zuh','shuh','thuh']);         // can be held: stretch to a clear "sss"
 const phText=k=>`<phoneme alphabet="cmu-arpabet" ph="${PH_CMU[k]}">${(PHK[k]||[k,k])[1].split(/\s+/)[0]}</phoneme>`;
