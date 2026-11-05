@@ -372,6 +372,85 @@ details.vlev summary{font-weight:700;font-size:17px;padding:8px 2px;cursor:point
 .vmeter i{display:block;height:100%;width:0;background:var(--green);transition:width .06s}
 .tip{font-size:14px!important}
 
+/* games */
+.gmeter{position:relative;height:30px;border-radius:999px;background:var(--card2);border:2px solid var(--line);overflow:hidden;margin-bottom:10px;max-width:240px}
+.gmeter i{position:absolute;left:0;top:0;bottom:0;background:var(--green);opacity:.55}
+.gmeter span{position:relative;display:block;text-align:center;font-weight:700;font-size:16px;line-height:26px}
+.col.game{height:100%;min-height:0;gap:10px}
+.gabout{text-align:center;margin-top:0}
+.gbody{flex:1;min-height:0;width:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:22px}
+.gask{display:flex;justify-content:center;align-items:center;gap:14px}
+.gsay{width:68px;height:68px;border-radius:50%;border:0;font-size:32px;background:var(--yellow);box-shadow:0 6px 0 var(--yellow-d);flex:none}
+.gsay:active{transform:translateY(4px);box-shadow:0 2px 0 var(--yellow-d)}
+.nope{animation:micshake .45s}
+.ghand{position:absolute;left:50%;top:72%;font-size:46px;line-height:1;pointer-events:none;z-index:5;transform:translateX(-50%);animation:ghand .9s ease-in-out infinite;filter:drop-shadow(0 3px 3px rgba(0,0,0,.3));text-shadow:none}
+@keyframes ghand{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-12px)}}
+.glow{box-shadow:0 0 0 6px #fff,0 0 24px 10px rgba(255,210,60,.95)!important}
+/* balloon pop */
+.gfield{position:relative;flex:1;min-height:320px;width:100%;border-radius:28px;overflow:hidden;border:5px solid #fff;container-type:inline-size;
+  box-shadow:0 10px 0 rgba(43,35,80,.14),0 18px 30px rgba(43,35,80,.18);background:linear-gradient(#6fc6ff,#c9ecff 80%,#e8f7ff);touch-action:manipulation}
+.gfield .gc{position:absolute;font-size:13cqw;opacity:.9;pointer-events:none}
+.bl{position:absolute;left:0;top:0;width:23cqw;margin-left:-11.5cqw;height:36cqw;border:0;background:none;padding:0;will-change:transform;cursor:pointer}
+.bl::after{content:"";position:absolute;left:50%;top:28.5cqw;width:2px;margin-left:-1px;height:8cqw;background:rgba(43,35,80,.35)}
+.bb{position:absolute;left:0;top:0;width:100%;height:27cqw;display:grid;font-style:normal;place-items:center;border-radius:50% 50% 47% 47%/56% 56% 44% 44%;background-color:var(--c);
+  background-image:radial-gradient(circle at 30% 24%,rgba(255,255,255,.6),rgba(255,255,255,0) 42%),radial-gradient(circle at 70% 82%,rgba(0,0,0,.16),rgba(0,0,0,0) 55%);box-shadow:inset 0 -6px 10px rgba(0,0,0,.08)}
+.bb::after{content:"";position:absolute;left:50%;bottom:-1.6cqw;margin-left:-1.6cqw;border:1.6cqw solid transparent;border-top:0;border-bottom:2cqw solid var(--c)}
+.bb span{font-family:var(--letters);font-weight:700;font-size:var(--fs);color:var(--fg);text-shadow:0 2px 0 rgba(0,0,0,.16);line-height:1;padding-bottom:.08em}
+.bl.nope{animation:none}
+.bl.nope .bb{animation:micshake .45s}
+.bl.glow{box-shadow:none!important}
+.bl .ghand{top:17cqw}
+.bl.glow .bb{box-shadow:0 0 0 5px #fff,0 0 22px 10px rgba(255,255,255,.95)}
+.bl.popped .bb{animation:bpop .28s ease-out forwards}
+.bl.popped::after{display:none}
+@keyframes bpop{0%{transform:scale(1);opacity:1}60%{transform:scale(1.35);opacity:.5}100%{transform:scale(1.6);opacity:0}}
+/* picture choices (snap it, sound hunt) */
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%}
+.pic{position:relative;aspect-ratio:1;border:0;border-radius:26px;background:var(--card2);color:var(--ink);box-shadow:0 6px 0 var(--line),0 10px 18px rgba(43,35,80,.12);
+  font-size:clamp(54px,17vw,104px);line-height:1;display:grid;place-items:center;transition:opacity .25s}
+.pic:active{transform:translateY(4px);box-shadow:0 2px 0 var(--line)}
+.pic.dim{opacity:.3}
+.pic.yes{box-shadow:0 0 0 5px var(--green),0 6px 0 var(--green-d)}
+.pic.yes .em{animation:hop .7s ease-in-out 2}
+.sign{width:100%;background:var(--card);border-radius:26px;padding:12px 8px 2px;box-shadow:0 5px 0 var(--line)}
+.snaptop{display:flex;align-items:center;gap:10px;width:100%}
+.snaptop .sign{flex:1;width:auto;min-width:0}
+.cam{font-size:54px;line-height:1;flex:none}
+.cam.on{animation:pop .6s}
+.flash{position:fixed;inset:0;background:#fff;z-index:90;pointer-events:none;animation:flash .4s ease-out forwards}
+@keyframes flash{from{opacity:.9}to{opacity:0}}
+.shead{display:flex;justify-content:center;align-items:center;gap:20px;padding:12px 0 18px}
+.shead .tile{--tw:118px}
+/* memory cards */
+.mgrid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr);width:100%;max-width:560px;margin:0 auto}
+.mgrid.m12{grid-template-columns:repeat(3,1fr)}
+@media (min-width:600px){.mgrid,.mgrid.m12{grid-template-columns:repeat(4,1fr)}}
+.mem{aspect-ratio:4/3;border:0;padding:0;background:none;perspective:700px;container-type:inline-size;color:var(--ink)}
+.mem .in{position:relative;display:block;width:100%;height:100%;transition:transform .4s;transform-style:preserve-3d}
+.mem.up .in{transform:rotateY(180deg)}
+.mem .bk,.mem .fr{position:absolute;inset:0;display:grid;place-items:center;border-radius:18px;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 5px 0 var(--line)}
+.mem .bk{background:linear-gradient(135deg,var(--primary),var(--pink));font-size:32cqw;line-height:1}
+.mem .fr{background:var(--card2);transform:rotateY(180deg)}
+.mem .fr b{font-family:var(--letters);font-size:var(--fs,24cqw);line-height:1}
+.mem .fr .em{font-size:42cqw}
+.mem.got .fr{box-shadow:0 0 0 4px var(--green),0 5px 0 var(--green-d)}
+/* word train */
+.tpic{display:flex;justify-content:center}
+.tpicb{position:relative;width:clamp(120px,36vw,170px);aspect-ratio:1;border:0;border-radius:50%;background:var(--card2);box-shadow:0 6px 0 var(--line);font-size:clamp(70px,21vw,104px);line-height:1;display:grid;place-items:center;color:var(--ink)}
+.tpicb::after{content:"🔊";position:absolute;right:-4px;bottom:-4px;font-size:26px;background:var(--yellow);border-radius:50%;width:44px;height:44px;display:grid;place-items:center;box-shadow:0 3px 0 var(--yellow-d)}
+.track{position:relative;width:100%;overflow:hidden;padding:0 4px;
+  background:linear-gradient(to top,transparent 2px,#9a7b5a 2px 7px,transparent 7px) bottom/100% 12px no-repeat,repeating-linear-gradient(90deg,#b8916a 0 6px,transparent 6px 22px) bottom/100% 12px no-repeat}
+.train{padding:6px 0 10px;flex-wrap:nowrap}
+.train .eng{display:block;width:calc(var(--tw,90px)*var(--w,1));font-size:calc(var(--tw,90px)*1.1);line-height:1;text-align:center;flex:none}
+.train .car{position:relative;cursor:default}
+.train .car::before,.train .car::after{content:"";position:absolute;bottom:-9px;width:16px;height:16px;border-radius:50%;background:#4a4458;border:3px solid #cfc8e6}
+.train .car::before{left:12%}.train .car::after{right:12%}
+.train .car.empty{background:var(--card);border:4px dashed var(--ink2);box-shadow:none;text-shadow:none;opacity:.85}
+.ttray{flex-wrap:wrap;padding-top:14px}
+.ttray .tile{position:relative;margin:0 0 10px}
+.ttray .tile.used{visibility:hidden}
+.tfly{position:fixed;z-index:70;margin:0;pointer-events:none}
+
 @media (prefers-reduced-motion:reduce){
   .cloud,.owl.talk,.mic,.vb.rec.on{animation:none}
 }
@@ -446,7 +525,7 @@ Object.keys(RAW).forEach(l=>RAW[l].forEach(line=>{
   const [w,tl,emoji,anim,sfx]=line.split(';');
   const o={w,lvl:+l,
     tiles:tl.split(' ').map(tok=>{const [t,s]=tok.split(':');return {t,s:s===undefined?SND[t]:s}}),
-    emoji:emoji||'⭐',anim:anim||'twinkle',sfx:sfx||'~sparkle'};
+    emoji:emoji||'⭐',pic:!!emoji,anim:anim||'twinkle',sfx:sfx||'~sparkle'};
   WORDS.push(o);BYW[w]=o;
 }));
 const VOWEL_TEAMS=['ai','ay','ea','ee','oa','oo','ou','ow','oy','ar','or','er','ir','ur','ey'];
@@ -530,7 +609,7 @@ const STORIES=STORY_RAW.map(st=>{
    SAVE
    ===================================================================== */
 const KEY='ollie-word-adventure-v1';
-const defaults=()=>({name:'',seen:false,frontier:2,words:{},stars:0,stickers:[],stories:{},rounds:0,recent:[],recentWords:[],
+const defaults=()=>({name:'',seen:false,frontier:2,words:{},stars:0,stickers:[],stories:{},games:{},rounds:0,recent:[],recentWords:[],
   settings:{sound:true,mic:true,upper:false,unlockAll:false,voice:'',fx:.5,vspd:.85}});
 function load(){
   try{const j=JSON.parse(localStorage.getItem(KEY));
@@ -703,7 +782,15 @@ const FX={
  rustle(){noise({dur:.9,vol:.22,type:'highpass',f:[[0,3500]],att:.3});},
  rain(){noise({dur:1.4,vol:.25,type:'highpass',f:[[0,4500]],att:.4});[.2,.5,.8,1.1].forEach(t=>osc({t,f:[[0,1400+Math.random()*800],[1,700]],dur:.08,vol:.12}));},
  choo(){[0,.28,.56,.84].forEach(t=>noise({t,dur:.2,vol:.4,f:[[0,1100]],q:.8,att:.02}));osc({t:1.15,f:[[0,880],[.5,830],[1,880]],dur:.5,vol:.18,vib:8,vibHz:12});},
- sizzle(){noise({dur:.9,vol:.28,type:'highpass',f:[[0,5000]],att:.05});}
+ sizzle(){noise({dur:.9,vol:.28,type:'highpass',f:[[0,5000]],att:.05});},
+ // games
+ bpop(){noise({dur:.08,vol:.75,type:'highpass',f:[[0,1600]],att:.001});osc({f:[[0,260],[1,70]],dur:.12,vol:.4,att:.002});noise({t:.03,dur:.25,vol:.12,type:'highpass',f:[[0,5000]],att:.01});},
+ flip(){noise({dur:.13,vol:.4,f:[[0,800],[1,3400]],q:1.3,att:.01});},
+ bonk(){osc({type:'triangle',f:[[0,320],[1,180]],dur:.22,vol:.22});},
+ match(){[[0,1047],[.11,1568]].forEach(([t,h])=>{osc({t,f:[[0,h]],dur:.5,vol:.22});osc({t,f:[[0,h*2]],dur:.28,vol:.05});});},
+ snap(){noise({dur:.04,vol:.35,f:[[0,2600]],q:1,att:.001});osc({type:'square',f:[[0,1100],[1,700]],dur:.05,vol:.06,att:.002});},
+ shutter(){noise({dur:.04,vol:.55,type:'highpass',f:[[0,2800]],att:.001});noise({t:.09,dur:.06,vol:.45,type:'highpass',f:[[0,2000]],att:.001});osc({t:.09,type:'square',f:[[0,900],[1,500]],dur:.04,vol:.05,att:.002});},
+ win(){[523,659,784,1047,784,1047].forEach((h,i)=>osc({t:i*.12,type:'triangle',f:[[0,h]],dur:i===5?.9:.2,vol:.22}));[1319,1568].forEach(h=>osc({t:.6,f:[[0,h]],dur:.8,vol:.07}));noise({t:.62,dur:.7,vol:.14,type:'highpass',f:[[0,2500]],att:.05});}
 };
 
 function voiceScore(v){
@@ -1577,11 +1664,11 @@ function confetti(n=60){
     p.style.cssText=`left:${Math.random()*100}%;background:${rand(cols)};--x:${(Math.random()-.5)*180}px;--d:${1.8+Math.random()*1.6}s;animation-delay:${Math.random()*.4}s;width:${7+Math.random()*8}px;height:${10+Math.random()*10}px;border-radius:${Math.random()<.4?'50%':'2px'}`;
     c.appendChild(p);}
 }
-function burst(e,n=10){
+function burst(e,n=10,at){   // at: {x,y} in px (default: the middle of the screen)
   const c=layer();
   for(let i=0;i<n;i++){const s=document.createElement('span');const ang=(i/n)*Math.PI*2+Math.random()*.4,r=90+Math.random()*130;
     s.className='bs';s.textContent=e;
-    s.style.cssText=`--dx:${Math.cos(ang)*r}px;--dy:${Math.sin(ang)*r}px;--r:${(Math.random()-.5)*90}deg;animation-delay:${Math.random()*.15}s`;
+    s.style.cssText=`${at?`left:${at.x}px;top:${at.y}px;`:''}--dx:${Math.cos(ang)*r}px;--dy:${Math.sin(ang)*r}px;--r:${(Math.random()-.5)*90}deg;animation-delay:${Math.random()*.15}s`;
     c.appendChild(s);}
 }
 function rainfall(e,n=26){
@@ -1613,13 +1700,14 @@ const TRY1=["Almost! Let's try again.","Good try! Say it one more time."];
 const START_LINES=["You can do it!","Let's read a new word!","What sound does each letter make?","Tap a letter if you need help!","Here comes a fun one!"];
 
 /* ---- tiles ---- */
-function tilesHtml(tiles,tag='span'){
+function tileClasses(tiles){
   let ci=0;
-  return tiles.map((t,i)=>{
-    const v=isVowelTile(t),dg=t.t.length>1&&!v;
-    const cls=t.s==='-'?'silent':v?'v':dg?'d':'c'+(ci++%4);
-    return `<${tag} class="tile ${cls}" data-i="${i}" style="--w:${t.t.length>2?1.9:t.t.length>1?1.5:1}">${disp(t.t)}</${tag}>`;
-  }).join('');
+  return tiles.map(t=>{const v=isVowelTile(t),dg=t.t.length>1&&!v;return t.s==='-'?'silent':v?'v':dg?'d':'c'+(ci++%4);});
+}
+const tileW=t=>t.t.length>2?1.9:t.t.length>1?1.5:1;
+function tilesHtml(tiles,tag='span'){
+  const cl=tileClasses(tiles);
+  return tiles.map((t,i)=>`<${tag} class="tile ${cl[i]}" data-i="${i}" style="--w:${tileW(t)}">${disp(t.t)}</${tag}>`).join('');
 }
 function layoutTiles(box){
   if(!box)return;
@@ -1832,13 +1920,14 @@ function top(title,left='<button class="rbtn" data-act="home" aria-label="Home">
 }
 function screenHome(){micOff();
   stopAll();
-  const n=knownCount(),ready=STORIES.filter(st=>storyUnlocked(st)&&!S.stories[st.id]).length;
+  const n=knownCount(),ready=STORIES.filter(st=>storyUnlocked(st)&&!S.stories[st.id]).length,gnew=newGames();
   setView(`<div class="col home">
     <div class="hero"><button class="owl" data-act="owl" aria-label="Ollie the owl">🦉</button><div class="bubble" id="bubble">${greetShown()}</div></div>
     <h1 class="title">Ollie's<br><span>Word Adventure</span></h1>
     <div class="menu">
       <button class="btn big green" data-act="play">▶&nbsp; Let's Read!</button>
       <button class="btn big pink" data-act="stories">📖&nbsp; Story Time${ready?`<span class="badge">${ready}</span>`:''}</button>
+      <button class="btn big blue" data-act="games">🎮&nbsp; Games${gnew?`<span class="badge">${gnew}</span>`:''}</button>
       <button class="btn big yellow" data-act="stickers">🌟&nbsp; My Stickers</button>
     </div>
     <div class="stats"><span>⭐ ${S.stars}</span><button class="known" data-act="known">🧠 ${n} word${n===1?'':'s'} I know</button></div>
@@ -1854,7 +1943,7 @@ function screenHome(){micOff();
 /* ---- rounds ---- */
 function startRound(list){micOff();
   stopAll();
-  RS={words:list||buildRound(),i:0,stars:0,skipped:new Set(),levelUp:false,startUnlocked:unlockedIds()};
+  RS={words:list||buildRound(),i:0,stars:0,skipped:new Set(),levelUp:false,startUnlocked:unlockedIds(),startGames:unlockedGames()};
   showWord(true);
 }
 /* A skipped word goes to the back of the round and comes back later, so a round (and its sticker) needs
@@ -1922,6 +2011,7 @@ function finishRound(){micOff();
     <div class="statline">You read ${RS.stars} word${RS.stars===1?'':'s'}! ${'⭐'.repeat(Math.min(RS.stars,6))}</div>
     ${RS.levelUp?'<div class="banner">🚀 Bigger words unlocked!</div>':''}
     ${newStories.map(s=>`<div class="banner">📖 New story: ${s.title}!</div><button class="btn pink" data-act="story" data-id="${s.id}">▶ Read it now</button>`).join('')}
+    ${newGamesHtml(RS.startGames)}
     <div class="menu">
       <button class="btn big green" data-act="play">▶&nbsp; Keep going</button>
       <button class="btn ghost" data-act="home">🏠 Home</button>
@@ -2083,7 +2173,7 @@ function practiceList(st){
 function openStory(id){micOff();
   stopAll();
   const st=STORIES.find(s=>s.id===id);
-  QS={st,i:0,startUnlocked:unlockedIds()};
+  QS={st,i:0,startUnlocked:unlockedIds(),startGames:unlockedGames()};
   storyPage();
 }
 function sceneHtml(bg,items){
@@ -2204,6 +2294,7 @@ function storyEnd(){micOff();
     <div class="statline">${sticker?'You earned a new sticker!':'What a great story!'}</div>
     <div class="statline">You read "${st.title}"!</div>
     ${newStories.map(s=>`<div class="banner">📖 New story: ${s.title}!</div>`).join('')}
+    ${newGamesHtml(QS.startGames)}
     <div class="menu">
       <button class="btn big green" data-act="story" data-id="${st.id}">↻&nbsp; Read again</button>
       <button class="btn big pink" data-act="stories">📖&nbsp; More stories</button>
@@ -2214,6 +2305,388 @@ function storyEnd(){micOff();
   say('The end! You read the whole story! Great reading!');
 }
 
+
+/* =====================================================================
+   GAMES — touch games made from the words the child knows. They unlock as
+   more words are known (a locked card shows how many, like the stories) and
+   say only lines that are already recorded: the words, praise, fun sounds
+   and letter sounds, plus synthesized effects. They don't change word
+   progress, stars or stickers: reading aloud stays the way to earn those.
+   ===================================================================== */
+const GAMES=[
+ {id:'balloons',title:'Balloon Pop',emoji:'🎈',need:3,about:'Ollie says a word: pop the balloon that shows it.'},
+ {id:'snap',title:'Snap It!',emoji:'📸',need:6,about:'Read the word on the sign, then tap its picture to take a photo.'},
+ {id:'memory',title:'Memory Cards',emoji:'🃏',need:10,about:'Turn over two cards at a time to find each word and its picture.'},
+ {id:'train',title:'Word Train',emoji:'🚂',need:15,about:'Ollie says a word: tap its letters in order to fill the train.'},
+ {id:'sounds',title:'Sound Hunt',emoji:'🔍',need:20,about:'Hear a letter sound: tap the picture that starts with it.'}
+];
+const gameUnlocked=g=>S.settings.unlockAll||knownCount()>=g.need;
+const unlockedGames=()=>GAMES.filter(gameUnlocked).map(g=>g.id);
+const newGames=()=>GAMES.filter(g=>gameUnlocked(g)&&!(S.games||{})[g.id]).length;
+function newGamesHtml(before){
+  return GAMES.filter(g=>gameUnlocked(g)&&!(before||[]).includes(g.id))
+    .map(g=>`<div class="banner">🎮 New game: ${g.title}!</div><button class="btn blue" data-act="game" data-id="${g.id}">▶ Play it now</button>`).join('');
+}
+// words whose emoji isn't a clear picture of the word: kept out of the picture games
+const NOPIC=new Set('up go in on at me we no hi to he and you she see yes like look play run hug big wet hot jump swim clap happy smile sleep wind kid boy'.split(' '));
+const hasPic=w=>w.pic&&!NOPIC.has(w.w);
+// pictures too alike to tell apart are never offered together
+const ALIKE=[['van','bus','truck','car'],['rat','mouse'],['boat','ship'],['cow','ox'],['goat','sheep'],['cup','milk']];
+const clash=(a,b)=>a===b||a.emoji===b.emoji||ALIKE.some(g=>g.includes(a.w)&&g.includes(b.w));
+
+function screenGames(){micOff();
+  stopAll();
+  const n=knownCount();
+  setView(`<div class="col">
+    ${top('🎮 Games')}
+    <div class="scards">${GAMES.map(g=>{
+      const un=gameUnlocked(g),p=(S.games||{})[g.id]||0,k=Math.min(n,g.need);
+      return `<div class="scard ${un?'':'locked'}" data-game="${g.id}"><div class="semoji">${g.emoji}</div><div><h3>${g.title}${un?'':' 🔒'}</h3>
+      ${un?`<p>${g.about}${p?` · played ${p} time${p===1?'':'s'}`:''}</p><button class="btn sm blue" data-act="game" data-id="${g.id}">▶ Play</button>`
+          :`<p>Know ${g.need} words to unlock</p><div class="gmeter"><i style="width:${Math.round(k/g.need*100)}%"></i><span>🧠 ${k} / ${g.need}</span></div><button class="btn sm pink" data-act="play">🎯 Practice words</button>`}
+      </div></div>`;}).join('')}</div>
+  </div>`);
+}
+function startGame(id){micOff();
+  stopAll();
+  const g=GAMES.find(x=>x.id===id);if(!g)return screenGames();
+  ({balloons:gameBalloons,snap:gameSnap,memory:gameMemory,train:gameTrain,sounds:gameSounds})[id](g,TOK);
+}
+function gameEnd(g){
+  stopAll();
+  S.games=S.games||{};S.games[g.id]=(S.games[g.id]||0)+1;persist();
+  const praise=rand(PRAISE);
+  setView(`<div class="col center">
+    <div class="bigtitle">🎉 ${praise}</div>
+    <div class="stickerbig">${g.emoji}</div>
+    <div class="statline">${g.title}</div>
+    <div class="menu">
+      <button class="btn big green" data-act="game" data-id="${g.id}">↻&nbsp; Play again</button>
+      <button class="btn big blue" data-act="games">🎮&nbsp; More games</button>
+      <button class="btn ghost" data-act="home">🏠 Home</button>
+    </div>
+  </div>`);
+  confetti(90);FX.win();
+  say(praise,{rate:.8,slow:.85});
+}
+
+/* ---- shared ---- */
+const gDotsHtml=(n,d)=>Array.from({length:n},(_,k)=>`<i class="${k<d?'d':k===d?'c':''}"></i>`).join('');
+function gDots(n,d){const el=$('.dots');if(el)el.innerHTML=gDotsHtml(n,d);}
+function gameFrame(g,n,body){
+  setView(`<div class="col game" id="game" data-game="${g.id}">
+    ${top('',`<button class="rbtn" data-act="games" aria-label="Back to games">←</button>`,`<div class="dots">${gDotsHtml(n,0)}</div>`)}
+    <div class="gbody">${body}</div>
+    <div class="hint gabout">Grown-ups: ${g.about}</div>
+  </div>`);
+  return $('#game');
+}
+const gSay=w=>say(`${w.w}!`,{rate:.8,slow:.85});
+const centerOf=el=>{const r=el.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};};
+// a hint: the answer glows and a hand bounces under it
+function gHand(el){gNoHand();if(!el)return;el.classList.add('glow');const h=document.createElement('span');h.className='ghand';h.textContent='👆';el.appendChild(h);}
+function gNoHand(){$$('.ghand').forEach(x=>x.remove());$$('.glow').forEach(x=>x.classList.remove('glow'));}
+function gShake(el){if(!el)return;el.classList.remove('nope');void el.offsetWidth;el.classList.add('nope');}
+function gBoing(el){if(!el)return;el.classList.remove('boing');void el.offsetWidth;el.classList.add('boing');}
+function gAnim(el,kf,ms,easing){
+  return new Promise(r=>{try{const a=el.animate(kf,{duration:ms,easing:easing||'ease',fill:'forwards'});a.onfinish=a.oncancel=()=>r();setTimeout(r,ms+250);}catch(e){r();}});
+}
+/* words for a game: the ones the child knows, topped up from their level while there are only a few */
+function gamePool(n,ok=()=>true){
+  const p=shuffle(WORDS.filter(w=>isKnown(w.w)&&ok(w)));
+  if(p.length<n){
+    const met=w=>(S.words[w.w]||{}).ok||0;
+    p.push(...shuffle(WORDS.filter(w=>!p.includes(w)&&ok(w)&&w.lvl<=Math.max(2,S.frontier))).sort((a,b)=>met(b)-met(a)).slice(0,n-p.length));
+  }
+  return p;
+}
+/* n turns from a pool, going through all of it before repeating, never the same (by key) twice in a row */
+function gameTurns(pool,n,key=w=>w.w){
+  const out=[];let bag=[];
+  while(out.length<n&&pool.length){
+    if(!bag.length)bag=shuffle(pool);
+    const prev=out[out.length-1];let i=bag.findIndex(w=>!prev||key(w)!==key(prev));
+    if(i<0){const alt=shuffle(pool).find(w=>key(w)!==key(prev));if(alt){out.push(alt);continue;}i=0;}
+    out.push(bag.splice(i,1)[0]);
+  }
+  return out;
+}
+/* picture choices: the answer plus others that look different from it and each other, shuffled */
+function picChoices(ans,n,ok=()=>true){
+  const out=[ans];
+  for(const w of shuffle(WORDS.filter(w=>hasPic(w)&&ok(w)))){if(out.length>=n)break;if(out.every(o=>!clash(o,w)))out.push(w);}
+  return shuffle(out);
+}
+const picHtml=ws=>ws.map(w=>`<button class="pic" data-w="${w.w}" aria-label="${w.w}"><span class="em">${w.emoji}</span></button>`).join('');
+/* letter tiles, as in a round: a tap plays the letter's sound; "sound out" plays them all in turn */
+let GSO=0;
+function gTapTile(el,t){GSO++;stopSpeech();$$('.tile.lit').forEach(x=>x.classList.remove('lit'));gBoing(el);return t.s==='-'?say(`Silent ${t.t}!`,{rate:.85}):sayLetter(t,false);}
+async function gSoundOut(box,word,my){
+  const t0=++GSO,els=$$('.tile',box);stopSpeech();
+  for(let k=0;k<word.tiles.length&&els[k];k++){
+    if(my!==TOK||t0!==GSO)return;
+    els[k].classList.add('lit');await sayLetter(word.tiles[k],false);els[k].classList.remove('lit');
+    if(my!==TOK||t0!==GSO)return;await sleep(200);
+  }
+}
+
+/* ---- Balloon Pop: Ollie says a word; pop the balloon that shows it. Balloons rise in four lanes;
+   the word asked for is always on one of them (a new one comes up if it floats away). ---- */
+const BCOL=[['#ff5fa2','#fff'],['#4da3ff','#fff'],['#ffd23f','#4a3600'],['#34d399','#fff'],['#ff9f43','#fff'],['#a77bff','#fff']];
+function gameBalloons(g,my){
+  const N=8,turns=gameTurns(gamePool(6),N),words=gamePool(12),LANES=[13,37.5,62.5,87];
+  const root=gameFrame(g,N,`<div class="gask"><button class="owl sm" data-g="say" aria-label="Hear the word again">🦉</button><button class="gsay" data-g="say" aria-label="Hear the word again">🔊</button></div>
+    <div class="gfield" id="gf"><span class="gc" style="left:5%;top:8%">☁️</span><span class="gc" style="left:68%;top:30%;font-size:10cqw">☁️</span><span class="gc" style="left:28%;top:62%;font-size:9cqw">☁️</span></div>`);
+  const f=$('#gf'),bs=[];
+  let i=0,cur=turns[0],misses=0,busy=true,idle=0,last=0,hinted=false,col=Math.floor(Math.random()*BCOL.length);
+  function wordFor(){
+    const live=bs.filter(b=>!b.popped);
+    if(!live.some(b=>b.w===cur))return cur;
+    const free=words.filter(w=>w!==cur&&!live.some(b=>b.w===w));
+    return rand(free.length?free:words.filter(w=>w!==cur));
+  }
+  function spawn(lane,y){
+    const w=wordFor(),[bg,fg]=BCOL[col++%BCOL.length],el=document.createElement('button'),L=w.w.length;
+    el.className='bl';el.dataset.w=w.w;el.setAttribute('aria-label',w.w);
+    el.style.cssText=`left:${LANES[lane]}%;--c:${bg};--fg:${fg};--fs:${L<=2?8:L===3?7.2:L===4?6:5}cqw`;
+    el.innerHTML=`<i class="bb"><span>${disp(w.w)}</span></i>`;
+    f.appendChild(el);
+    // 12-15 s to cross the sky; the word asked for rises a little slower
+    const b={el,lane,w,y:y===undefined?f.clientHeight+8:y,v:f.clientHeight/(12+Math.random()*3)*(w===cur?.85:1),ph:Math.random()*6.3,popped:false};
+    el._b=b;bs.push(b);move(b,0);
+    if(hinted&&w===cur)gHand(el);   // the hint follows the word onto its new balloon
+    return b;
+  }
+  function move(b,dt){b.y-=b.v*dt;b.ph+=dt*1.7;b.el.style.transform=`translate3d(${(Math.sin(b.ph)*6).toFixed(1)}px,${b.y.toFixed(1)}px,0)`;}
+  function frame(t){
+    if(my!==TOK)return;
+    const dt=last?Math.min(.05,(t-last)/1000):0;last=t;
+    const gone=-f.clientWidth*.38;
+    for(const b of bs.slice()){
+      if(b.popped)continue;move(b,dt);
+      if(b.y<gone){b.el.remove();bs.splice(bs.indexOf(b),1);spawn(b.lane);}   // floated away: a new one comes up
+    }
+    requestAnimationFrame(frame);
+  }
+  function ask(){if(my!==TOK)return;root.dataset.t=cur.w;owlTalk();gSay(cur);armIdle();}
+  function armIdle(){clearTimeout(idle);idle=setTimeout(()=>{if(my!==TOK||busy)return;hint();owlTalk();gSay(cur);armIdle();},9000);}
+  function hint(){hinted=true;const b=bs.find(x=>!x.popped&&x.w===cur);if(b)gHand(b.el);}
+  function wrong(b){
+    misses++;gShake(b.el);FX.bonk();stopSpeech();
+    setTimeout(()=>{if(my===TOK&&!busy)gSay(cur);},350);
+    if(misses>=2)hint();
+    armIdle();
+  }
+  async function popIt(b){
+    busy=true;b.popped=true;hinted=false;clearTimeout(idle);gNoHand();stopSpeech();delete root.dataset.t;
+    b.el.classList.add('popped');FX.bpop();burst(hasPic(cur)?cur.emoji:'⭐',8,centerOf(b.el));
+    i++;gDots(N,i);
+    const done=i>=N;
+    if(!done){
+      // not a word whose balloon is about to float away
+      const nearTop=w=>bs.some(x=>!x.popped&&x.w===w&&x.y<f.clientHeight*.25);
+      let k=i;while(k<N&&nearTop(turns[k]))k++;
+      if(k<N&&k!==i)[turns[i],turns[k]]=[turns[k],turns[i]];
+      cur=turns[i];misses=0;
+    }
+    setTimeout(()=>{b.el.remove();const k=bs.indexOf(b);if(k>=0)bs.splice(k,1);if(!done&&my===TOK)spawn(b.lane);},300);
+    await sleep(800);if(my!==TOK)return;
+    if(done)return gameEnd(g);
+    busy=false;ask();
+  }
+  f.addEventListener('pointerdown',e=>{
+    const el=e.target.closest('.bl');if(!el||my!==TOK)return;
+    const b=el._b;if(!b||b.popped||busy)return;
+    ac();if(b.w===cur)popIt(b);else wrong(b);
+  });
+  root.addEventListener('click',e=>{if(!e.target.closest('[data-g="say"]')||busy)return;stopSpeech();owlTalk();gSay(cur);armIdle();});
+  shuffle([0,1,2,3]).forEach((lane,k)=>spawn(lane,f.clientHeight*[.45,.08,.72,.25][k]));   // the first (the word asked for) low in the sky
+  requestAnimationFrame(frame);
+  setTimeout(()=>{if(my!==TOK)return;busy=false;ask();},600);
+}
+
+/* ---- Snap It: read the word on the sign, then tap its picture: a photo is taken ---- */
+function gameSnap(g,my){
+  const N=6,turns=gameTurns(gamePool(N,hasPic),N);
+  const root=gameFrame(g,N,`<div class="snaptop"><div class="sign"><div class="tiles" id="sign" data-max="110"></div></div><div class="cam" id="cam" aria-hidden="true">📷</div></div>
+    <div class="pgrid" id="pics"></div>`);
+  const sign=$('#sign'),pics=$('#pics'),cam=$('#cam');
+  let i=0,cur,misses=0,busy=true,idle=0;
+  const answer=()=>$(`.pic[data-w="${cur.w}"]`,pics);
+  function show(){
+    cur=turns[i];misses=0;
+    sign.classList.remove('ok');sign.innerHTML=tilesHtml(cur.tiles,'button');layoutTiles(sign);
+    pics.innerHTML=picHtml(picChoices(cur,3));
+    cam.textContent='📷';cam.classList.remove('on');
+    root.dataset.t=cur.w;busy=false;armIdle(0);
+  }
+  // nothing picked for a while: sound the word out, later point at the answer
+  function armIdle(stage){
+    clearTimeout(idle);
+    idle=setTimeout(()=>{if(my!==TOK||busy)return;if(stage===0){gSoundOut(sign,cur,my);armIdle(1);}else gHand(answer());},stage===0?12000:9000);
+  }
+  root.addEventListener('click',async e=>{
+    if(my!==TOK||busy)return;
+    const t=e.target.closest('#sign .tile');
+    if(t){ac();gTapTile(t,cur.tiles[+t.dataset.i]);armIdle(0);return;}
+    const p=e.target.closest('.pic');if(!p)return;
+    ac();
+    if(p.dataset.w!==cur.w){
+      misses++;gShake(p);FX.bonk();
+      if(misses===2)gSoundOut(sign,cur,my);else if(misses>=3)gHand(answer());
+      armIdle(1);return;
+    }
+    busy=true;clearTimeout(idle);gNoHand();GSO++;stopSpeech();delete root.dataset.t;
+    FX.shutter();const fl=document.createElement('div');fl.className='flash';document.body.appendChild(fl);setTimeout(()=>fl.remove(),450);
+    cam.textContent='📸';cam.classList.add('on');
+    p.classList.add('yes');$$('.pic',pics).forEach(x=>{if(x!==p)x.classList.add('dim');});sign.classList.add('ok');
+    burst(cur.emoji,8,centerOf(p));
+    i++;gDots(N,i);
+    await sleep(500);if(my!==TOK)return;
+    await gSay(cur);if(my!==TOK)return;
+    await playSfx(cur.sfx,my);if(my!==TOK)return;
+    await sleep(500);if(my!==TOK)return;
+    if(i>=N)return gameEnd(g);
+    show();
+  });
+  show();
+}
+
+/* ---- Memory Cards: each word has a picture card; turn over two at a time to find the pairs ---- */
+function gameMemory(g,my){
+  const P=knownCount()>=16?6:4,ws=[];
+  for(const w of gamePool(P*3,hasPic).concat(shuffle(WORDS.filter(hasPic)))){if(ws.length>=P)break;if(ws.every(o=>!clash(o,w)))ws.push(w);}
+  const cards=shuffle(ws.flatMap(w=>[{w,k:'w'},{w,k:'p'}])),fs=L=>L<=3?26:L===4?21:17;
+  const root=gameFrame(g,P,`<div class="mgrid m${cards.length}" id="mg">${cards.map((c,j)=>`<button class="mem" data-w="${c.w.w}" aria-label="Card ${j+1}"><span class="in"><span class="bk">🦉</span><span class="fr">${
+    c.k==='w'?`<b style="--fs:${fs(c.w.w.length)}cqw">${disp(c.w.w)}</b>`:`<span class="em">${c.w.emoji}</span>`}</span></span></button>`).join('')}</div>`);
+  const els=$$('.mem',root);let open=[],found=0,busy=true;
+  // a quick peek at every card first
+  (async()=>{await sleep(500);if(my!==TOK)return;els.forEach(e=>e.classList.add('up'));FX.flip();
+    await sleep(1800);if(my!==TOK)return;els.forEach(e=>e.classList.remove('up'));FX.flip();
+    await sleep(450);if(my!==TOK)return;busy=false;root.dataset.ready='1';})();
+  $('#mg').addEventListener('click',async e=>{
+    const el=e.target.closest('.mem');if(!el||busy||my!==TOK||el.classList.contains('up'))return;
+    ac();el.classList.add('up');FX.flip();open.push(el);
+    if(open.length<2)return;
+    busy=true;const [a,b]=open;open=[];
+    await sleep(550);if(my!==TOK)return;
+    if(a.dataset.w===b.dataset.w){
+      const w=BYW[a.dataset.w];
+      a.classList.add('got');b.classList.add('got');FX.match();burst(w.emoji,6,centerOf(b));
+      found++;gDots(P,found);busy=found>=P;
+      await gSay(w);if(my!==TOK)return;
+      if(found>=P){await sleep(600);if(my!==TOK)return;gameEnd(g);}
+    }else{
+      await sleep(800);if(my!==TOK)return;
+      a.classList.remove('up');b.classList.remove('up');FX.flip();
+      await sleep(300);busy=false;
+    }
+  });
+}
+
+/* ---- Word Train: Ollie says the word (its picture rides along); tap its letters in order to fill
+   the cars. Each tap plays the letter's sound. A full train says the word and puffs away. ---- */
+function gameTrain(g,my){
+  const N=5,turns=gameTurns(gamePool(N,hasPic),N);
+  const root=gameFrame(g,N,`<div class="tpic"><button class="tpicb" id="tpic" aria-label="Hear the word again"></button></div>
+    <div class="track"><div class="tiles train" id="train" data-max="84"></div></div>
+    <div class="tiles ttray" id="tray" data-max="96"></div>`);
+  const train=$('#train'),tray=$('#tray'),pic=$('#tpic'),same=(a,b)=>a.t.toLowerCase()===b.t.toLowerCase();
+  let i=0,cur,pos=0,misses=0,busy=true,idle=0,items=[],cls=[];
+  async function show(){
+    cur=turns[i];pos=0;misses=0;cls=tileClasses(cur.tiles);
+    pic.innerHTML=`<span class="em">${cur.emoji}</span>`;
+    train.classList.remove('ok');
+    train.innerHTML=`<span class="eng" style="--w:1.5" aria-hidden="true">🚂</span>`+cur.tiles.map((t,k)=>`<span class="tile car empty" data-k="${k}" style="--w:${tileW(t)}"></span>`).join('');
+    layoutTiles(train);
+    // the word's letters, mixed up, plus one extra letter for short words
+    items=cur.tiles.map((t,k)=>({t,c:cls[k]}));
+    if(cur.tiles.length<=4){const x=rand('bcdfghjlmnprstvwz'.split('').filter(c=>!cur.w.includes(c)));items.push({t:{t:x,s:SND[x]},c:'c'+Math.floor(Math.random()*4)});}
+    for(let n=0;n<8&&(n===0||cur.tiles.every((t,k)=>items[k].t===t));n++)items=shuffle(items);
+    tray.innerHTML=items.map((it,j)=>`<button class="tile ${it.c}" data-j="${j}" style="--w:${tileW(it.t)}">${disp(it.t.t)}</button>`).join('');
+    layoutTiles(tray);
+    await gAnim(train,[{transform:'translateX(110%)'},{transform:'translateX(0)'}],900,'ease-out');
+    if(my!==TOK)return;
+    root.dataset.t=cur.w;root.dataset.next=cur.tiles[0].t;busy=false;owlTalk();gSay(cur);armIdle();
+  }
+  const nextTile=()=>$$('.tile',tray).find(x=>!x.classList.contains('used')&&same(items[+x.dataset.j].t,cur.tiles[pos]));
+  function armIdle(){clearTimeout(idle);idle=setTimeout(()=>{if(my!==TOK||busy)return;gSay(cur);gHand(nextTile());armIdle();},9000);}
+  function place(el,it,k){
+    const car=$(`.car[data-k="${k}"]`,train),fill=()=>{car.classList.remove('empty');car.classList.add(cls[k]);car.textContent=disp(cur.tiles[k].t);gBoing(car);FX.snap();};
+    const r1=el.getBoundingClientRect(),r2=car.getBoundingClientRect();
+    el.classList.add('used');
+    const fly=document.createElement('div');fly.className=`tile ${it.c} tfly`;fly.textContent=disp(it.t.t);
+    fly.style.cssText=`left:${r1.left}px;top:${r1.top}px;width:${r1.width}px;height:${r1.height}px;font-size:${getComputedStyle(el).fontSize}`;
+    document.body.appendChild(fly);
+    return gAnim(fly,[{transform:'none'},{transform:`translate(${r2.left+r2.width/2-r1.left-r1.width/2}px,${r2.top+r2.height/2-r1.top-r1.height/2}px) scale(${r2.height/r1.height})`}],380,'ease-in-out')
+      .then(()=>{fly.remove();if(my===TOK)fill();});
+  }
+  async function complete(flying){
+    busy=true;clearTimeout(idle);gNoHand();delete root.dataset.t;
+    await flying;await sleep(350);if(my!==TOK)return;
+    train.classList.add('ok');FX.ding();burst(cur.emoji,8,centerOf(pic));
+    await gSay(cur);if(my!==TOK)return;
+    await playSfx(cur.sfx,my);if(my!==TOK)return;
+    FX.choo();
+    await gAnim(train,[{transform:'translateX(0)'},{transform:'translateX(-130%)'}],1300,'ease-in');
+    if(my!==TOK)return;
+    i++;gDots(N,i);
+    if(i>=N)return gameEnd(g);
+    show();
+  }
+  tray.addEventListener('click',e=>{
+    const el=e.target.closest('.tile');if(!el||busy||my!==TOK||el.classList.contains('used'))return;
+    ac();const it=items[+el.dataset.j];
+    gTapTile(el,it.t);
+    if(!same(it.t,cur.tiles[pos])){misses++;gShake(el);FX.bonk();if(misses>=2)gHand(nextTile());armIdle();return;}
+    misses=0;gNoHand();const fl=place(el,it,pos++);armIdle();
+    if(pos>=cur.tiles.length)complete(fl);else root.dataset.next=cur.tiles[pos].t;
+  });
+  pic.addEventListener('click',()=>{if(busy||my!==TOK)return;ac();stopSpeech();gSay(cur);armIdle();});
+  show();
+}
+
+/* ---- Sound Hunt: hear a letter sound (the grown-up's recording), tap the picture that starts with it ---- */
+function gameSounds(g,my){
+  const N=6,first=w=>w.tiles[0],ok=w=>hasPic(w)&&first(w).s!=='-'&&!!PHK[first(w).s];
+  const turns=gameTurns(gamePool(N,ok),N,w=>first(w).s);
+  const root=gameFrame(g,N,`<div class="shead"><button class="tile" id="sl" data-g="snd" aria-label="Hear the sound again"></button><button class="gsay" data-g="snd" aria-label="Hear the sound again">🔊</button></div>
+    <div class="pgrid" id="pics"></div>`);
+  const sl=$('#sl'),pics=$('#pics');
+  let i=0,cur,misses=0,busy=true,idle=0;
+  const answer=()=>$(`.pic[data-w="${cur.w}"]`,pics);
+  const sound=()=>{GSO++;stopSpeech();gBoing(sl);return sayLetter(first(cur),false);};
+  function show(){
+    cur=turns[i];misses=0;const t=first(cur);
+    sl.className='tile '+tileClasses(cur.tiles)[0];sl.style.setProperty('--w',tileW(t));sl.textContent=disp(t.t);
+    pics.innerHTML=picHtml(picChoices(cur,3,w=>first(w).s!==t.s&&first(w).t[0]!==t.t[0]));
+    root.dataset.t=cur.w;busy=false;sound();armIdle();
+  }
+  function armIdle(){clearTimeout(idle);idle=setTimeout(()=>{if(my!==TOK||busy)return;sound();gHand(answer());},10000);}
+  root.addEventListener('click',async e=>{
+    if(my!==TOK||busy)return;
+    if(e.target.closest('[data-g="snd"]')){ac();sound();armIdle();return;}
+    const p=e.target.closest('.pic');if(!p)return;
+    ac();
+    if(p.dataset.w!==cur.w){
+      // say the picture's word: its first sound is different
+      misses++;busy=true;gShake(p);FX.bonk();GSO++;stopSpeech();armIdle();
+      await gSay(BYW[p.dataset.w]);if(my!==TOK)return;
+      await sleep(250);if(my!==TOK)return;
+      busy=false;sound();if(misses>=2)gHand(answer());
+      return;
+    }
+    busy=true;clearTimeout(idle);gNoHand();GSO++;stopSpeech();delete root.dataset.t;
+    p.classList.add('yes');$$('.pic',pics).forEach(x=>{if(x!==p)x.classList.add('dim');});
+    FX.ding();burst(cur.emoji,8,centerOf(p));i++;gDots(N,i);
+    await sleep(350);if(my!==TOK)return;
+    await gSay(cur);if(my!==TOK)return;
+    await sleep(700);if(my!==TOK)return;
+    if(i>=N)return gameEnd(g);
+    show();
+  });
+  setTimeout(()=>{if(my===TOK)show();},400);
+}
 
 /* =====================================================================
    VOICE RECORDER (grown-ups)
@@ -2354,7 +2827,7 @@ function openSettings(){micOff();
     <div class="row"><span>Use the microphone<small>Off means a grown-up taps the green ✓ instead. iPhone/iPad: the mic stays on while the game is open, so iOS uses its call volume. Use Sound check below to set it.</small></span><label class="sw"><input type="checkbox" id="s-mic" ${S.settings.mic?'checked':''}></label></div>
     <button class="btn sm blue" id="s-scheck">🔊 Sound check</button>
     <div class="row"><span>CAPITAL letters<small>Show letters in uppercase</small></span><label class="sw"><input type="checkbox" id="s-upper" ${S.settings.upper?'checked':''}></label></div>
-    <div class="row"><span>Unlock all stories<small>Skip the word requirements</small></span><label class="sw"><input type="checkbox" id="s-unlock" ${S.settings.unlockAll?'checked':''}></label></div>
+    <div class="row"><span>Unlock all stories and games<small>Skip the word requirements</small></span><label class="sw"><input type="checkbox" id="s-unlock" ${S.settings.unlockAll?'checked':''}></label></div>
     <div><h3>Word level</h3><select id="s-level">${[1,2,3,4,5].map(l=>`<option value="${l}" ${S.frontier===l?'selected':''}>${LEVEL_NAMES[l]}</option>`).join('')}</select>
       <p style="margin-top:6px">The game moves up and down on its own. This just sets where it starts.</p></div>
     <div><h3>Your voice</h3>
@@ -2391,7 +2864,7 @@ function openSettings(){micOff();
     </div>
     <div class="small-status" id="s-status">${HAS_SR?(MICBLOCK&&MICWHY?micHelp(MICWHY):'Tap “Test microphone” and say “hello”.'):micHelp('nosr')}</div>
     <div><h3>Progress</h3><div class="lvls">${lv}</div>
-      <p style="margin-top:8px">${S.stars} stars · ${S.rounds} rounds · ${S.stickers.length} stickers</p></div>
+      <p style="margin-top:8px">${S.stars} stars · ${S.rounds} rounds · ${S.stickers.length} stickers · ${Object.values(S.games||{}).reduce((a,b)=>a+b,0)} games played</p></div>
     <div><h3>Voice files</h3>
       <p>${voiceSiteInfo()}</p>
       <p style="margin-top:6px">After recording new lines or building a new AI voice, make the voice files here. Save the ones marked “changed” and <b>manifest.json</b>, then upload them to the <b>voice</b> folder on GitHub (Add file › Upload files). Every device then gets the new voice the next time it opens the game.</p>
@@ -2663,6 +3136,8 @@ document.addEventListener('click',e=>{
     case 'home':screenHome();break;
     case 'play':startRound();break;
     case 'stories':screenStories();break;
+    case 'games':screenGames();break;
+    case 'game':startGame(id);break;
     case 'stickers':screenStickers();break;
     case 'known':screenKnown();break;
     case 'sayword':{stopSpeech();const el=b;el.classList.remove('boing');void el.offsetWidth;el.classList.add('boing');say(`${id}!`,{rate:.8,slow:.85});break;}
