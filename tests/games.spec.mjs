@@ -142,3 +142,49 @@ test('Sound Hunt plays the letter sound and offers pictures that start with othe
   await page.locator(`.pic[data-w="${others[0]}"]`).click();                // wrong: Ollie says that picture's word
   await expect.poll(() => page.evaluate(() => window.__tts)).toContain(others[0] + '!');
 });
+
+test('Balloon Pop: the word asked for is usually on a balloon already in the sky, not always the next one to come up', async ({ browser }) => {
+  test.setTimeout(240_000);
+  const site = newSite('games-balloons', { voice: false });
+  const { page } = await newDevice(browser);
+  await page.goto(site.url);
+  await dismissWelcome(page);
+  await setWords(page, known(['cat', 'dog', 'pig', 'hen', 'bug', 'sun', 'hat', 'bus', 'fox', 'map', 'red', 'cup', 'the', 'and']));
+  await page.click('[data-act="games"]');
+  const turns = [];
+  for (let game = 0; game < 2; game++) {
+    await page.click('[data-act="game"][data-id="balloons"]');
+    // at the moment a word is asked (same task, so no balloon can come up in between): is it in the sky,
+    // and how many balloons had come up so far; and every balloon that comes up, in order
+    await page.evaluate(() => {
+      const game = document.querySelector('#game'), gf = document.querySelector('#gf');
+      window.__turns = []; window.__spawns = [...gf.querySelectorAll('.bl')].map(b => b.dataset.w);
+      new MutationObserver(ms => { for (const m of ms) {
+        if (m.type === 'childList') m.addedNodes.forEach(n => { if (n.classList && n.classList.contains('bl')) window.__spawns.push(n.dataset.w); });
+        else if (game.dataset.t) { const t = game.dataset.t;
+          window.__turns.push({ t, where: game.dataset.where, n: window.__spawns.length, sky: [...gf.querySelectorAll('.bl:not(.popped)')].some(b => b.dataset.w === t) }); }
+      } }).observe(game, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-t'] });
+    });
+    for (let k = 0; k < 8; k++) {
+      await page.waitForFunction(k => document.querySelector('#game')?.dataset.t && window.__turns.length > k, k, { timeout: 20_000 });
+      const t = await page.locator('#game').getAttribute('data-t');
+      await page.locator(`.bl[data-w="${t}"]:not(.popped)`).first().dispatchEvent('pointerdown');   // waits for it to come up if it is still to come
+      if (k < 7) await expect(page.locator('.dots i.d')).toHaveCount(k + 1);
+    }
+    await expect(page.locator('.bigtitle')).toBeVisible({ timeout: 20_000 });
+    const { tt, sp } = await page.evaluate(() => ({ tt: window.__turns, sp: window.__spawns }));
+    for (const x of tt) {
+      if (x.where === 'sky') expect(x.sky, JSON.stringify(x)).toBe(true);
+      else {
+        const q = +x.where.slice(1);
+        expect(x.sky, JSON.stringify(x)).toBe(false);
+        expect(sp[x.n + q], JSON.stringify({ ...x, next: sp.slice(x.n, x.n + 4) })).toBe(x.t);   // the (q+1)th balloon to come up
+      }
+    }
+    turns.push(...tt);
+  }
+  expect(turns.length).toBe(16);
+  expect(turns.filter(x => x.where === 'sky').length).toBeGreaterThan(0);
+  expect(turns.filter(x => x.where === 'q0').length).toBeLessThan(16);
+  console.log('where the words were:', turns.map(x => x.where).join(' '));
+});
