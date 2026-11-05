@@ -1,7 +1,7 @@
 // Every line Ollie can say must be recordable: give a device a recording for every line the recorder
 // lists, play through the game, and fail on any sentence that came from the AI or device voice.
 import { test, expect } from '@playwright/test';
-import { newSite, newDevice, ensureMic, SAY_TILES, idbPut } from './helpers.mjs';
+import { newSite, newDevice, ensureMic, SAY_TILES, idbPut, playGame } from './helpers.mjs';
 
 test('every line Ollie says is in the recorder', async ({ browser }) => {
   test.setTimeout(300_000);
@@ -71,6 +71,21 @@ test('every line Ollie says is in the recorder', async ({ browser }) => {
   await page.click('[data-act="known"]'); await page.locator('.kw').first().click(); await page.waitForTimeout(600);
   await page.click('[data-act="home"]');
   await settings(); await page.click('#s-testv'); await page.waitForTimeout(1500);
+
+  // every game to the end (stories and games are unlocked), with some wrong taps
+  for (const id of ['balloons', 'snap', 'memory', 'train', 'sounds']) {
+    await page.goto(site.url); await page.waitForTimeout(300);
+    await page.click('[data-act="games"]');
+    await page.click(`[data-act="game"][data-id="${id}"]`);
+    if (id === 'snap' || id === 'sounds') {
+      await page.waitForFunction(() => document.querySelector('#game')?.dataset.t);
+      const t = await page.locator('#game').getAttribute('data-t');
+      for (let k = 0; k < 2; k++) { await page.locator(`.pic:not([data-w="${t}"])`).first().click(); await page.waitForTimeout(1200); }
+      if (id === 'snap') { await page.click('#sign .tile >> nth=0'); await page.waitForTimeout(400); }
+    }
+    await playGame(page, id);
+    await page.waitForTimeout(1500);
+  }
 
   const log = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__ol') || '[]'));
   const gaps = [...new Set(log.filter(x => x.src !== 'mine').map(x => `${x.src}: ${x.t}`))];

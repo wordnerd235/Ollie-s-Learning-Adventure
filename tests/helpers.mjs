@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { expect } from '@playwright/test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -180,3 +181,42 @@ export async function ensureMic(page) {
 
 /* The word on the tiles, which is what the child should say. */
 export const SAY_TILES = () => [...document.querySelectorAll('#act .tile')].map(t => t.textContent).join('').toLowerCase();
+
+/* Play a game (already on its screen) to the end by tapping the right answers.
+   Each game marks what it is asking for: #game[data-t] (the word), and in Word Train #game[data-next] (the next letter). */
+export async function playGame(page, id) {
+  const game = page.locator('#game');
+  const want = async () => { await page.waitForFunction(() => document.querySelector('#game')?.dataset.t, null, { timeout: 20_000 }); return game.getAttribute('data-t'); };
+  const done = () => page.locator('.dots i.d').count();
+  if (id === 'balloons' || id === 'snap' || id === 'sounds') {
+    const n = await page.locator('.dots i').count();
+    for (let k = 0; k < n; k++) {
+      const t = await want();
+      if (id === 'balloons') await page.locator(`.bl[data-w="${t}"]:not(.popped)`).first().dispatchEvent('pointerdown');   // balloons move: tap without waiting for them to stop
+      else await page.locator(`.pic[data-w="${t}"]`).click();
+      if (k < n - 1) await expect(page.locator('.dots i.d')).toHaveCount(k + 1);   // the last one goes to the end screen
+    }
+  } else if (id === 'memory') {
+    await page.waitForFunction(() => document.querySelector('#game')?.dataset.ready, null, { timeout: 10_000 });
+    const ws = await page.$$eval('.mem', els => els.map(e => e.dataset.w));
+    for (const w of [...new Set(ws)]) {
+      const cards = page.locator(`.mem[data-w="${w}"]`);
+      await cards.nth(0).click(); await cards.nth(1).click();
+      await expect(cards.nth(1)).toHaveClass(/got/);
+      await page.waitForTimeout(150);
+    }
+  } else if (id === 'train') {
+    const n = await page.locator('.dots i').count();
+    for (let k = 0; k < n; k++) {
+      await want();
+      while (await game.getAttribute('data-t')) {
+        const nx = (await game.getAttribute('data-next')).toLowerCase();
+        await page.evaluate(nx => [...document.querySelectorAll('#tray .tile:not(.used)')].find(e => e.textContent.toLowerCase() === nx).click(), nx);
+        await page.waitForTimeout(80);
+      }
+      if (k < n - 1) await expect(page.locator('.dots i.d')).toHaveCount(k + 1, { timeout: 20_000 });
+    }
+  }
+  await expect(page.locator('.bigtitle')).toBeVisible({ timeout: 20_000 });
+  return done;
+}

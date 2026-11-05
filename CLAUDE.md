@@ -9,6 +9,7 @@ Owner: technical (electrical/controls engineer), not a web developer. Prefers di
 - **Letter tiles:** tapping a letter plays its sound. "Sound it out" plays the letters in sequence (there is deliberately no "Hear it" button that says the word). Silent letters are shown as dashed tiles.
 - **Skip** is always available but earns nothing (Oct 2026, owner's request): in a round the skipped word goes to the back of the line (`RS.skipped`) and comes back, so a round needs all 6 words read, each dot = a word read, and the sticker means 6 reads; in a story Ollie says the word ("That word is X.") and asks it again. A word that was skipped shows the grown-up ✓ straight away (`opts.grown`), so a hard word can't block the child. The grown-up ✓ counts only after a **5 s press-and-hold** (`GROWN_HOLD`, the button fills while held; a tap does nothing). A grown-up ✓ button also appears after misses, or replaces the mic entirely when the mic is unavailable.
 - **Stories:** 9 stories unlock as their words are learned. Ollie narrates the lead-in words, the child reads each target word, then the whole sentence is read back with word highlighting. A story counts as done once read through (this clears the Story Time badge).
+- **Games** (Nov 2026, owner's request; `GAMES`): five touch games (no mic) made from the words the child knows, unlocking by the number of known words like stories unlock by theirs: 🎈 Balloon Pop (3 words: Ollie says a word, pop the balloon showing it), 📸 Snap It! (6: read the word on the sign, tap its picture), 🃏 Memory Cards (10: word/picture pairs; 6 pairs from 16 known words), 🚂 Word Train (15: Ollie says the word, tap its letter tiles in order; each tap plays the letter's sound), 🔍 Sound Hunt (20: hear a letter sound, tap the picture starting with it). Locked cards show "🧠 n / need" and a Practice button; the home 🎮 button has a badge for unlocked games not played yet; a round/story end announces games it unlocked ("New game: …"). "Unlock all stories and games" opens them all. Games only say lines already recorded (the word, `PRAISE`, the word's fun sound, letter sounds), so no new recordings are needed; sound effects are synthesized (`FX.bpop/flip/bonk/match/snap/shutter/win`). They don't change word progress, stars or stickers (reading aloud earns those); `S.games` counts plays. Hints for a non-reader: after wrong taps or a pause, the answer glows with a bouncing 👆 (`gHand`); reading games sound the word out instead of saying it (no "hear it", as in rounds). Pictures come only from words whose emoji clearly shows them (`hasPic`, `NOPIC`), and look-alikes (`ALIKE`, e.g. van/bus) are never offered together.
 - **Stickers:** earned per round/story; 100 in `STICKERS` (the original 36 first, in their old order, then 64 added Oct 2026: append new ones at the end so a child's collection keeps its place). There are 6 illustrated "sticker scenes" with Ollie where stickers can be placed, dragged, resized, flipped, and cleared.
 - **Greeting:** a returning player (page reopened or refreshed) hears "Hello, again! Ready to read?" (not personalised, owner's choice) once the voice is ready (`greetOnReturn`). iOS allows no sound before the first tap, so there it plays on the first tap, unless that tap is a menu button.
 - **Words I know:** the count on the home screen is a button to a list of known words (`screenKnown`); tapping one says it.
@@ -60,6 +61,7 @@ One IIFE. Section banners (search for them):
 - `SCREENS` / rounds / stickers / `STICKER SCENES` / stories / story player:
   - `readAlong()` plays slices of the whole-sentence clip using its word timings (`segBuf`).
   - It uses the owner's recorded pieces instead when they exist.
+- `GAMES`: `screenGames`, `startGame`, `gameEnd`; one function per game (`gameBalloons`, `gameSnap`, `gameMemory`, `gameTrain`, `gameSounds`), each started with the current `TOK` and stopping when it changes. Shared: `gamePool` (known words first, topped up from the child's level), `gameTurns`, `picChoices`, `gHand`. Each game marks what it is asking for on `#game[data-t]` (Word Train also `data-next`), which the tests use.
 - `VOICE RECORDER`: `recGroups()` lists every line in sections; `guided()` walks through the missing ones one at a time.
 - `GROWN-UP SETTINGS`, `EVENTS`.
 
@@ -113,6 +115,7 @@ One IIFE. Section banners (search for them):
 - Held mic with echo cancellation off (lesson 20): confirmed by the owner on iPhone: no pops on the speaker, words recognized.
 - Push-to-talk mic button (Oct 2): unverified on iPhone. `syncAC` now only probes while the game is quiet, and isn't called per word while the mic is held.
 - `rev-1` branch on GitHub = the stable version before push to talk (the owner's saved copy; don't change it).
+- Games (Nov 5): unverified on iPhone (touch response of the rising balloons, card flips, sound effects).
 - Unverified on real iOS: the device voice fix, the voice download/export, the sound check, `syncAC`, `desnap`.
 
 ## Testing
@@ -130,4 +133,6 @@ One IIFE. Section banners (search for them):
   - Mock Murf/ElevenLabs with `page.route` (include CORS headers and handle OPTIONS).
   - Use `force=True` or DOM `.click()` because the mic button animates constantly.
   - Set an iPhone user agent to exercise `IS_IOS` code paths.
+- `games.spec.mjs`: unlocking, the round-end "New game" banner, every game played to the end (`playGame` in helpers), wrong taps and hints. `gaps.spec` also plays every game.
+- Cloud container: the pinned `@playwright/test` 1.56.1 finds no browser of its own. Without changing the repo, point it at the preinstalled one: make a folder with `chromium_headless_shell-1194/chrome-linux/headless_shell` → `/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell` (symlink, plus an empty `INSTALLATION_COMPLETE` file) and run with `PLAYWRIGHT_BROWSERS_PATH=<that folder>`.
 - Cover these flows: a round with a correct read and a skip; the mic toggle continuing across words; mic denied → green grown-up button; a story played end to end; building and restoring the voice pack; sticker scenes; the recorder and guided mode.
