@@ -2430,47 +2430,76 @@ async function gSoundOut(box,word,my){
   }
 }
 
-/* ---- Balloon Pop: Ollie says a word; pop the balloon that shows it. Balloons rise in four lanes;
-   the word asked for is always on one of them (a new one comes up if it floats away). ---- */
+/* ---- Balloon Pop: Ollie says a word; pop the balloon that shows it. A balloon comes up about every
+   3 s in one of four lanes (each lane rises at its own speed). The word asked for is usually on a balloon
+   already in the sky, sometimes on the next one to come up, now and then the 2nd or 3rd still to come,
+   so watching the bottom of the sky doesn't give it away. ---- */
 const BCOL=[['#ff5fa2','#fff'],['#4da3ff','#fff'],['#ffd23f','#4a3600'],['#34d399','#fff'],['#ff9f43','#fff'],['#a77bff','#fff']];
 function gameBalloons(g,my){
-  const N=8,turns=gameTurns(gamePool(6),N),words=gamePool(12),LANES=[13,37.5,62.5,87];
+  const N=8,ask=gamePool(6),words=[...new Set([...ask,...gamePool(12)])],LANES=[13,37.5,62.5,87];
   const root=gameFrame(g,N,`<div class="gask"><button class="owl sm" data-g="say" aria-label="Hear the word again">🦉</button><button class="gsay" data-g="say" aria-label="Hear the word again">🔊</button></div>
     <div class="gfield" id="gf"><span class="gc" style="left:5%;top:8%">☁️</span><span class="gc" style="left:68%;top:30%;font-size:10cqw">☁️</span><span class="gc" style="left:28%;top:62%;font-size:9cqw">☁️</span></div>`);
-  const f=$('#gf'),bs=[];
-  let i=0,cur=turns[0],misses=0,busy=true,idle=0,last=0,hinted=false,col=Math.floor(Math.random()*BCOL.length);
-  function wordFor(){
-    const live=bs.filter(b=>!b.popped);
-    if(!live.some(b=>b.w===cur))return cur;
-    const free=words.filter(w=>w!==cur&&!live.some(b=>b.w===w));
+  const f=$('#gf'),bs=[],secs=LANES.map(()=>12+Math.random()*3),asked=new Map();   // seconds to cross the sky, per lane
+  let i=0,cur=null,misses=0,busy=true,idle=0,last=0,hinted=false,queue=[],nextAt=-1,lastLane=-1,col=Math.floor(Math.random()*BCOL.length);
+  const live=()=>bs.filter(b=>!b.popped);
+  // the words for the next balloons to come up (null = any other word)
+  function decoy(){
+    const used=new Set([...live().map(b=>b.w),...queue.filter(Boolean)]);if(cur)used.add(cur);
+    const free=words.filter(w=>!used.has(w));
     return rand(free.length?free:words.filter(w=>w!==cur));
   }
   function spawn(lane,y){
-    const w=wordFor(),[bg,fg]=BCOL[col++%BCOL.length],el=document.createElement('button'),L=w.w.length;
+    const w=queue.shift()||decoy(),[bg,fg]=BCOL[col++%BCOL.length],el=document.createElement('button'),L=w.w.length;
     el.className='bl';el.dataset.w=w.w;el.setAttribute('aria-label',w.w);
     el.style.cssText=`left:${LANES[lane]}%;--c:${bg};--fg:${fg};--fs:${L<=2?8:L===3?7.2:L===4?6:5}cqw`;
     el.innerHTML=`<i class="bb"><span>${disp(w.w)}</span></i>`;
     f.appendChild(el);
-    // 12-15 s to cross the sky; the word asked for rises a little slower
-    const b={el,lane,w,y:y===undefined?f.clientHeight+8:y,v:f.clientHeight/(12+Math.random()*3)*(w===cur?.85:1),ph:Math.random()*6.3,popped:false};
-    el._b=b;bs.push(b);move(b,0);
-    if(hinted&&w===cur)gHand(el);   // the hint follows the word onto its new balloon
+    const b={el,lane,w,y:y===undefined?f.clientHeight+8:y,ph:Math.random()*6.3,popped:false};
+    el._b=b;bs.push(b);move(b,0,f.clientHeight);lastLane=lane;
+    if(hinted&&w===cur)gHand(el);   // the hint follows the word onto its balloon
     return b;
   }
-  function move(b,dt){b.y-=b.v*dt;b.ph+=dt*1.7;b.el.style.transform=`translate3d(${(Math.sin(b.ph)*6).toFixed(1)}px,${b.y.toFixed(1)}px,0)`;}
+  function move(b,dt,h){b.y-=h/secs[b.lane]*dt;b.ph+=dt*1.7;b.el.style.transform=`translate3d(${(Math.sin(b.ph)*6).toFixed(1)}px,${b.y.toFixed(1)}px,0)`;}
+  // a lane takes a new balloon once its lowest one has risen clear of the bottom
+  const freeLanes=(h,w)=>LANES.map((_,k)=>k).filter(k=>!bs.some(b=>!b.popped&&b.lane===k&&b.y>h-w*.42));
   function frame(t){
     if(my!==TOK)return;
     const dt=last?Math.min(.05,(t-last)/1000):0;last=t;
-    const gone=-f.clientWidth*.38;
+    const h=f.clientHeight,w=f.clientWidth;
     for(const b of bs.slice()){
-      if(b.popped)continue;move(b,dt);
-      if(b.y<gone){b.el.remove();bs.splice(bs.indexOf(b),1);spawn(b.lane);}   // floated away: a new one comes up
+      if(b.popped)continue;move(b,dt,h);
+      if(b.y<-w*.38){b.el.remove();bs.splice(bs.indexOf(b),1);
+        if(b.w===cur&&!busy){queue=[cur];nextAt=Math.min(nextAt,t+500);}}   // the word floated away: it comes up again next
     }
+    if(nextAt<0)nextAt=t+1800;
+    if(t>=nextAt){const fl=freeLanes(h,w);if(fl.length){const o=fl.filter(k=>k!==lastLane);spawn(rand(o.length?o:fl));nextAt=t+2600+Math.random()*600;}}
     requestAnimationFrame(frame);
   }
-  function ask(){if(my!==TOK)return;root.dataset.t=cur.w;owlTalk();gSay(cur);armIdle();}
-  function armIdle(){clearTimeout(idle);idle=setTimeout(()=>{if(my!==TOK||busy)return;hint();owlTalk();gSay(cur);armIdle();},9000);}
-  function hint(){hinted=true;const b=bs.find(x=>!x.popped&&x.w===cur);if(b)gHand(b.el);}
+  // the next word: each balloon in the sky (not about to float away) is as likely as "the next to come up",
+  // which is now and then the 2nd or 3rd still to come; words asked less often are likelier, never twice in a row
+  function pickWord(){
+    const h=f.clientHeight,w=f.clientWidth,prev=cur,r=Math.random();
+    const wt=x=>1/(1+(asked.get(x)||0)),pick=l=>{let s=Math.random()*l.reduce((a,x)=>a+wt(x),0);for(const x of l){s-=wt(x);if(s<=0)return x;}return l[l.length-1];};
+    const onSky=new Set(live().map(b=>b.w));
+    const sky=live().filter(b=>ask.includes(b.w)&&b.w!==prev&&b.y>h*.2&&b.y<h-w*.2).map(b=>b.w);
+    const rest=ask.filter(x=>x!==prev&&!onSky.has(x));
+    let word,where='sky';queue=[];
+    if(sky.length&&(!rest.length||Math.random()<sky.length/(sky.length+1)))word=pick(sky);
+    else if(rest.length){const k=r<.6?0:r<.85?1:2;word=pick(rest);queue=[null,null,null].slice(0,k).concat(word);where='q'+k;}
+    else{const any=live().filter(b=>ask.includes(b.w)).map(b=>b.w),o=any.filter(x=>x!==prev);
+      if(any.length)word=pick(o.length?o:any);else{word=prev||ask[0];queue=[word];where='q0';}}
+    asked.set(word,(asked.get(word)||0)+1);
+    return {word,where};
+  }
+  function next(){
+    if(my!==TOK)return;
+    const p=pickWord();cur=p.word;misses=0;hinted=false;
+    root.dataset.t=cur.w;root.dataset.where=p.where;owlTalk();gSay(cur);armIdle();
+  }
+  const shown=()=>live().find(b=>b.w===cur&&b.y<f.clientHeight-f.clientWidth*.2);
+  // nothing popped for a while: point at the word's balloon (once it is up) and say the word again
+  function armIdle(ms=9000){clearTimeout(idle);idle=setTimeout(()=>{if(my!==TOK||busy)return;if(!shown()){armIdle(1500);return;}hint();owlTalk();gSay(cur);armIdle();},ms);}
+  function hint(){hinted=true;const b=live().find(x=>x.w===cur);if(b)gHand(b.el);}
   function wrong(b){
     misses++;gShake(b.el);FX.bonk();stopSpeech();
     setTimeout(()=>{if(my===TOK&&!busy)gSay(cur);},350);
@@ -2481,18 +2510,10 @@ function gameBalloons(g,my){
     busy=true;b.popped=true;hinted=false;clearTimeout(idle);gNoHand();stopSpeech();delete root.dataset.t;
     b.el.classList.add('popped');FX.bpop();burst(hasPic(cur)?cur.emoji:'⭐',8,centerOf(b.el));
     i++;gDots(N,i);
-    const done=i>=N;
-    if(!done){
-      // not a word whose balloon is about to float away
-      const nearTop=w=>bs.some(x=>!x.popped&&x.w===w&&x.y<f.clientHeight*.25);
-      let k=i;while(k<N&&nearTop(turns[k]))k++;
-      if(k<N&&k!==i)[turns[i],turns[k]]=[turns[k],turns[i]];
-      cur=turns[i];misses=0;
-    }
-    setTimeout(()=>{b.el.remove();const k=bs.indexOf(b);if(k>=0)bs.splice(k,1);if(!done&&my===TOK)spawn(b.lane);},300);
+    setTimeout(()=>{b.el.remove();const k=bs.indexOf(b);if(k>=0)bs.splice(k,1);},300);
     await sleep(800);if(my!==TOK)return;
-    if(done)return gameEnd(g);
-    busy=false;ask();
+    if(i>=N)return gameEnd(g);
+    busy=false;next();
   }
   f.addEventListener('pointerdown',e=>{
     const el=e.target.closest('.bl');if(!el||my!==TOK)return;
@@ -2500,9 +2521,10 @@ function gameBalloons(g,my){
     ac();if(b.w===cur)popIt(b);else wrong(b);
   });
   root.addEventListener('click',e=>{if(!e.target.closest('[data-g="say"]')||busy)return;stopSpeech();owlTalk();gSay(cur);armIdle();});
-  shuffle([0,1,2,3]).forEach((lane,k)=>spawn(lane,f.clientHeight*[.45,.08,.72,.25][k]));   // the first (the word asked for) low in the sky
+  const h0=f.clientHeight,ln=shuffle([0,1,2,3]);
+  [.1,.28,.46,.64,.82].forEach((fr,k)=>spawn(ln[k%4],h0*fr));   // a sky already full of balloons
   requestAnimationFrame(frame);
-  setTimeout(()=>{if(my!==TOK)return;busy=false;ask();},600);
+  setTimeout(()=>{if(my!==TOK)return;busy=false;next();},600);
 }
 
 /* ---- Snap It: read the word on the sign, then tap its picture: a photo is taken ---- */
