@@ -42,6 +42,7 @@ test('a full level: 30 cleared with the right words, then the boss is beaten and
   await page.evaluate(() => { window.__tts.length = 0; });
   await page.click('[data-act="games"]');
   await page.click('[data-act="game"][data-id="quest"]');
+  await page.click('[data-act="qlevel"][data-id="0"]');
   await expect(page.locator('#quest canvas')).toBeVisible();
   await expect(page.locator('.qb')).toHaveCount(3);
   let cleared = 0, wrongTried = false, dodged = 0, strikes = 0;
@@ -93,16 +94,18 @@ test('a full level: 30 cleared with the right words, then the boss is beaten and
   await page.click('#qpanel [data-q="wear"]');
   expect(await pic()).toBe(worn);
   const S = await page.evaluate(KEY => JSON.parse(localStorage.getItem(KEY)), KEY);
-  expect(S.cos).toEqual({ owned: ['monocle'], on: 'monocle' });
+  expect(S.cos).toEqual({ owned: ['monocle'], on: ['monocle'] });
+  expect(S.qbeat).toEqual({ farm: true });
   expect(S.games.quest).toBe(1);
   // only the words (and a praise line) were spoken: no new voice lines (" " is the device voice being primed)
   const said = await page.evaluate(() => window.__tts);
   for (const t of said.filter(t => t.trim())) expect(['cow!', 'sun!', 'rat!', ...PRAISE]).toContain(t);
   // Ollie wears it everywhere; it can be taken off in the closet on the games screen
-  await page.locator('#qpanel [data-act="games"]').click();
+  await page.locator('#qpanel [data-act="quest"]').click();
+  await page.click('[data-act="games"]');
   await expect(page.locator('.closet .cl-it.on')).toHaveCount(1);
   await page.click('.closet .cl-it');
-  expect(await page.evaluate(KEY => JSON.parse(localStorage.getItem(KEY)).cos.on, KEY)).toBe('');
+  expect(await page.evaluate(KEY => JSON.parse(localStorage.getItem(KEY)).cos.on, KEY)).toEqual([]);
   await page.click('[data-act="home"]');
   await expect(page.locator('.home .owl img.ollie-i')).toBeVisible();
   expect(errors).toEqual([]);
@@ -113,6 +116,7 @@ test('7 s between encounters at the start, 3 s for the last 5', async ({ browser
   const { page } = await device(browser, 'quest-pace', known(['cow', 'sun', 'rat']));
   await page.click('[data-act="games"]');
   await page.click('[data-act="game"][data-id="quest"]');
+  await page.click('[data-act="qlevel"][data-id="0"]');
   const etas = [];
   for (;;) {                                                                 // clear each one at the last moment, note the time to the next
     const s = await state(page);
@@ -134,6 +138,7 @@ test('running into things costs hearts; with none left it is over, and Try again
   const { page } = await device(browser, 'quest-lose', known(['cow', 'sun', 'rat']));
   await page.click('[data-act="games"]');
   await page.click('[data-act="game"][data-id="quest"]');
+  await page.click('[data-act="qlevel"][data-id="0"]');
   await expect.poll(async () => (await state(page)).hp, { timeout: 60_000 }).toBe('2');
   await expect.poll(async () => (await state(page)).phase, { timeout: 60_000 }).toBe('over');
   await expect(page.locator('#qpanel')).toContainText('Oh no!');
@@ -144,4 +149,75 @@ test('running into things costs hearts; with none left it is over, and Try again
   expect(s.hp).toBe('3');
   expect(['intro', 'run']).toContain(s.phase);
   await expect(page.locator('#qpanel')).toBeHidden();
+});
+
+/* play a level from its start to the end (right words for everything, then the boss) */
+async function playLevel(page, n) {
+  let strikes = 0, dodged = 0;
+  const t0 = Date.now();
+  for (;;) {
+    const s = await state(page);
+    expect(Date.now() - t0).toBeLessThan(170_000);
+    if (s.phase === 'won') break;
+    expect(s.phase).not.toBe('over');
+    if (s.phase === 'run' && s.next) { await press(page, s.next); await page.waitForFunction(w => document.querySelector('#quest').dataset.next !== w || document.querySelector('#quest').dataset.phase !== 'run', s.next); continue; }
+    if (s.phase === 'tele' && s.ask) { await press(page, s.ask); dodged++; continue; }
+    if (s.phase === 'turn') { const ws = await page.$$eval('.qb', b => b.map(x => x.dataset.w)); expect(ws.length).toBe(n);
+      await press(page, ws[strikes % n]); strikes++; await page.waitForFunction(() => !['pattack', 'turn'].includes(document.querySelector('#quest').dataset.phase)); continue; }
+    await page.waitForTimeout(30);
+  }
+  expect(strikes).toBe(3); expect(dodged).toBe(9);
+}
+
+test('the map: the cave opens after Baron Von Moo is beaten (and its words are known), the forest after DJ Spinster', async ({ browser }) => {
+  const all = ['cow', 'sun', 'rat', 'bat', 'bug', 'hot', 'web', 'fox', 'bee', 'ox', 'net', 'ant'];
+  const { page } = await device(browser, 'quest-map', known(all.filter(w => w !== 'web')));
+  await page.click('[data-act="games"]');
+  await page.click('[data-act="game"][data-id="quest"]');
+  await expect(page.locator('.qlv')).toHaveCount(3);
+  await expect(page.locator('[data-level="1"]')).toHaveClass(/locked/);
+  await expect(page.locator('[data-level="1"]')).toContainText('Beat Baron Von Moo');
+  await page.evaluate(KEY => { const S = JSON.parse(localStorage.getItem(KEY)); S.qbeat = { farm: true }; localStorage.setItem(KEY, JSON.stringify(S)); }, KEY);
+  await page.reload(); await page.click('[data-act="games"]'); await page.click('[data-act="game"][data-id="quest"]');
+  await expect(page.locator('[data-level="1"]')).toHaveClass(/locked/);                      // 'web' isn't known yet
+  await expect(page.locator('[data-level="1"] [data-act="qpractice"]')).toBeVisible();
+  await expect(page.locator('[data-level="2"]')).toContainText('Beat DJ Spinster');
+  await page.evaluate(KEY => { const S = JSON.parse(localStorage.getItem(KEY)); S.words.web = { n: 2, ok: 2, sc: 2, sk: 0 }; localStorage.setItem(KEY, JSON.stringify(S)); }, KEY);
+  await page.reload(); await page.click('[data-act="games"]'); await page.click('[data-act="game"][data-id="quest"]');
+  await expect(page.locator('[data-level="1"]')).not.toHaveClass(/locked/);
+  await expect(page.locator('[data-level="2"]')).toHaveClass(/locked/);
+});
+
+test('levels 2 and 3 play to the end; each prize is won, and the prizes are worn together', async ({ browser }) => {
+  test.setTimeout(400_000);
+  const all = ['cow', 'sun', 'rat', 'bat', 'bug', 'hot', 'web', 'fox', 'bee', 'ox', 'net', 'ant'];
+  const { page } = await device(browser, 'quest-23', known(all));
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  await page.evaluate(KEY => { const S = JSON.parse(localStorage.getItem(KEY)); S.qbeat = { farm: true }; S.cos = { owned: ['monocle'], on: ['monocle'] }; localStorage.setItem(KEY, JSON.stringify(S)); }, KEY);
+  await page.reload();
+  await page.evaluate(() => { window.__tts.length = 0; });
+  await page.click('[data-act="games"]');
+  await page.click('[data-act="game"][data-id="quest"]');
+  await page.click('[data-act="qlevel"][data-id="1"]');
+  await expect(page.locator('#quest')).toHaveAttribute('data-level', 'cave');
+  await expect(page.locator('.qb')).toHaveCount(4);
+  await playLevel(page, 4);
+  await expect(page.locator('#qpanel')).toContainText('headphones');
+  await page.click('#qpanel [data-q="next"]');                                                // straight on to the forest
+  await expect(page.locator('#quest')).toHaveAttribute('data-level', 'forest');
+  await expect(page.locator('.qb')).toHaveCount(5);
+  await playLevel(page, 5);
+  await expect(page.locator('#qpanel')).toContainText('magic wand');
+  await expect(page.locator('#qpanel [data-q="next"]')).toHaveCount(0);                       // the last level for now
+  const S = await page.evaluate(KEY => JSON.parse(localStorage.getItem(KEY)), KEY);
+  expect(S.qbeat).toEqual({ farm: true, cave: true, forest: true });
+  expect(S.cos.owned).toEqual(['monocle', 'headphones', 'wand']);
+  expect([...S.cos.on].sort()).toEqual(['headphones', 'monocle', 'wand']);                   // one per spot: all three at once
+  const said = await page.evaluate(() => window.__tts);
+  for (const t of said.filter(t => t.trim())) expect([...all.map(w => w + '!'), ...PRAISE]).toContain(t);
+  await page.click('#qpanel [data-act="quest"]');
+  await expect(page.locator('.qlv h3', { hasText: '✓' })).toHaveCount(3);
+  await page.click('[data-act="games"]');
+  await expect(page.locator('.closet .cl-it.on')).toHaveCount(3);
+  expect(errors).toEqual([]);
 });
