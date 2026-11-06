@@ -56,6 +56,15 @@ test('a full level: 30 cleared with the right words, then the boss is beaten and
         wrongTried = true; await press(page, ['cow', 'sun', 'rat'].find(w => w !== s.next));
         expect((await state(page)).next).toBe(s.next);
       }
+      if (cleared === 3) {                                                   // rushes past it, then straight back to the normal pace
+        await page.waitForFunction(() => !document.querySelector('#quest').dataset.rush);
+        const v0 = Number((await state(page)).v);
+        await press(page, s.next); cleared++;
+        await expect.poll(async () => Number((await state(page)).v)).toBeGreaterThan(v0 + 150);
+        await page.waitForFunction(() => !document.querySelector('#quest').dataset.rush);
+        expect(Number((await state(page)).v)).toBeLessThan(v0 + 25);
+        continue;
+      }
       await press(page, s.next); cleared++;
       await page.waitForFunction(w => document.querySelector('#quest').dataset.next !== w || document.querySelector('#quest').dataset.phase !== 'run', s.next);
       continue;
