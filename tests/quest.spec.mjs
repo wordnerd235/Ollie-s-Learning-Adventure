@@ -108,7 +108,7 @@ test('a full level: 30 cleared with the right words, then the boss is beaten and
   expect(errors).toEqual([]);
 });
 
-test('7 s between encounters at the start, 4 s by the end', async ({ browser }) => {
+test('7 s between encounters at the start, 3 s for the last 5', async ({ browser }) => {
   test.setTimeout(120_000);
   const { page } = await device(browser, 'quest-pace', known(['cow', 'sun', 'rat']));
   await page.click('[data-act="games"]');
@@ -126,8 +126,7 @@ test('7 s between encounters at the start, 4 s by the end', async ({ browser }) 
   }
   expect(etas.length).toBeGreaterThan(25);
   for (const e of etas.slice(0, 6)) { expect(e).toBeGreaterThan(6.5); expect(e).toBeLessThanOrEqual(7.05); }
-  const end = etas[etas.length - 1];
-  expect(end).toBeGreaterThan(3.6); expect(end).toBeLessThan(4.4);
+  for (const e of etas.slice(-4)) { expect(e).toBeGreaterThan(2.7); expect(e).toBeLessThan(3.3); }
 });
 
 test('running into things costs hearts; with none left it is over, and Try again starts the level over', async ({ browser }) => {

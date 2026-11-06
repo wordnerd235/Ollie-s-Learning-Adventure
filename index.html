@@ -138,6 +138,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:4px solid 
 .kw.boing{animation:tboing .5s}
 .gear{position:absolute;right:6px;top:6px;width:48px;height:48px;border-radius:50%;border:0;background:var(--card);font-size:22px;opacity:.7}
 .hint{font-size:13px;color:var(--ink2);margin-top:-6px}
+.build{font-size:11px;opacity:.8}
 
 /* activity */
 .act{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%}
@@ -648,6 +649,7 @@ const STORIES=STORY_RAW.map(st=>{
    SAVE
    ===================================================================== */
 const KEY='ollie-word-adventure-v1';
+const BUILD='';   // the test version's build label, set by tools/save-test.sh
 const defaults=()=>({name:'',seen:false,frontier:2,words:{},stars:0,stickers:[],stories:{},games:{},cos:{owned:[],on:''},rounds:0,recent:[],recentWords:[],
   settings:{sound:true,mic:true,upper:false,unlockAll:false,voice:'',fx:.5,vspd:.85}});
 function load(){
@@ -1972,7 +1974,7 @@ function screenHome(){micOff();
     </div>
     <div class="stats"><span>⭐ ${S.stars}</span><button class="known" data-act="known">🧠 ${n} word${n===1?'':'s'} I know</button></div>
     <button class="gear" id="gear" aria-label="Grown-up settings. Press and hold.">⚙️</button>
-    <div class="hint">Grown-ups: press and hold ⚙️</div>
+    <div class="hint">Grown-ups: press and hold ⚙️${BUILD?`<br><span class="build">${BUILD}</span>`:''}</div>
   </div>`);
   const g=$('#gear');let t=0;
   const cancel=()=>clearTimeout(t);
@@ -3074,10 +3076,10 @@ function gameQuest(g,my){
     $('#qbtns').innerHTML=shuffle(L.words).map(w=>`<button class="qb" data-w="${w}">${disp(w)}</button>`).join('');
     hud();MUSIC.play('run');
   }
-  /* Time from passing one encounter to bumping into the next: 7 s for the first 8, then down to 4 s by
-     the last (owner's request). The speed is set again each time Ollie passes one, so a rush past a
+  /* Time from passing one encounter to bumping into the next: 7 s for the first 8, then down to 3 s by
+     the 25th, and 3 s for the last 5 (owner's request). The speed is set again each time Ollie passes one, so a rush past a
      cleared one doesn't shorten the time for the next. */
-  const gap=k=>k<8?7:lerp(7,4,(k-8)/(QN-9));
+  const gap=k=>k<8?7:lerp(7,3,clamp01((k-8)/(25-8)));
   const ahead=()=>G.enc.find(e=>e.x-L.hitDist[e.w]>G.px+1);
   function segSpeed(){const n=ahead();return n?Math.max(40,(n.x-L.hitDist[n.w]-G.px)/gap(n.k)):220;}
   const pressable=()=>{if(G.phase!=='run')return null;const e=G.enc.find(e=>e.st==='idle');if(!e)return null;const d=e.x-G.px;return d<W-OX-40?e:null;};
