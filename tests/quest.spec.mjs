@@ -61,8 +61,11 @@ test('a full level: 30 cleared with the right words, then the boss is beaten and
         const v0 = Number((await state(page)).v);
         await press(page, s.next); cleared++;
         await expect.poll(async () => Number((await state(page)).v)).toBeGreaterThan(v0 + 150);
-        await page.waitForFunction(() => !document.querySelector('#quest').dataset.rush);
-        expect(Number((await state(page)).v)).toBeLessThan(v0 + 25);
+        await page.waitForFunction(() => !document.querySelector('#quest').dataset.rush && document.querySelector('#quest').dataset.eta);
+        const after = await state(page);
+        expect(Number(after.v)).toBeLessThan(v0 + 25);
+        expect(Number(after.eta)).toBeGreaterThan(6.6);                        // still about 7 s to the next one after a rush
+        expect(Number(after.eta)).toBeLessThanOrEqual(7.05);
         continue;
       }
       await press(page, s.next); cleared++;
@@ -103,6 +106,28 @@ test('a full level: 30 cleared with the right words, then the boss is beaten and
   await page.click('[data-act="home"]');
   await expect(page.locator('.home .owl img.ollie-i')).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('7 s between encounters at the start, 4 s by the end', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { page } = await device(browser, 'quest-pace', known(['cow', 'sun', 'rat']));
+  await page.click('[data-act="games"]');
+  await page.click('[data-act="game"][data-id="quest"]');
+  const etas = [];
+  for (;;) {                                                                 // clear each one at the last moment, note the time to the next
+    const s = await state(page);
+    if (s.phase !== 'run' && s.phase !== 'intro' && etas.length) break;
+    if (s.phase === 'run' && s.next && s.eta && Number(s.eta) < 1.2) {
+      await press(page, s.next);
+      await page.waitForFunction(() => { const q = document.querySelector('#quest').dataset; return q.phase !== 'run' || (!q.rush && q.eta && Number(q.eta) > 2); });
+      const e = await state(page); if (e.phase === 'run') etas.push(Number(e.eta));
+    }
+    await page.waitForTimeout(25);
+  }
+  expect(etas.length).toBeGreaterThan(25);
+  for (const e of etas.slice(0, 6)) { expect(e).toBeGreaterThan(6.5); expect(e).toBeLessThanOrEqual(7.05); }
+  const end = etas[etas.length - 1];
+  expect(end).toBeGreaterThan(3.6); expect(end).toBeLessThan(4.4);
 });
 
 test('running into things costs hearts; with none left it is over, and Try again starts the level over', async ({ browser }) => {

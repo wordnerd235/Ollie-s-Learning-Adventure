@@ -3066,14 +3066,20 @@ function gameQuest(g,my){
   window.addEventListener('resize',size);
   function makeEnc(){const out=[],f=shuffle(L.words);let x=900;
     for(let k=0;k<QN;k++){let w;if(k<3)w=f[k];else{do w=rand(L.words);while(out[k-1].w===w&&out[k-2].w===w);}
-      out.push({k,w,x,st:'idle',t0:0,hint:k<3});x+=480+Math.random()*140;}
+      out.push({k,w,x,st:'idle',t0:0,hint:k<3});x+=lerp(520,900,k/(QN-1))+Math.random()*80;}   // further apart later, so the speed-up shows
     return out;}
   function reset(){
-    G={t:0,phase:'intro',px:0,v:0,hp:3,enc:makeEnc(),parts:[],inv:0,hurt:0,char:0,squash:0,dizzy:0,flap:0,boss:null,mon:(S.cos||{}).on==='monocle',done:false};
+    G={t:0,phase:'intro',px:0,v:0,hp:3,enc:makeEnc(),parts:[],inv:0,hurt:0,char:0,squash:0,dizzy:0,flap:0,boss:null,mon:(S.cos||{}).on==='monocle',done:false,pi:0};G.seg=segSpeed();
     panel.hidden=true;panel.innerHTML='';$('#qbtns').hidden=false;
     $('#qbtns').innerHTML=shuffle(L.words).map(w=>`<button class="qb" data-w="${w}">${disp(w)}</button>`).join('');
     hud();MUSIC.play('run');
   }
+  /* Time from passing one encounter to bumping into the next: 7 s for the first 8, then down to 4 s by
+     the last (owner's request). The speed is set again each time Ollie passes one, so a rush past a
+     cleared one doesn't shorten the time for the next. */
+  const gap=k=>k<8?7:lerp(7,4,(k-8)/(QN-9));
+  const ahead=()=>G.enc.find(e=>e.x-L.hitDist[e.w]>G.px+1);
+  function segSpeed(){const n=ahead();return n?Math.max(40,(n.x-L.hitDist[n.w]-G.px)/gap(n.k)):220;}
   const pressable=()=>{if(G.phase!=='run')return null;const e=G.enc.find(e=>e.st==='idle');if(!e)return null;const d=e.x-G.px;return d<W-OX-40?e:null;};
   function hud(){
     $('#qhp').textContent='❤️'.repeat(Math.max(0,G.hp))+'🤍'.repeat(3-Math.max(0,G.hp));
@@ -3084,6 +3090,7 @@ function gameQuest(g,my){
     const p=pressable();root.dataset.next=p?p.w:'';
     root.dataset.ask=G.phase==='tele'&&!G.boss.dodge?G.boss.ask:'';
     root.dataset.bhp=G.boss?G.boss.hp:'';root.dataset.v=Math.round(G.v);root.dataset.rush=G.rush?'1':'';
+    {const n=G.phase==='run'&&!G.rush&&G.v>0?ahead():null;root.dataset.eta=n?((n.x-L.hitDist[n.w]-G.px)/G.v).toFixed(2):'';}
     $$('.qb',root).forEach(b=>{b.classList.toggle('go',G.phase==='turn');
       b.classList.toggle('hint',!!(p&&p.hint&&G.enc.indexOf(p)<8&&p.w===b.dataset.w&&p.x-G.px<(W-OX)*.75));});
   }
@@ -3137,9 +3144,9 @@ function gameQuest(g,my){
     if(G.phase==='run'||G.phase==='arrive'){
       // constant speed for the first 8, then faster and faster to the end
       const a=E[7].x,b=E[QN-1].x,f=clamp01((G.px-a)/(b-a));
-      const base=G.px<a?175:lerp(175,370,f);
-      if(G.rush&&G.px>G.rush.x+10){G.rush=null;if(G.phase==='run')G.v=base;}   // past it: straight back to the normal pace
-      G.v=G.phase==='arrive'?Math.max(0,G.v-260*dt):G.rush?Math.min(900,G.v+2600*dt):base;
+      const pi=E.filter(e=>e.x+10<G.px).length;if(pi!==G.pi){G.pi=pi;G.seg=segSpeed();}   // passed one: pace for the next
+      if(G.rush&&G.px>G.rush.x+10)G.rush=null;                                           // past it: straight back to that pace
+      G.v=G.phase==='arrive'?Math.max(0,G.v-260*dt):G.rush?Math.min(900,G.v+2600*dt):G.seg;
       MUSIC.bpm=132+f*38;
       G.px+=G.v*dt;
       for(const e of E){
