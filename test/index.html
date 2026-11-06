@@ -3083,7 +3083,7 @@ function gameQuest(g,my){
     root.dataset.phase=G.phase;root.dataset.hp=G.hp;
     const p=pressable();root.dataset.next=p?p.w:'';
     root.dataset.ask=G.phase==='tele'&&!G.boss.dodge?G.boss.ask:'';
-    root.dataset.bhp=G.boss?G.boss.hp:'';
+    root.dataset.bhp=G.boss?G.boss.hp:'';root.dataset.v=Math.round(G.v);root.dataset.rush=G.rush?'1':'';
     $$('.qb',root).forEach(b=>{b.classList.toggle('go',G.phase==='turn');
       b.classList.toggle('hint',!!(p&&p.hint&&G.enc.indexOf(p)<8&&p.w===b.dataset.w&&p.x-G.px<(W-OX)*.75));});
   }
@@ -3138,8 +3138,8 @@ function gameQuest(g,my){
       // constant speed for the first 8, then faster and faster to the end
       const a=E[7].x,b=E[QN-1].x,f=clamp01((G.px-a)/(b-a));
       const base=G.px<a?175:lerp(175,370,f);
-      if(G.rush&&G.px>G.rush.x+30)G.rush=null;                      // cleared: back to the normal pace
-      G.v=G.phase==='arrive'?Math.max(0,G.v-260*dt):G.rush?Math.min(900,G.v+2600*dt):Math.max(base,G.v-1800*dt);
+      if(G.rush&&G.px>G.rush.x+10){G.rush=null;if(G.phase==='run')G.v=base;}   // past it: straight back to the normal pace
+      G.v=G.phase==='arrive'?Math.max(0,G.v-260*dt):G.rush?Math.min(900,G.v+2600*dt):base;
       MUSIC.bpm=132+f*38;
       G.px+=G.v*dt;
       for(const e of E){
