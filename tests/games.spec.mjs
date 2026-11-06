@@ -28,7 +28,7 @@ test('games unlock as words are learned; a locked game shows how many words it n
   await dismissWelcome(page);
   await expect(page.locator('[data-act="games"] .badge')).toHaveCount(0);
   await page.click('[data-act="games"]');
-  await expect(page.locator('.scard.locked')).toHaveCount(5);
+  await expect(page.locator('.scard.locked')).toHaveCount(6);
   await expect(page.locator('[data-game="balloons"]')).toContainText('Know 3 words to unlock');
   await expect(page.locator('[data-game="balloons"] .gmeter')).toContainText('0 / 3');
   await page.click('[data-game="balloons"] [data-act="play"]');            // Practice words: a reading round
@@ -37,7 +37,7 @@ test('games unlock as words are learned; a locked game shows how many words it n
   await setWords(page, known(['cat', 'dog', 'sun', 'hat']));
   await expect(page.locator('[data-act="games"] .badge')).toHaveText('1');  // one new game
   await page.click('[data-act="games"]');
-  await expect(page.locator('.scard.locked')).toHaveCount(4);
+  await expect(page.locator('.scard.locked')).toHaveCount(5);
   await expect(page.locator('[data-game="snap"] .gmeter')).toContainText('4 / 6');
   await page.click('[data-act="game"][data-id="balloons"]');
   await playGame(page, 'balloons');
