@@ -60,7 +60,10 @@ test('a full level: 30 cleared with the right words, then the boss is beaten and
       await page.waitForFunction(w => document.querySelector('#quest').dataset.next !== w || document.querySelector('#quest').dataset.phase !== 'run', s.next);
       continue;
     }
-    if (s.phase === 'tele' && s.ask) { await press(page, s.ask); dodged++; continue; }
+    if (s.phase === 'tele' && s.ask) {
+      await press(page, s.ask); dodged++;
+      expect((await state(page)).phase).toBe('attack');                    // the boss attacks (and misses) at once
+      continue; }
     if (s.phase === 'turn') { await press(page, ['cow', 'sun', 'rat'][strikes % 3]); strikes++; await page.waitForFunction(() => document.querySelector('#quest').dataset.phase !== 'pattack' && document.querySelector('#quest').dataset.phase !== 'turn'); continue; }
     await page.waitForTimeout(30);
   }
@@ -69,6 +72,14 @@ test('a full level: 30 cleared with the right words, then the boss is beaten and
   expect(strikes).toBe(3);
   expect(Number((await state(page)).hp)).toBe(3);
   await expect(page.locator('#qpanel')).toContainText('monocle');
+  await expect(page.locator('#qbtns')).toBeHidden();                       // the word buttons don't cover the panel
+  const pic = () => page.locator('#qpanel .qbig img').getAttribute('src');
+  const worn = await pic();
+  await page.click('#qpanel [data-q="wear"]');                             // take it off: the picture changes
+  await expect(page.locator('#qpanel [data-q="wear"]')).toHaveText('Wear it');
+  expect(await pic()).not.toBe(worn);
+  await page.click('#qpanel [data-q="wear"]');
+  expect(await pic()).toBe(worn);
   const S = await page.evaluate(KEY => JSON.parse(localStorage.getItem(KEY)), KEY);
   expect(S.cos).toEqual({ owned: ['monocle'], on: 'monocle' });
   expect(S.games.quest).toBe(1);
@@ -93,7 +104,9 @@ test('running into things costs hearts; with none left it is over, and Try again
   await expect.poll(async () => (await state(page)).hp, { timeout: 60_000 }).toBe('2');
   await expect.poll(async () => (await state(page)).phase, { timeout: 60_000 }).toBe('over');
   await expect(page.locator('#qpanel')).toContainText('Oh no!');
+  await expect(page.locator('#qbtns')).toBeHidden();
   await page.click('#qpanel [data-q="again"]');
+  await expect(page.locator('#qbtns')).toBeVisible();
   const s = await state(page);
   expect(s.hp).toBe('3');
   expect(['intro', 'run']).toContain(s.phase);

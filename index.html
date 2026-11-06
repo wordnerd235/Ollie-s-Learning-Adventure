@@ -469,6 +469,7 @@ details.vlev summary{font-weight:700;font-size:17px;padding:8px 2px;cursor:point
 .qprog{flex:1;max-width:340px;height:12px;border-radius:999px;background:rgba(255,255,255,.6);border:2px solid #2b1d14;position:relative;overflow:hidden}
 .qprog i{position:absolute;left:0;top:0;bottom:0;width:0;background:#ffd23f}
 .qboss{margin-left:auto}
+.qbtns[hidden]{display:none}
 .qbtns{flex:none;display:flex;gap:12px;justify-content:center;padding:8px 12px 10px;background:linear-gradient(#6b4a32,#3e2a1e);border-top:3px solid #2b1d14}
 .qb{flex:1;max-width:230px;min-height:60px;border:3px solid #2b1d14;border-radius:20px;font-family:var(--letters);font-weight:700;font-size:34px;line-height:1;
   color:#2b2350;background:#fff6dc;box-shadow:0 6px 0 #2b1d14;touch-action:manipulation;-webkit-user-select:none;user-select:none}
@@ -2873,8 +2874,8 @@ function drawRat(c,t,o={}){
   const lunge=o.lunge||0,run=o.run||0;c.translate(-lunge*26,0);
   c.lineWidth=3;c.strokeStyle='#e79aa6';c.beginPath();c.moveTo(24,-12);
   c.bezierCurveTo(44,-6+Math.sin(t*6)*6,52,-34,66,-26+Math.sin(t*6+1)*5);c.stroke();     // tail
-  const lg=(x,k)=>{const y=run?Math.sin(t*40+k*2)*4:0;ell(c,x,-3+y,5,3);fs(c,'#e79aa6',1.6);};
-  lg(-14,0);lg(12,1);
+  const lg=(x,k)=>{const sw=run?Math.sin(t*38+k*Math.PI)*7:0;c.lineWidth=3.2;c.strokeStyle='#8f8fa0';c.beginPath();c.moveTo(x,-8);c.lineTo(x+sw,-1);c.stroke();ell(c,x+sw,-1,5,2.6);fs(c,'#e79aa6',1.6);};
+  lg(-16,0);lg(-8,1);lg(10,1);lg(18,0);
   ell(c,0,-15,28,15);fs(c,'#8f8fa0');                  // body
   if(o.spiky){c.lineWidth=2;c.strokeStyle=INK;c.beginPath();for(let k=0;k<9;k++){const x=-20+k*5;c.moveTo(x,-27+Math.abs(Math.sin(k))*2);c.lineTo(x+2.5,-38);c.lineTo(x+5,-27);}c.stroke();}
   ell(c,6,-11,15,7);fs(c,'#b5b5c4',0);
@@ -3069,7 +3070,7 @@ function gameQuest(g,my){
     return out;}
   function reset(){
     G={t:0,phase:'intro',px:0,v:0,hp:3,enc:makeEnc(),parts:[],inv:0,hurt:0,char:0,squash:0,dizzy:0,flap:0,boss:null,mon:(S.cos||{}).on==='monocle',done:false};
-    panel.hidden=true;panel.innerHTML='';
+    panel.hidden=true;panel.innerHTML='';$('#qbtns').hidden=false;
     $('#qbtns').innerHTML=shuffle(L.words).map(w=>`<button class="qb" data-w="${w}">${disp(w)}</button>`).join('');
     hud();MUSIC.play('run');
   }
@@ -3106,7 +3107,7 @@ function gameQuest(g,my){
     if(G.phase==='run'){
       const e=pressable();if(!e)return;
       if(e.w!==w){ok.good=false;ok(btn);FX.bonk();return;}
-      ok.good=true;ok(btn);e.st='ok';e.t0=G.t;FX.ding();stopSpeech();say(`${w}!`,{rate:.8,slow:.85});
+      ok.good=true;ok(btn);e.st='ok';e.t0=G.t;G.rush=e;FX.ding();stopSpeech();say(`${w}!`,{rate:.8,slow:.85});
       const sx=OX+(e.x-G.px);pop(L.say[w][0],sx,w==='sun'?40:GY-120,'#fff');
       if(w==='rat')FX.boing();if(w==='cow')FX.whoosh();if(w==='sun')FX.sparkle();
       hud();return;
@@ -3114,14 +3115,17 @@ function gameQuest(g,my){
     if(G.phase==='tele'){
       const B=G.boss;if(B.dodge)return;
       if(w!==B.ask){ok.good=false;ok(btn);FX.bonk();return;}
-      ok.good=true;ok(btn);B.dodge=true;FX.ding();stopSpeech();say(`${w}!`,{rate:.8,slow:.85});addP({type:'check',x:OX,y:GY-150,life:1});hud();return;
+      ok.good=true;ok(btn);B.dodge=true;FX.ding();stopSpeech();say(`${w}!`,{rate:.8,slow:.85});addP({type:'check',x:OX,y:GY-150,life:1});
+      G.phase='attack';G.anim={w,t:0,dodge:true,done:false};FX.whoosh();hud();return;      // the boss attacks at once, and misses
     }
     if(G.phase==='turn'){ok.good=true;ok(btn);stopSpeech();say(`${w}!`,{rate:.8,slow:.85});G.phase='pattack';G.anim={w,t:0,done:false};hud();}
   }
   $('#qbtns').addEventListener('pointerdown',e=>{const b=e.target.closest('.qb');if(!b)return;e.preventDefault();press(b.dataset.w,b);});
   panel.addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(!b)return;
     if(b.dataset.q==='again'){reset();}
-    if(b.dataset.q==='wear'){S.cos.on=S.cos.on==='monocle'?'':'monocle';persist();b.textContent=S.cos.on?'✓ Wearing it':'Wear it';G.mon=S.cos.on==='monocle';}
+    if(b.dataset.q==='wear'){S.cos.on=S.cos.on==='monocle'?'':'monocle';persist();G.mon=S.cos.on==='monocle';
+      b.textContent=G.mon?'✓ Wearing it':'Wear it';b.classList.toggle('green',G.mon);b.classList.toggle('ghost',!G.mon);
+      const im=$('.qbig',panel);if(im)im.innerHTML=ollieImg();FX.pop();}
   });
 
   /* ---- the boss fight ---- */
@@ -3133,7 +3137,9 @@ function gameQuest(g,my){
     if(G.phase==='run'||G.phase==='arrive'){
       // constant speed for the first 8, then faster and faster to the end
       const a=E[7].x,b=E[QN-1].x,f=clamp01((G.px-a)/(b-a));
-      G.v=G.phase==='arrive'?Math.max(0,G.v-260*dt):(G.px<a?175:lerp(175,370,f));
+      const base=G.px<a?175:lerp(175,370,f);
+      if(G.rush&&G.px>G.rush.x+30)G.rush=null;                      // cleared: back to the normal pace
+      G.v=G.phase==='arrive'?Math.max(0,G.v-260*dt):G.rush?Math.min(900,G.v+2600*dt):Math.max(base,G.v-1800*dt);
       MUSIC.bpm=132+f*38;
       G.px+=G.v*dt;
       for(const e of E){
@@ -3181,13 +3187,13 @@ function gameQuest(g,my){
       <p>You beat ${L.boss}!${first?' You won the <b>monocle</b> 🧐':''}</p>
       <div class="qrow"><button class="btn sm ${S.cos.on==='monocle'?'green':'ghost'}" data-q="wear">${S.cos.on==='monocle'?'✓ Wearing it':'Wear it'}</button>
       <button class="btn sm blue" data-q="again">↻ Play again</button><button class="btn sm pink" data-act="games">🎮 Games</button></div></div>`;
-    panel.hidden=false;say(praise,{rate:.8,slow:.85});
+    panel.hidden=false;$('#qbtns').hidden=true;say(praise,{rate:.8,slow:.85});
   }
   function over(){
     if(!panel.hidden)return;
     panel.innerHTML=`<div class="qcard"><div class="qbig">💔</div><h2>Oh no!</h2><div class="qrow">
       <button class="btn green" data-q="again">↻ Try again</button><button class="btn sm ghost" data-act="games">🎮 Games</button></div></div>`;
-    panel.hidden=false;
+    panel.hidden=false;$('#qbtns').hidden=true;
   }
 
   /* ---- drawing ---- */
@@ -3247,7 +3253,7 @@ function gameQuest(g,my){
         if(e.st==='ok'){const r=Math.max(0,p-.25);c.translate(r*30,-r*r*160-r*40);c.rotate(Math.sin(t*3)*.15);drawCow(c,t,{puff:clamp01(p*3),surprised:true});}
         else drawCow(c,t,{surprised:e.st==='hit'});c.restore();}
       else{const d=e.x-G.px;c.save();c.translate(sx,GY);c.scale(1.35,1.35);
-        if(e.st==='ok'){const j=Math.min(p,.35)/.35;c.translate(p>.35?(p-.35)*700:0,-Math.sin(j*Math.PI)*46);drawRat(c,t,{spiky:true,flip:p>.3,run:p>.35});}
+        if(e.st==='ok'){const j=Math.min(p,.3)/.3;c.translate(p>.3?(p-.3)*1500:0,-Math.sin(j*Math.PI)*46);drawRat(c,t,{spiky:p<.3,flip:p>.2,run:p>.3});}   // jumps with fright, then scurries off fast
         else if(e.st==='hit'){c.translate(p>.5?(p-.5)*600:0,0);drawRat(c,t,{lunge:p<.5?1:0,flip:p>.5,run:p>.5});}
         else drawRat(c,t,{lunge:d<190?clamp01((190-d)/90):0});c.restore();}
     }
@@ -3268,6 +3274,9 @@ function gameQuest(g,my){
       c.restore();
       if(B.anger>=1&&G.phase!=='defeat'&&Math.random()<dtLast*6)addP({type:'smoke',x:B.x+(Math.random()<.5?6:56),y:GY-262,vx:(Math.random()-.5)*40,vy:-80,life:.9,col:'#fff'});
     }
+    // speed lines while rushing past something cleared
+    if(G.rush&&G.v>400){c.save();c.strokeStyle='rgba(255,255,255,.7)';c.lineWidth=3;c.lineCap='round';
+      for(let k=0;k<7;k++){const y=150+hash(k)*130,x=((hash(k+3)*W*1.3-G.px*1.6)%(W*1.3)+W*1.3)%(W*1.3)-60,l=40+hash(k+7)*60;c.beginPath();c.moveTo(x,y);c.lineTo(x+l,y);c.stroke();}c.restore();}
     // Ollie
     const ox=OX,oy=GY;
     if(G.phase==='defeat'||G.phase==='won'){c.save();drawOllieAt(ox,oy-Math.abs(Math.sin(t*5))*(G.phase==='won'?30:0));c.restore();}
